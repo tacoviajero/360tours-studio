@@ -1,0 +1,25 @@
+node_modules/
+.pnpm-store/
+dist/
+.vite/
+.tauri/
+
+# Local app data generated during development.
+projects/*
+!projects/.gitkeep
+exports/*
+!exports/.gitkeep
+config/*
+!config/.gitkeep
+
+# Environment and credentials.
+.env
+.env.*
+*.key
+*.pem
+
+# OS/editor noise.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

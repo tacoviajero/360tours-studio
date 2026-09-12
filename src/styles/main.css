@@ -1,0 +1,220 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #101014;
+  color: #f5f0e8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, rgba(205, 78, 42, 0.08), transparent 34%),
+    #101014;
+}
+
+button {
+  border: 1px solid rgba(245, 240, 232, 0.16);
+  border-radius: 8px;
+  background: #24232a;
+  color: #f5f0e8;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover,
+button:focus-visible {
+  border-color: #f08a4b;
+  outline: none;
+}
+
+.studio-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(240px, 320px);
+  min-height: 100vh;
+}
+
+.project-panel,
+.properties-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background: #17171d;
+  border-color: rgba(245, 240, 232, 0.08);
+}
+
+.project-panel {
+  border-right: 1px solid rgba(245, 240, 232, 0.08);
+}
+
+.properties-panel {
+  border-left: 1px solid rgba(245, 240, 232, 0.08);
+}
+
+.viewer-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 84px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(245, 240, 232, 0.08);
+  background: rgba(16, 16, 20, 0.86);
+}
+
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.topbar-actions button,
+.primary-action {
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.primary-action {
+  background: #c74d2c;
+  border-color: #f08a4b;
+}
+
+.viewer-surface {
+  position: relative;
+  min-height: 0;
+  background: #050507;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: #f08a4b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 10px;
+  font-size: 1.6rem;
+}
+
+h2 {
+  margin-bottom: 12px;
+  font-size: 1.08rem;
+}
+
+.muted {
+  color: #b9b0a6;
+  line-height: 1.5;
+}
+
+.scene-list {
+  display: grid;
+  gap: 8px;
+}
+
+.scene-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.scene-item.is-active {
+  background: #f5f0e8;
+  color: #101014;
+}
+
+.scene-item strong {
+  color: #f08a4b;
+  font-size: 0.76rem;
+}
+
+.hotspot {
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 2px solid #f5f0e8;
+  border-radius: 999px;
+  background: #c74d2c;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hotspot--info {
+  background: #226c67;
+}
+
+.status-ok {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(82, 211, 126, 0.32);
+  border-radius: 8px;
+  background: rgba(82, 211, 126, 0.1);
+  color: #9af2b4;
+}
+
+.issue-list,
+.milestone-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #d7cec4;
+  line-height: 1.6;
+}
+
+.issue--error {
+  color: #ff9b8c;
+}
+
+.issue--warning {
+  color: #ffd28a;
+}
+
+@media (max-width: 980px) {
+  .studio-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(480px, 68vh) auto;
+  }
+
+  .project-panel,
+  .properties-panel {
+    border: 0;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
