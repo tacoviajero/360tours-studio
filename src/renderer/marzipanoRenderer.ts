@@ -1,16 +1,19 @@
 import Marzipano from "marzipano";
-import type { Hotspot, Scene, TourProject } from "../domain/tour";
+import type { Hotspot, Scene, TourProject, ViewState } from "../domain/tour";
 import type { TourRenderer } from "./tourRenderer";
 
 interface RenderedScene {
   data: Scene;
   scene: any;
+  view: any;
 }
 
 export class MarzipanoTourRenderer implements TourRenderer {
   private viewer: any | null = null;
   private scenes = new Map<string, RenderedScene>();
   private project: TourProject | null = null;
+  private container: HTMLElement | null = null;
+  private currentSceneId: string | null = null;
   private onSceneChange: (sceneId: string) => void;
 
   constructor(onSceneChange: (sceneId: string) => void = () => undefined) {
@@ -20,6 +23,7 @@ export class MarzipanoTourRenderer implements TourRenderer {
   mount(container: HTMLElement, project: TourProject): void {
     this.destroy();
     this.project = project;
+    this.container = container;
     this.viewer = new Marzipano.Viewer(container);
 
     for (const scene of project.scenes) {
@@ -29,7 +33,7 @@ export class MarzipanoTourRenderer implements TourRenderer {
       const limiter = Marzipano.RectilinearView.limit.traditional(4096, Math.PI / 2);
       const renderedScene = this.viewer.createScene({ source, geometry, view, limiter });
 
-      this.scenes.set(scene.id, { data: scene, scene: renderedScene });
+      this.scenes.set(scene.id, { data: scene, scene: renderedScene, view });
       this.createHotspots(renderedScene, scene.hotspots);
     }
 
@@ -43,12 +47,47 @@ export class MarzipanoTourRenderer implements TourRenderer {
     }
 
     renderedScene.scene.switchTo({ transitionDuration: 350 });
+    this.currentSceneId = sceneId;
     this.onSceneChange(sceneId);
+  }
+
+  getCurrentViewState(): ViewState | null {
+    const currentScene = this.currentSceneId ? this.scenes.get(this.currentSceneId) : null;
+    if (!currentScene) {
+      return null;
+    }
+
+    const parameters = currentScene.view.parameters();
+    return {
+      yaw: roundViewNumber(parameters.yaw),
+      pitch: roundViewNumber(parameters.pitch),
+      fov: roundViewNumber(parameters.fov)
+    };
+  }
+
+  screenToCoordinates(x: number, y: number): Pick<ViewState, "yaw" | "pitch"> | null {
+    const currentScene = this.currentSceneId ? this.scenes.get(this.currentSceneId) : null;
+    if (!currentScene || !this.container) {
+      return null;
+    }
+
+    const bounds = this.container.getBoundingClientRect();
+    const coordinates = currentScene.view.screenToCoordinates({
+      x: x - bounds.left,
+      y: y - bounds.top
+    });
+
+    return {
+      yaw: roundViewNumber(coordinates.yaw),
+      pitch: roundViewNumber(coordinates.pitch)
+    };
   }
 
   destroy(): void {
     this.scenes.clear();
     this.project = null;
+    this.container = null;
+    this.currentSceneId = null;
     if (this.viewer) {
       this.viewer.destroy();
       this.viewer = null;
@@ -87,3 +126,6 @@ export class MarzipanoTourRenderer implements TourRenderer {
   }
 }
 
+function roundViewNumber(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}

@@ -14,6 +14,7 @@ export class JPEG360Importer implements PanoramaImporter {
   async import(files: ImportCandidate[]): Promise<ImportResult> {
     const issues: ImportResult["issues"] = [];
     const scenes = [];
+    const seenNames = new Set<string>();
 
     for (const candidate of files) {
       if (!this.canImport(candidate.file)) {
@@ -22,6 +23,33 @@ export class JPEG360Importer implements PanoramaImporter {
           message: `${candidate.file.name} no es un JPG compatible.`
         });
         continue;
+      }
+
+      const normalizedName = candidate.file.name.toLowerCase();
+      if (seenNames.has(normalizedName)) {
+        issues.push({
+          severity: "warning",
+          message: `${candidate.file.name} esta duplicado en esta importacion.`
+        });
+        continue;
+      }
+      seenNames.add(normalizedName);
+
+      const dimensions = await readImageDimensions(candidate.file);
+      if (!dimensions) {
+        issues.push({
+          severity: "error",
+          message: `${candidate.file.name} no se pudo leer como imagen valida.`
+        });
+        continue;
+      }
+
+      const aspectRatio = dimensions.width / dimensions.height;
+      if (Math.abs(aspectRatio - 2) > 0.12) {
+        issues.push({
+          severity: "warning",
+          message: `${candidate.file.name} no parece una foto 360 completa.`
+        });
       }
 
       const id = toSceneId(candidate.file.name);
@@ -37,6 +65,39 @@ export class JPEG360Importer implements PanoramaImporter {
 
     return { scenes, issues };
   }
+}
+
+async function readImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  try {
+    if ("createImageBitmap" in window) {
+      const image = await createImageBitmap(file);
+      const dimensions = { width: image.width, height: image.height };
+      image.close();
+      return dimensions;
+    }
+
+    return await readImageElementDimensions(file);
+  } catch {
+    return null;
+  }
+}
+
+function readImageElementDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+
+    image.addEventListener("load", () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    });
+    image.addEventListener("error", () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Imagen invalida."));
+    });
+
+    image.src = url;
+  });
 }
 
 function toSceneId(filename: string): string {
@@ -59,4 +120,3 @@ function toSceneName(filename: string): string {
 
   return words.length > 0 ? words.join(" ") : "Escena nueva";
 }
-

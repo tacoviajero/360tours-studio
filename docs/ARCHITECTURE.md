@@ -1,6 +1,6 @@
 # Arquitectura inicial
 
-HomeTours Studio se desarrolla como una app local-first con cuatro responsabilidades separadas:
+360Tours Studio se desarrolla como una app local-first con cuatro responsabilidades separadas:
 
 1. Importar fotografias 360.
 2. Modelar proyectos versionados.
@@ -37,4 +37,3 @@ src/
 - Tauri como objetivo de empaquetado Windows cuando Rust/Cargo este instalado.
 
 No se incorpora base de datos, backend publico, WordPress ni servicio cloud.
-

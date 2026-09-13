@@ -1,8 +1,8 @@
-# HomeTours Studio - Plan maestro del proyecto
+# 360Tours Studio - Plan maestro del proyecto
 
 ## Objetivo del proyecto
 
-Construir una aplicacion local para Windows llamada **HomeTours Studio** que permita convertir fotografias panoramicas 360 en recorridos virtuales navegables y publicarlos directamente en TacoViajero.
+Construir una aplicacion local para Windows llamada **360Tours Studio** que permita convertir fotografias panoramicas 360 en recorridos virtuales navegables y publicarlos directamente en TacoViajero.
 
 La aplicacion debe estar pensada para uso personal, local y sin depender de un servidor publico para funcionar.
 
@@ -11,7 +11,7 @@ Flujo esperado:
 ```text
 Fotos 360
 ↓
-HomeTours Studio
+360Tours Studio
 ↓
 Crear escenas
 ↓
@@ -28,7 +28,7 @@ Publicar
 https://tacoviajero.com/tours/[slug]/
 ```
 
-La aplicacion no debe depender del sitio comercial de HomeTours360.
+La aplicacion no debe depender del sitio comercial de 360Tours.
 
 El sitio comercial vive en:
 
@@ -38,7 +38,7 @@ Los recorridos publicados viven de forma independiente en:
 
 <https://tacoviajero.com/tours/[slug]/>
 
-HomeTours Studio es una herramienta de produccion.
+360Tours Studio es una herramienta de produccion.
 
 ---
 
@@ -70,7 +70,7 @@ Publicador
 
 El editor nunca debe contener logica inseparable del tour publicado.
 
-El tour publicado debe seguir funcionando aunque HomeTours Studio deje de existir o sea reemplazado por otra aplicacion.
+El tour publicado debe seguir funcionando aunque 360Tours Studio deje de existir o sea reemplazado por otra aplicacion.
 
 No construir una arquitectura SaaS.
 
@@ -86,7 +86,7 @@ No introducir infraestructura cloud si no resuelve una necesidad concreta.
 
 ## 2. Tipo de aplicacion
 
-HomeTours Studio debe ser una web app local-first.
+360Tours Studio debe ser una web app local-first.
 
 Durante desarrollo podra ejecutarse en:
 
@@ -100,7 +100,7 @@ Se recomienda evaluar Tauri como contenedor de escritorio.
 
 No usar Electron salvo que exista una razon tecnica clara.
 
-El objetivo final es que el usuario pueda abrir HomeTours Studio desde Windows como cualquier otra aplicacion y trabajar sin conexion a internet.
+El objetivo final es que el usuario pueda abrir 360Tours Studio desde Windows como cualquier otra aplicacion y trabajar sin conexion a internet.
 
 Internet solo debe ser necesario para publicar tours.
 
@@ -155,7 +155,7 @@ El flujo final esperado debe ser:
 
 1. Fotografiar una propiedad con Insta360 X5.
 2. Copiar las fotografias 360 al equipo.
-3. Abrir HomeTours Studio.
+3. Abrir 360Tours Studio.
 4. Crear un nuevo proyecto.
 5. Arrastrar las fotografias.
 6. Studio crea automaticamente las escenas.
@@ -267,7 +267,7 @@ Cada proyecto debe vivir como una carpeta normal.
 Ejemplo:
 
 ```text
-HomeToursStudio/
+360ToursStudio/
 ├── projects/
 │   ├── casa-antigua/
 │   │   ├── project.json
@@ -412,7 +412,7 @@ No todos necesitan UI avanzada en la primera version, pero el modelo debe permit
 Pantalla inicial:
 
 ```text
-HomeTours Studio
+360Tours Studio
 
 [ + Nuevo tour ]
 
@@ -934,12 +934,12 @@ Evitar dejar tours parcialmente publicados si se corta internet.
 
 ## 33. Cuenta SFTP dedicada
 
-Crear una cuenta exclusiva para HomeTours Studio.
+Crear una cuenta exclusiva para 360Tours Studio.
 
 Ejemplo:
 
 ```text
-hometours-publisher
+360tours-publisher
 ```
 
 Debe tener acceso unicamente a:
@@ -1251,7 +1251,7 @@ Añadir:
 
 Criterio de exito:
 
-- Crear un HomeTour que pueda entregarse a un cliente.
+- Crear un tour 360 que pueda entregarse a un cliente.
 
 ### Fase D - Pipeline web
 
@@ -1364,7 +1364,7 @@ Nunca sacrificar integridad de datos o seguridad de publicacion por velocidad de
 
 ## 49. Criterios de exito del proyecto
 
-HomeTours Studio estara listo para uso real cuando pueda:
+360Tours Studio estara listo para uso real cuando pueda:
 
 - abrir en Windows
 - crear proyecto
@@ -1410,7 +1410,7 @@ Ejemplo:
 
 <https://tacoviajero.com/tours/casa-antigua/>
 
-HomeTours Studio debe ser una herramienta robusta, local, simple de usar y tecnicamente desacoplada.
+360Tours Studio debe ser una herramienta robusta, local, simple de usar y tecnicamente desacoplada.
 
 No construir una plataforma generica antes de necesitarla.
 
@@ -1428,7 +1428,7 @@ La aplicacion debe hacer una sola cosa extremadamente bien:
 
 ## Lectura tecnica del plan
 
-Este plan define HomeTours Studio como una herramienta local-first de produccion, no como un SaaS ni como una extension de WordPress. La decision central es separar el editor, el formato del proyecto, el renderer del tour y el publicador para que los tours exportados sean autonomos y sigan funcionando aunque Studio cambie o desaparezca.
+Este plan define 360Tours Studio como una herramienta local-first de produccion, no como un SaaS ni como una extension de WordPress. La decision central es separar el editor, el formato del proyecto, el renderer del tour y el publicador para que los tours exportados sean autonomos y sigan funcionando aunque Studio cambie o desaparezca.
 
 La ruta de desarrollo correcta empieza por el nucleo: formato versionado, filesystem, renderer Marzipano y un tour generado desde JSON. Despues debe venir el editor basico, y solo cuando el flujo minimo funcione de extremo a extremo se deben añadir funcionalidades de producto, optimizacion y publicacion segura.
 
@@ -1441,4 +1441,3 @@ Las reglas que deben guiar el desarrollo son:
 - publicar por SFTP con deploy temporal, verificacion, activacion y rollback
 - ocultar complejidad tecnica al usuario final
 - no añadir infraestructura ni dependencias sin necesidad concreta
-

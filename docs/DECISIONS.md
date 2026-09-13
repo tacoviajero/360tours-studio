@@ -2,7 +2,7 @@
 
 ## ADR-001: App local-first
 
-HomeTours Studio se construye primero como web app local-first. Durante desarrollo corre en localhost. El empaquetado Windows se resolvera despues con Tauri cuando Rust/Cargo este disponible.
+360Tours Studio se construye primero como web app local-first. Durante desarrollo corre en localhost. El empaquetado Windows se resolvera despues con Tauri cuando Rust/Cargo este disponible.
 
 ## ADR-002: Tours publicados estaticos
 
@@ -27,4 +27,3 @@ V1 acepta JPG/JPEG 360 ya procesados. El soporte futuro para INSP debe entrar co
 ## ADR-007: Git obligatorio
 
 El proyecto debe mantenerse bajo control de versiones desde el principio. Cada hito funcional debe cerrarse con commit.
-
