@@ -75,12 +75,11 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 - `progress.html` y `src/progress/progress.ts` como tablero visual de los 50 puntos.
 - `docs/SESSION_STATUS.md` como resumen operativo de cierre.
 - `README.md` con comandos y estado de escritorio.
-- Git todavia no tiene un commit nuevo con este bloque de trabajo.
+- Git tiene el commit de cierre `1443353 Guardar avance de 360Tours Studio al 67%`.
 
 ## Siguientes pasos recomendados
 
-1. Hacer commit del estado actual.
-2. Probar la app instalada con 3 JPG reales.
-3. Mejorar selector nativo de carpeta externa en Tauri.
-4. Implementar publicacion SFTP real.
-5. Resolver MSI/WiX solo si se necesita instalador `.msi`; por ahora NSIS `.exe` es suficiente para probar.
+1. Probar la app instalada con 3 JPG reales.
+2. Mejorar selector nativo de carpeta externa en Tauri.
+3. Implementar publicacion SFTP real.
+4. Resolver MSI/WiX solo si se necesita instalador `.msi`; por ahora NSIS `.exe` es suficiente para probar.
