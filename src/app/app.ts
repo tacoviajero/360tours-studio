@@ -116,6 +116,10 @@ export class Tours360StudioApp {
 
         <aside class="properties-panel" aria-label="Propiedades">
           <section>
+            <h2>Siguiente paso</h2>
+            <div data-next-steps></div>
+          </section>
+          <section>
             <h2>Escena activa</h2>
             <div data-scene-properties></div>
           </section>
@@ -563,7 +567,12 @@ export class Tours360StudioApp {
     };
     this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
     await this.persistAndRender(root, true);
-    this.renderImportStatus(root, `${newScenes.length} escena${newScenes.length === 1 ? "" : "s"} importada${newScenes.length === 1 ? "" : "s"}.`);
+    this.renderImportStatus(
+      root,
+      `${newScenes.length} escena${newScenes.length === 1 ? "" : "s"} importada${newScenes.length === 1 ? "" : "s"}. ${
+        newScenes.length > 1 ? "Se conectaron en linea automaticamente." : ""
+      }`
+    );
   }
 
   private dedupeSceneIds(scenes: Scene[]): Scene[] {
@@ -643,6 +652,7 @@ export class Tours360StudioApp {
     this.assetIssues = await this.validateAssets();
     this.renderRecentProjects(root);
     this.renderSceneProperties(root);
+    this.renderNextSteps(root);
     await this.renderFloorplanPanel(root);
     await this.renderGalleryPanel(root);
     this.renderValidation(root);
@@ -948,6 +958,86 @@ export class Tours360StudioApp {
         </label>
         <button data-action="move-hotspot-here" data-hotspot-id="${id}">Mover al centro visible</button>
       </article>
+    `;
+  }
+
+  private renderNextSteps(root: HTMLElement): void {
+    const panel = root.querySelector<HTMLElement>("[data-next-steps]");
+    if (!panel) {
+      return;
+    }
+
+    const issues = this.getProjectIssues();
+    const errors = issues.filter((issue) => issue.severity === "error");
+    const warnings = issues.filter((issue) => issue.severity === "warning");
+    const connections = this.project.scenes.reduce(
+      (total, scene) => total + scene.hotspots.filter((hotspot) => hotspot.type === "scene").length,
+      0
+    );
+    const activeScene = this.project.scenes.find((scene) => scene.id === this.activeSceneId);
+    const requiredLinearConnections = Math.max(0, this.project.scenes.length - 1);
+    const canExport = this.project.scenes.length > 0 && errors.length === 0;
+    const steps = [
+      {
+        title: "Importar fotos 360",
+        done: this.project.scenes.length > 0,
+        detail:
+          this.project.scenes.length > 0
+            ? `${this.project.scenes.length} panorama${this.project.scenes.length === 1 ? "" : "s"} cargado${this.project.scenes.length === 1 ? "" : "s"}.`
+            : "Arrastra los JPG equirectangulares al panel izquierdo."
+      },
+      {
+        title: "Revisar recorrido lineal",
+        done: this.project.scenes.length <= 1 || connections >= requiredLinearConnections,
+        detail:
+          this.project.scenes.length <= 1
+            ? "Con una sola escena no hacen falta conexiones."
+            : `${connections} conexion${connections === 1 ? "" : "es"} de navegacion creadas.`
+      },
+      {
+        title: "Ajustar vista inicial",
+        done: Boolean(activeScene?.initialView),
+        detail: activeScene ? `Escena activa: ${activeScene.name}.` : "Selecciona una escena cuando exista el tour."
+      },
+      {
+        title: "Guardar copia editable",
+        done: false,
+        detail: "Usa Guardar carpeta antes de entregar o mover el proyecto."
+      },
+      {
+        title: "Exportar ZIP",
+        done: canExport,
+        detail: canExport ? "El tour ya puede generar un ZIP de prueba." : "Corrige errores criticos antes de exportar."
+      }
+    ];
+    const nextStep = steps.find((step) => !step.done) ?? steps[steps.length - 1];
+
+    panel.innerHTML = `
+      <div class="next-step-card">
+        <p class="eyebrow">Ahora</p>
+        <strong>${escapeHtml(nextStep.title)}</strong>
+        <span>${escapeHtml(nextStep.detail)}</span>
+      </div>
+      <div class="next-step-list">
+        ${steps
+          .map(
+            (step) => `
+              <div class="next-step-item${step.done ? " is-done" : ""}">
+                <i aria-hidden="true"></i>
+                <div>
+                  <strong>${escapeHtml(step.title)}</strong>
+                  <span>${escapeHtml(step.detail)}</span>
+                </div>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+      ${
+        warnings.length > 0
+          ? `<p class="muted">${warnings.length} aviso${warnings.length === 1 ? "" : "s"} pendiente${warnings.length === 1 ? "" : "s"}; no bloquea exportar.</p>`
+          : ""
+      }
     `;
   }
 

@@ -316,6 +316,72 @@ h2 {
   line-height: 1.5;
 }
 
+.next-step-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(240, 138, 75, 0.34);
+  border-radius: 8px;
+  background: rgba(240, 138, 75, 0.1);
+}
+
+.next-step-card strong {
+  color: #f5f0e8;
+}
+
+.next-step-card span {
+  color: #ffd8bc;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.next-step-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.next-step-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px;
+  border: 1px solid rgba(245, 240, 232, 0.1);
+  border-radius: 8px;
+  background: rgba(245, 240, 232, 0.035);
+}
+
+.next-step-item i {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: #ffd166;
+  box-shadow: 0 0 0 4px rgba(255, 209, 102, 0.12);
+}
+
+.next-step-item.is-done i {
+  background: #74d680;
+  box-shadow: 0 0 0 4px rgba(116, 214, 128, 0.12);
+}
+
+.next-step-item strong,
+.next-step-item span {
+  display: block;
+}
+
+.next-step-item strong {
+  color: #f5f0e8;
+  font-size: 0.9rem;
+}
+
+.next-step-item span {
+  color: #b9b0a6;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
 .import-zone {
   border: 1px dashed rgba(245, 240, 232, 0.25);
   border-radius: 8px;

@@ -12,48 +12,48 @@ interface PlanPoint {
   next: string;
 }
 
-const lastUpdated = "12 septiembre 2026";
+const lastUpdated = "18 septiembre 2026";
 const recentChanges = [
-  "Abrir carpeta ya usa el puente nativo de Tauri para recuperar la copia local guardada del proyecto actual.",
-  "El gestor de proyectos ahora permite eliminar proyectos recientes con confirmacion y limpieza local.",
-  "La validacion continua ahora detecta assets locales faltantes antes de exportar o publicar.",
-  "Exportar y publicar quedan bloqueados si falta un panorama, thumbnail, plano o imagen de galeria referenciada.",
-  "La prueba E2E ahora inspecciona el ZIP y abre el viewer exportado desde memoria.",
-  "El exportador ahora incluye thumbnails de escena cuando existen en el proyecto.",
-  "El tablero se mantiene en 67% global por redondeo, con avance nuevo en guardado nativo."
+  "El editor ya renderiza panoramas reales 8000x4000 con visor canvas 360 interactivo.",
+  "La importacion de varias fotos crea un recorrido lineal automaticamente con conexiones anterior/siguiente.",
+  "El tour exportado ya usa el mismo visor canvas, probado desde ZIP con las 3 fotos reales de la van.",
+  "Los paneles de escenas y herramientas ahora se pueden colapsar para dar mas espacio al panorama.",
+  "El editor muestra una guia de siguiente paso basada en el estado real del tour.",
+  "El pipeline de importacion crea panoramas optimizados para que el preview sea usable con archivos grandes.",
+  "Pruebas recientes pasan: unitarias, build, E2E y smoke test con export real."
 ];
 
 const points: PlanPoint[] = [
   { id: 1, title: "Principios de arquitectura", phase: "Base", percent: 90, status: "done", evidence: "Separacion Importar, Modelar, Editar y Publicar ya existe en modulos.", next: "Mantener la separacion al agregar Tauri y SFTP real." },
   { id: 2, title: "Tipo de aplicacion", phase: "Base", percent: 92, status: "done", evidence: "Web app local-first, shell Tauri, ejecutable Windows e instaladores MSI/NSIS ya compilan.", next: "Pulir instalacion final e iconografia." },
   { id: 3, title: "Plataforma objetivo", phase: "Base", percent: 78, status: "progress", evidence: "Configuracion Tauri define ventana Windows, carpeta local de datos, build x64 generado y lectura/escritura nativa conectada al editor.", next: "Abrir el binario instalado y probar guardado nativo con datos reales." },
-  { id: 4, title: "Stack tecnico recomendado", phase: "Base", percent: 90, status: "done", evidence: "TypeScript, Vite, Marzipano, pnpm, Tauri CLI/API y export estatico implementados.", next: "Agregar SFTP sin inflar dependencias." },
-  { id: 5, title: "Flujo real de uso", phase: "Editor", percent: 66, status: "progress", evidence: "Crear, importar, editar, previsualizar, guardar carpeta, abrir carpeta y exportar ya existe.", next: "Cerrar el tramo de publicacion real y prueba con 3 JPG reales." },
-  { id: 6, title: "Formato de entrada V1", phase: "Base", percent: 70, status: "progress", evidence: "Importador acepta JPG/JPEG y valida formato 2:1 aproximado.", next: "Mejorar mensajes por archivo corrupto y resolucion." },
+  { id: 4, title: "Stack tecnico recomendado", phase: "Base", percent: 92, status: "done", evidence: "TypeScript, Vite, canvas renderer, pnpm, Tauri CLI/API y export estatico implementados.", next: "Agregar SFTP sin inflar dependencias." },
+  { id: 5, title: "Flujo real de uso", phase: "Editor", percent: 82, status: "progress", evidence: "Crear, importar 3 JPG reales, conectar linealmente, previsualizar, guardar carpeta, abrir carpeta y exportar ya existe.", next: "Cerrar el tramo de publicacion real." },
+  { id: 6, title: "Formato de entrada V1", phase: "Base", percent: 78, status: "progress", evidence: "Importador acepta JPG/JPEG 2:1 y ya se probo con panoramas reales 8000x4000.", next: "Mejorar mensajes por archivo corrupto y resolucion." },
   { id: 7, title: "Soporte futuro Insta360", phase: "Base", percent: 30, status: "progress", evidence: "Arquitectura de importadores ya permite adaptadores.", next: "Crear stub formal Insta360Importer cuando toque V2." },
   { id: 8, title: "Estructura local de proyectos", phase: "Pipeline", percent: 75, status: "progress", evidence: "La app ya guarda y abre carpetas editables con project.json, assets y .history/; Tauri puede guardar y recuperar la copia local del proyecto actual.", next: "Agregar selector nativo de carpeta externa en Windows." },
   { id: 9, title: "Modelo de datos", phase: "Base", percent: 90, status: "done", evidence: "TourProject versionado con schemaVersion 1.", next: "Agregar migraciones al cambiar schema." },
   { id: 10, title: "Modelo de escena", phase: "Base", percent: 85, status: "done", evidence: "Escenas con id, nombre, panorama, vista inicial, hotspots y metadata.", next: "Soportar cambio de panorama por escena." },
   { id: 11, title: "Hotspots", phase: "Editor", percent: 92, status: "done", evidence: "Modelo y UI cubren scene, info, image, video y link con validacion basica de URL.", next: "Pulir iconos/estilos por tipo y arrastre directo." },
   { id: 12, title: "Gestor de proyectos", phase: "Editor", percent: 72, status: "progress", evidence: "Nuevo, abrir carpeta, recientes, demo, duplicar, autosave y eliminar proyecto local con limpieza de historial/assets funcionando.", next: "Agregar archivar y busqueda." },
-  { id: 13, title: "Importacion de panoramas", phase: "Editor", percent: 76, status: "progress", evidence: "Drag and drop crea escenas, guarda panoramas locales y genera thumbnails de escena.", next: "Preservar source/ original y mejorar mensajes por archivo." },
-  { id: 14, title: "Editor principal", phase: "Editor", percent: 78, status: "progress", evidence: "Layout con escenas, viewer y propiedades listo.", next: "Pulir estados vacios y herramientas avanzadas." },
-  { id: 15, title: "Gestion de escenas", phase: "Editor", percent: 72, status: "progress", evidence: "Renombrar, reordenar, eliminar y escena inicial ya existen.", next: "Duplicar configuracion y cambiar panorama." },
-  { id: 16, title: "Vista inicial de escena", phase: "Editor", percent: 78, status: "progress", evidence: "Guardar vista actual toma yaw, pitch y fov desde Marzipano.", next: "Probar consistencia exacta en tour exportado." },
+  { id: 13, title: "Importacion de panoramas", phase: "Editor", percent: 86, status: "progress", evidence: "Drag and drop crea escenas, guarda panoramas locales optimizados, genera thumbnails y conecta lotes en linea.", next: "Preservar source/ original y mejorar mensajes por archivo." },
+  { id: 14, title: "Editor principal", phase: "Editor", percent: 86, status: "progress", evidence: "Layout con paneles colapsables, viewer canvas y guia de siguiente paso listo.", next: "Pulir herramientas avanzadas." },
+  { id: 15, title: "Gestion de escenas", phase: "Editor", percent: 80, status: "progress", evidence: "Renombrar, reordenar, eliminar, escena inicial, navegacion anterior/siguiente y conexion lineal automatica ya existen.", next: "Duplicar configuracion y cambiar panorama." },
+  { id: 16, title: "Vista inicial de escena", phase: "Editor", percent: 82, status: "progress", evidence: "Guardar vista actual toma yaw, pitch y fov desde el visor canvas.", next: "Probar consistencia exacta en tour exportado." },
   { id: 17, title: "Editor visual de hotspots", phase: "Editor", percent: 74, status: "progress", evidence: "Click sobre panorama coloca hotspots y permite moverlos al centro visible.", next: "Arrastre directo sobre el panorama." },
   { id: 18, title: "Puntos de informacion", phase: "Producto", percent: 86, status: "done", evidence: "Info, imagen, video y link se crean, editan, validan y exportan; info/media abren panel en el tour publicado.", next: "Detectar formatos embebibles de video con mensajes mas claros." },
   { id: 19, title: "Plano de planta", phase: "Producto", percent: 86, status: "done", evidence: "Importa multiples plantas, cambia la planta activa, renombra, elimina y ubica marcadores por escena; el export tambien permite alternar plantas.", next: "Agregar arrastre directo de marcadores y miniaturas de plano." },
   { id: 20, title: "Galeria", phase: "Producto", percent: 74, status: "progress", evidence: "Importar, previsualizar miniaturas, editar caption, eliminar y ordenar fotos ya funciona.", next: "Agregar reordenamiento por arrastre y vista ampliada." },
   { id: 21, title: "Menu de escenas", phase: "Producto", percent: 78, status: "progress", evidence: "Viewer exportado incluye menu de escenas.", next: "Convertirlo en drawer movil mas fino." },
   { id: 22, title: "Fullscreen", phase: "Producto", percent: 82, status: "done", evidence: "Tour exportado tiene boton fullscreen sin recarga.", next: "QA en navegadores moviles reales." },
-  { id: 23, title: "Preview", phase: "Producto", percent: 82, status: "progress", evidence: "Preview y produccion usan Marzipano y el mismo modelo de tour; el flujo demo y viewer exportado ya se verifican con E2E en Edge.", next: "Unificar aun mas el renderer compartido." },
-  { id: 24, title: "Renderer", phase: "Producto", percent: 84, status: "progress", evidence: "Renderer Marzipano independiente con navegacion, info, imagen, video, link, multiples planos, galeria y fullscreen.", next: "Agregar pruebas de regresion del viewer exportado." },
+  { id: 23, title: "Preview", phase: "Producto", percent: 90, status: "done", evidence: "Preview del editor renderiza panoramas reales con canvas, navegacion, hotspots y controles anterior/siguiente.", next: "QA con mas camaras y navegadores." },
+  { id: 24, title: "Renderer", phase: "Producto", percent: 90, status: "done", evidence: "Renderer canvas independiente con navegacion, hotspots, coordenadas, zoom y drag; el export tambien usa canvas.", next: "Renombrar el modulo legado y ampliar pruebas visuales." },
   { id: 25, title: "Guardado", phase: "Robustez", percent: 92, status: "done", evidence: "Autosave local, guardar carpeta, abrir carpeta, recuperacion nativa Tauri y puente de escritura nativa ya compilan dentro del binario Windows.", next: "Probar guardado nativo desde la app instalada." },
   { id: 26, title: "Historial", phase: "Robustez", percent: 82, status: "progress", evidence: "Snapshots manuales, automaticos antes de borrar, restauracion UI, export a .history/ y lectura de .history/ al abrir carpeta.", next: "Restaurar snapshots desde carpetas reales con fechas originales." },
   { id: 27, title: "Validacion continua", phase: "Robustez", percent: 92, status: "done", evidence: "Valida escena inicial, hotspots, URLs, slug, plano, galeria, accesibilidad y assets locales faltantes con pruebas automatizadas.", next: "Mantener reglas al crecer el schema." },
   { id: 28, title: "Validador antes de publicar", phase: "Publicacion", percent: 55, status: "progress", evidence: "Preflight bloquea errores criticos y ahora tambien impide publicar si faltan assets locales.", next: "Validar archivos generados y conflictos remotos." },
-  { id: 29, title: "Optimizacion de imagenes", phase: "Pipeline", percent: 18, status: "pending", evidence: "La importacion ya genera thumbnails JPEG para escenas, aunque el tour aun exporta panoramas originales.", next: "Crear pipeline de resize, calidad, tiles o multiresolucion." },
-  { id: 30, title: "Exportacion", phase: "Pipeline", percent: 96, status: "done", evidence: "Export estatico autocontenido, ZIP descargable, carpeta editable y pruebas automatizadas/E2E del viewer exportado ya existen.", next: "Agregar firma de paquete y validacion de archivos grandes." },
+  { id: 29, title: "Optimizacion de imagenes", phase: "Pipeline", percent: 48, status: "progress", evidence: "La importacion genera thumbnails y panoramas optimizados para preview/export inicial.", next: "Crear tiles o multiresolucion para tours grandes." },
+  { id: 30, title: "Exportacion", phase: "Pipeline", percent: 98, status: "done", evidence: "Export estatico autocontenido, ZIP descargable, viewer canvas y smoke test con 3 fotos reales ya existen.", next: "Agregar firma de paquete y validacion de archivos grandes." },
   { id: 31, title: "Publicacion directa", phase: "Publicacion", percent: 25, status: "progress", evidence: "Existe preflight y plan de rutas.", next: "Implementar subida SFTP real." },
   { id: 32, title: "Publicacion segura", phase: "Publicacion", percent: 32, status: "progress", evidence: "Plan usa temporal, final y rollback.", next: "Hacer swap atomico/verificado en servidor." },
   { id: 33, title: "Cuenta SFTP dedicada", phase: "Publicacion", percent: 15, status: "pending", evidence: "Documentado como requisito.", next: "Configurar cuenta real limitada a /tours/." },
@@ -65,15 +65,15 @@ const points: PlanPoint[] = [
   { id: 39, title: "Recuperacion ante fallos", phase: "Robustez", percent: 72, status: "progress", evidence: "Autosave, historial restaurable, carpeta editable, abrir carpeta y recuperacion nativa de copia local reducen riesgo de perdida.", next: "Probar recuperacion tras cierre inesperado con Tauri compilado." },
   { id: 40, title: "Rendimiento", phase: "Robustez", percent: 32, status: "pending", evidence: "Preview usa blobs bajo demanda y la lista de escenas ya usa thumbnails cuando existen.", next: "Lazy loading, workers y tiles/multiresolucion." },
   { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 55, status: "progress", evidence: "Labels, botones claros, contraste y focus basicos.", next: "Auditar teclado completo y tooltips." },
-  { id: 42, title: "UX general", phase: "Producto", percent: 65, status: "progress", evidence: "La UI evita terminos tecnicos en el flujo principal.", next: "Pulir microcopy y estados de error." },
-  { id: 43, title: "MVP robusto", phase: "Robustez", percent: 62, status: "progress", evidence: "Muchas piezas del MVP ya existen, incluyendo planos multi-planta, validacion de assets, gestor local y app Windows empaquetada, pero faltan optimizacion y publicacion real.", next: "Cerrar flujo extremo a extremo con 3 JPG reales." },
+  { id: 42, title: "UX general", phase: "Producto", percent: 72, status: "progress", evidence: "La UI evita terminos tecnicos, permite colapsar paneles y muestra siguiente paso contextual.", next: "Pulir microcopy y estados de error." },
+  { id: 43, title: "MVP robusto", phase: "Robustez", percent: 74, status: "progress", evidence: "El MVP ya importa 3 JPG reales, navega linealmente, renderiza en editor/export, valida assets y empaqueta Windows.", next: "Cerrar publicacion real y pruebas largas." },
   { id: 44, title: "Fuera de alcance respetado", phase: "Base", percent: 100, status: "done", evidence: "No se agrego SaaS, usuarios, CRM, pagos ni infraestructura cloud.", next: "Seguir evitando expansion innecesaria." },
   { id: 45, title: "Extensiones futuras", phase: "Base", percent: 35, status: "progress", evidence: "Modelo deja espacio para media, branding y metadatos.", next: "Documentar extension points concretos." },
   { id: 46, title: "Estrategia de desarrollo", phase: "Base", percent: 70, status: "progress", evidence: "Fases A-C parcialmente cubiertas; D/E iniciadas.", next: "Registrar avance por fase en este tablero." },
-  { id: 47, title: "Primer hito obligatorio", phase: "Pipeline", percent: 76, status: "progress", evidence: "Demo con 3 escenas navega, guarda, abre carpeta, preview, multiples planos, exporta, recupera copia nativa y ya produce instaladores Windows.", next: "Probar con 3 JPG reales, cerrar/reabrir y publicar en internet." },
+  { id: 47, title: "Primer hito obligatorio", phase: "Pipeline", percent: 88, status: "progress", evidence: "Tres JPG reales de la van importan, se conectan en linea, renderizan en editor/export, guardan y exportan ZIP.", next: "Cerrar/reabrir desde carpeta real y publicar en internet." },
   { id: 48, title: "Orden de prioridades", phase: "Base", percent: 85, status: "done", evidence: "Se priorizo integridad: autosave, historial y validacion.", next: "Mantener seguridad antes de funciones decorativas." },
-  { id: 49, title: "Criterios de exito", phase: "Robustez", percent: 90, status: "progress", evidence: "Cumple varios criterios de editor, guardar/abrir carpeta, base de escritorio, importacion E2E, export ZIP, viewer exportado y bloqueo por assets faltantes.", next: "Agregar prueba con fotos reales y publicar a servidor." },
-  { id: 50, title: "Resultado final esperado", phase: "Base", percent: 78, status: "progress", evidence: "Ya existe base para fotos, Studio, editar, preview, planos multi-planta, guardar/abrir carpeta, exportar y empaquetar en Windows.", next: "Completar publicacion real y optimizacion." }
+  { id: 49, title: "Criterios de exito", phase: "Robustez", percent: 94, status: "progress", evidence: "Cumple editor, guardar/abrir carpeta, base de escritorio, importacion real, export ZIP, viewer exportado y bloqueo por assets faltantes.", next: "Publicar a servidor y probar app instalada con proyecto real." },
+  { id: 50, title: "Resultado final esperado", phase: "Base", percent: 84, status: "progress", evidence: "Ya existe base para fotos reales, Studio, editar, preview 360, planos, galeria, guardar/abrir carpeta, exportar y empaquetar en Windows.", next: "Completar publicacion real y optimizacion." }
 ];
 
 const root = document.querySelector<HTMLElement>("#progress-app");

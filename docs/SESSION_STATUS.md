@@ -1,11 +1,11 @@
-# Estado de sesion - 12 septiembre 2026
+# Estado de sesion - 18 septiembre 2026
 
 Este archivo resume el estado actual para retomar 360Tours Studio sin depender del historial del chat.
 
 ## Estado general
 
 - Producto: `360Tours Studio`.
-- Avance visual: `progress.html` muestra 67% global del plan maestro.
+- Avance visual: `progress.html` muestra 70% global del plan maestro.
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
@@ -15,8 +15,11 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Crear proyecto nuevo.
 - Importar panoramas JPG/JPEG con drag and drop.
 - Generar thumbnails de escenas al importar.
-- Preview 360 con Marzipano.
+- Preview 360 con visor canvas interactivo.
+- Paneles laterales colapsables para dar mas espacio al panorama.
+- Guia de siguiente paso dentro del editor segun el estado real del tour.
 - Renombrar, ordenar, eliminar escenas y definir escena inicial.
+- Conectar automaticamente importaciones multiples como recorrido lineal.
 - Guardar vista inicial de escena.
 - Crear hotspots de navegacion, informacion, imagen, video y link.
 - Importar multiples planos de planta, renombrarlos, eliminarlos y ubicar marcadores.
@@ -28,7 +31,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Abrir carpeta editable en navegador compatible.
 - Recuperar copia local guardada del proyecto actual desde Tauri.
 - Exportar ZIP estatico autocontenido.
-- Viewer exportado con escenas, hotspots, planos, galeria y fullscreen.
+- Viewer exportado con visor canvas, escenas, hotspots, planos, galeria y fullscreen.
 - Preflight de publicacion con plan de rutas.
 - Validacion de schema, escena inicial, hotspots, URLs, slug, accesibilidad, plano, galeria y assets locales faltantes.
 - Bloqueo de exportar/publicar cuando faltan assets locales.
@@ -46,6 +49,7 @@ Resultados:
 - Unitarias: 6 archivos, 11 pruebas pasan.
 - Build web: correcto.
 - E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
+- Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 
 ## Escritorio Windows
 
@@ -75,11 +79,14 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 - `progress.html` y `src/progress/progress.ts` como tablero visual de los 50 puntos.
 - `docs/SESSION_STATUS.md` como resumen operativo de cierre.
 - `README.md` con comandos y estado de escritorio.
-- Git tiene el commit de cierre `1443353 Guardar avance de 360Tours Studio al 67%`.
+- Git guarda los avances recientes en commits, incluyendo:
+  - `f4b7e11 Implementar visor canvas 360 interactivo`
+  - `8b2f3dc Usar visor canvas en tour exportado`
 
 ## Siguientes pasos recomendados
 
-1. Probar la app instalada con 3 JPG reales.
-2. Mejorar selector nativo de carpeta externa en Tauri.
-3. Implementar publicacion SFTP real.
-4. Resolver MSI/WiX solo si se necesita instalador `.msi`; por ahora NSIS `.exe` es suficiente para probar.
+1. Probar cerrar/reabrir un proyecto real desde carpeta editable.
+2. Implementar publicacion SFTP real.
+3. Agregar tiles o multiresolucion para tours grandes.
+4. Mejorar selector nativo de carpeta externa en Tauri.
+5. Resolver MSI/WiX solo si se necesita instalador `.msi`; por ahora NSIS `.exe` es suficiente para probar.
