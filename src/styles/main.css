@@ -646,6 +646,30 @@ h2 {
   gap: 8px;
 }
 
+.scene-list-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.scene-list-summary span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(245, 240, 232, 0.1);
+  border-radius: 8px;
+  background: rgba(245, 240, 232, 0.035);
+  color: #b9b0a6;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.scene-list-summary b {
+  color: #f5f0e8;
+  font-size: 0.9rem;
+}
+
 .scene-item,
 .recent-item {
   display: flex;
@@ -692,18 +716,35 @@ h2 {
   background: #101014;
 }
 
-.scene-item span {
+.scene-item-body {
+  display: grid;
+  gap: 2px;
   flex: 1;
+  min-width: 0;
+}
+
+.scene-item-body span,
+.scene-item-body small {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.scene-item-body small {
+  color: #b9b0a6;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .scene-item.is-active,
 .recent-item.is-active {
   background: #f5f0e8;
   color: #101014;
+}
+
+.scene-item.is-active .scene-item-body small {
+  color: #5d5852;
 }
 
 .scene-item strong,

@@ -62,6 +62,8 @@ async function runLargeWorkflow() {
     await page.getByText(`${SCENE_COUNT} panoramas cargados.`).waitFor({ state: "visible", timeout: 120_000 });
     await page.getByRole("button", { name: "Preparar rapido" }).click();
     await page.getByText("Tour rapido preparado: inicio y recorrido lineal listos.").waitFor({ state: "visible" });
+    await page.getByLabel("Resumen de escenas").getByText(`${SCENE_COUNT} escenas`, { exact: true }).waitFor({ state: "visible" });
+    await page.getByLabel("Resumen de escenas").getByText(`${(SCENE_COUNT - 1) * 2} conexiones`, { exact: true }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Van 001/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /50\. Van 050/ }).waitFor({ state: "visible" });
 

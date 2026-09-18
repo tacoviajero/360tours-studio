@@ -14,6 +14,8 @@ interface PlanPoint {
 
 const lastUpdated = "18 septiembre 2026";
 const recentChanges = [
+  "La lista de escenas ahora muestra resumen de escenas, conexiones y panoramas optimizados.",
+  "Cada escena muestra estado de conexion, peso optimizado y reduccion aproximada para auditar tours grandes.",
   "La importacion ahora conserva avisos visibles aunque parte del lote haya importado correctamente.",
   "Se agrego test:diagnostics para lote mixto con archivos validos, duplicado e invalido.",
   "Se agrego prueba automatizada test:large con 50 escenas: importacion, autosave, ruta rapida, export y viewer.",
@@ -48,7 +50,7 @@ const points: PlanPoint[] = [
   { id: 12, title: "Gestor de proyectos", phase: "Editor", percent: 72, status: "progress", evidence: "Nuevo, abrir carpeta, recientes, demo, duplicar, autosave y eliminar proyecto local con limpieza de historial/assets funcionando.", next: "Agregar archivar y busqueda." },
   { id: 13, title: "Importacion de panoramas", phase: "Editor", percent: 92, status: "done", evidence: "Drag and drop procesa por cola, crea escenas, guarda panoramas optimizados con metadata, genera thumbnails y conecta lotes en linea.", next: "Preservar source/ original en una fase posterior." },
   { id: 14, title: "Editor principal", phase: "Editor", percent: 86, status: "progress", evidence: "Layout con paneles colapsables, viewer canvas y guia de siguiente paso listo.", next: "Pulir herramientas avanzadas." },
-  { id: 15, title: "Gestion de escenas", phase: "Editor", percent: 80, status: "progress", evidence: "Renombrar, reordenar, eliminar, escena inicial, navegacion anterior/siguiente y conexion lineal automatica ya existen.", next: "Duplicar configuracion y cambiar panorama." },
+  { id: 15, title: "Gestion de escenas", phase: "Editor", percent: 84, status: "progress", evidence: "Renombrar, reordenar, eliminar, escena inicial, navegacion anterior/siguiente, conexion lineal automatica y resumen para tours grandes ya existen.", next: "Duplicar configuracion y cambiar panorama." },
   { id: 16, title: "Vista inicial de escena", phase: "Editor", percent: 82, status: "progress", evidence: "Guardar vista actual toma yaw, pitch y fov desde el visor canvas.", next: "Probar consistencia exacta en tour exportado." },
   { id: 17, title: "Editor visual de hotspots", phase: "Editor", percent: 80, status: "progress", evidence: "Click sobre panorama coloca hotspots, permite moverlos al centro visible y el panel Recorrido muestra/repara conexiones lineales.", next: "Arrastre directo sobre el panorama." },
   { id: 18, title: "Puntos de informacion", phase: "Producto", percent: 86, status: "done", evidence: "Info, imagen, video y link se crean, editan, validan y exportan; info/media abren panel en el tour publicado.", next: "Detectar formatos embebibles de video con mensajes mas claros." },
@@ -75,7 +77,7 @@ const points: PlanPoint[] = [
   { id: 39, title: "Recuperacion ante fallos", phase: "Robustez", percent: 72, status: "progress", evidence: "Autosave, historial restaurable, carpeta editable, abrir carpeta y recuperacion nativa de copia local reducen riesgo de perdida.", next: "Probar recuperacion tras cierre inesperado con Tauri compilado." },
   { id: 40, title: "Rendimiento", phase: "Robustez", percent: 58, status: "progress", evidence: "Preview usa blobs bajo demanda, thumbnails, panoramas 2048px, cola de importacion y prueba automatizada de 50 escenas.", next: "Workers, lazy loading mas agresivo y tiles/multiresolucion." },
   { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 55, status: "progress", evidence: "Labels, botones claros, contraste y focus basicos.", next: "Auditar teclado completo y tooltips." },
-  { id: 42, title: "UX general", phase: "Producto", percent: 78, status: "progress", evidence: "La UI evita terminos tecnicos, permite colapsar paneles, muestra siguiente paso, recorrido visual y modo Preparar rapido.", next: "Pulir microcopy y estados de error." },
+  { id: 42, title: "UX general", phase: "Producto", percent: 82, status: "progress", evidence: "La UI evita terminos tecnicos, permite colapsar paneles, muestra siguiente paso, recorrido visual, modo rapido y auditoria compacta de escenas.", next: "Pulir microcopy y estados de error." },
   { id: 43, title: "MVP robusto", phase: "Robustez", percent: 84, status: "progress", evidence: "El MVP importa 3 JPG reales y 50 escenas sinteticas, autosave recarga, navega linealmente, exporta, valida assets y empaqueta Windows.", next: "Probar 30-50 fotos reales y cerrar publicacion real." },
   { id: 44, title: "Fuera de alcance respetado", phase: "Base", percent: 100, status: "done", evidence: "No se agrego SaaS, usuarios, CRM, pagos ni infraestructura cloud.", next: "Seguir evitando expansion innecesaria." },
   { id: 45, title: "Extensiones futuras", phase: "Base", percent: 35, status: "progress", evidence: "Modelo deja espacio para media, branding y metadatos.", next: "Documentar extension points concretos." },

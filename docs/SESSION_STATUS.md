@@ -26,6 +26,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Conectar automaticamente importaciones multiples como recorrido lineal.
 - Preparar rapido un tour lineal fijando inicio y reparando conexiones anterior/siguiente.
 - Ver el recorrido como lista visual de escenas conectadas.
+- Auditar escenas con resumen de total, conexiones, optimizadas, estado de conexion y peso optimizado.
 - Guardar vista inicial de escena.
 - Crear hotspots de navegacion, informacion, imagen, video y link.
 - Importar multiples planos de planta, renombrarlos, eliminarlos y ubicar marcadores.

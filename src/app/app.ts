@@ -890,7 +890,17 @@ export class Tours360StudioApp {
       return;
     }
 
-    sceneList.innerHTML = (
+    const routeLinks = this.project.scenes.reduce((total, scene) => total + scene.hotspots.filter((hotspot) => hotspot.type === "scene").length, 0);
+    const optimizedScenes = this.project.scenes.filter((scene) => scene.metadata?.optimizedSize).length;
+    const summary = `
+      <div class="scene-list-summary" aria-label="Resumen de escenas">
+        <span><b>${this.project.scenes.length}</b> escenas</span>
+        <span><b>${routeLinks}</b> conexiones</span>
+        <span><b>${optimizedScenes}</b> optimizadas</span>
+      </div>
+    `;
+
+    sceneList.innerHTML = summary + (
       await Promise.all(
         this.project.scenes.map(async (scene, index) => {
           let thumbnailUrl = "";
@@ -904,10 +914,15 @@ export class Tours360StudioApp {
 
         const isActive = scene.id === this.activeSceneId;
         const isStart = scene.id === this.project.startScene;
+        const routeStatus = getSceneRouteStatus(this.project.scenes, scene, index);
+        const optimizationLabel = getSceneOptimizationLabel(scene);
         return `
           <button class="scene-item${isActive ? " is-active" : ""}" data-scene-id="${escapeHtml(scene.id)}">
             ${thumbnailUrl ? `<img src="${escapeHtml(thumbnailUrl)}" alt="" />` : ""}
-            <span>${index + 1}. ${escapeHtml(scene.name)}</span>
+            <span class="scene-item-body">
+              <span>${index + 1}. ${escapeHtml(scene.name)}</span>
+              <small>${escapeHtml(routeStatus)} · ${escapeHtml(optimizationLabel)}</small>
+            </span>
             ${isStart ? "<strong>Inicio</strong>" : ""}
           </button>
         `;
@@ -2124,6 +2139,36 @@ function toSlug(value: string): string {
 
 function cloneProject(project: TourProject): TourProject {
   return JSON.parse(JSON.stringify(project)) as TourProject;
+}
+
+function getSceneRouteStatus(scenes: Scene[], scene: Scene, index: number): string {
+  const previous = scenes[index - 1];
+  const next = scenes[index + 1];
+  const sceneLinks = scene.hotspots.filter((hotspot) => hotspot.type === "scene");
+  const hasPrevious = !previous || sceneLinks.some((hotspot) => hotspot.targetScene === previous.id);
+  const hasNext = !next || sceneLinks.some((hotspot) => hotspot.targetScene === next.id);
+  return hasPrevious && hasNext ? "conectada" : "revisar conexion";
+}
+
+function getSceneOptimizationLabel(scene: Scene): string {
+  const sourceBytes = typeof scene.metadata?.sourceBytes === "number" ? scene.metadata.sourceBytes : null;
+  const optimizedBytes = typeof scene.metadata?.optimizedBytes === "number" ? scene.metadata.optimizedBytes : null;
+  const optimizedSize = typeof scene.metadata?.optimizedSize === "string" ? scene.metadata.optimizedSize : null;
+
+  if (!sourceBytes || !optimizedBytes) {
+    return optimizedSize ?? "sin datos de peso";
+  }
+
+  const reduction = Math.max(0, Math.round((1 - optimizedBytes / sourceBytes) * 100));
+  return `${optimizedSize ?? "optimizada"} · ${formatBytes(optimizedBytes)} · -${reduction}%`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function createLinearHotspot(direction: "prev" | "next", targetScene: Scene): Scene["hotspots"][number] {
