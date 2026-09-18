@@ -10,7 +10,7 @@ const MIN_FOV = 0.55;
 const MAX_FOV = 1.55;
 const MAX_RENDER_WIDTH = 1100;
 
-export class MarzipanoTourRenderer implements TourRenderer {
+export class CanvasTourRenderer implements TourRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private context: CanvasRenderingContext2D | null = null;
   private hotspotLayer: HTMLDivElement | null = null;

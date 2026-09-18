@@ -32,7 +32,7 @@ src/
 
 - TypeScript como lenguaje base.
 - Vite para desarrollo local ligero.
-- Marzipano como renderer 360 inicial.
+- Visor canvas 360 propio como renderer actual.
 - Filesystem + JSON como persistencia.
 - Tauri como objetivo de empaquetado Windows cuando Rust/Cargo este instalado.
 

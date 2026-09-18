@@ -11,7 +11,7 @@ import { BrowserProjectStorage, type ProjectSnapshotSummary, type ProjectSummary
 import { exportStaticTour } from "../publisher/exporter";
 import { publishTour } from "../publisher/sftpPublisher";
 import { createZipArchive } from "../publisher/zipArchive";
-import { MarzipanoTourRenderer } from "../renderer/marzipanoRenderer";
+import { CanvasTourRenderer } from "../renderer/canvasTourRenderer";
 
 export class Tours360StudioApp {
   private project: TourProject = createEmptyProject();
@@ -19,7 +19,7 @@ export class Tours360StudioApp {
   private storage = new BrowserProjectStorage();
   private assets = new BrowserProjectAssets();
   private importer = new JPEG360Importer();
-  private renderer: MarzipanoTourRenderer | null = null;
+  private renderer: CanvasTourRenderer | null = null;
   private activeSceneId = "";
   private activeFloorplanId = "";
   private previewUrls: string[] = [];
@@ -711,7 +711,7 @@ export class Tours360StudioApp {
     }
 
     const previewProject = await this.createPreviewProject();
-    this.renderer = new MarzipanoTourRenderer((sceneId) => {
+    this.renderer = new CanvasTourRenderer((sceneId) => {
       this.activeSceneId = sceneId;
       void this.renderPreviewFallback(root);
       void this.renderWorkspace(root, false);

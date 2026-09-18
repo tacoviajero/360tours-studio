@@ -12,9 +12,9 @@ El tour publicado sera HTML, CSS, JavaScript, JSON y assets estaticos. No debe d
 
 Todo proyecto incluye `schemaVersion`. La version inicial es `1`.
 
-## ADR-004: Marzipano como renderer inicial
+## ADR-004: Visor canvas como renderer actual
 
-Marzipano es el motor 360 inicial. El renderer queda aislado en `src/renderer/` para poder reutilizarlo en preview y produccion.
+El motor 360 actual es un visor canvas propio. El renderer queda aislado en `src/renderer/` para poder reutilizarlo en preview y produccion, y para poder cambiar a tiles/multiresolucion despues sin rehacer el editor.
 
 ## ADR-005: pnpm como gestor de paquetes
 

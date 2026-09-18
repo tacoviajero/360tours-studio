@@ -41,7 +41,7 @@ https://tacoviajero.com/tours/[slug]/
 
 - TypeScript
 - Vite
-- Marzipano
+- Visor canvas 360 propio
 - pnpm
 - Git
 - Filesystem + JSON como direccion de persistencia

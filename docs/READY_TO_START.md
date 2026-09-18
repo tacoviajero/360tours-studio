@@ -8,7 +8,7 @@ Este documento deja claro el estado del proyecto para continuar el desarrollo en
 - El repositorio Git fue inicializado.
 - Existe un commit inicial: `c9df468 Inicializar 360Tours Studio`.
 - La app base compila con TypeScript y Vite.
-- El renderer inicial usa Marzipano y esta separado del editor.
+- El renderer actual usa canvas y esta separado del editor.
 - El modelo de datos ya incluye `schemaVersion`.
 - Existe un validador base del proyecto.
 - Existe un importador modular `JPEG360Importer`.
@@ -93,7 +93,7 @@ No empezar por una UI compleja.
 ## Prompt recomendado para el siguiente chat
 
 ```text
-Vamos a comenzar el desarrollo de 360Tours Studio desde la Fase A. Lee PLAN_MAESTRO.md, README.md, docs/ARCHITECTURE.md y docs/READY_TO_START.md. Respeta la separacion Importar / Modelar / Editar / Publicar. El objetivo de esta sesion es que un tour.json con 3 panoramas genere un tour navegable con Marzipano y hotspots manuales, y que pueda exportarse como carpeta estatica autocontenida. No avances a UI compleja todavia.
+Vamos a continuar el desarrollo de 360Tours Studio desde el estado actual. Lee PLAN_MAESTRO.md, README.md, docs/ARCHITECTURE.md y docs/SESSION_STATUS.md. Respeta la separacion Importar / Modelar / Editar / Publicar. El objetivo inmediato es que 3 panoramas reales generen un tour navegable con visor canvas, conexiones claras y exportacion estatica autocontenida.
 ```
 
 ## Decisiones tomadas
