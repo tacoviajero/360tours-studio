@@ -58,6 +58,7 @@ async function runChecks() {
     });
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Entrada Real/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").locator(".scene-item img").first().waitFor({ state: "visible" });
+    await assertEditorCanvasHasPixels(page);
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar tour" }).click();
     const download = await downloadPromise;
@@ -74,7 +75,7 @@ async function runChecks() {
     await page.getByText("ZIP descargado.").waitFor({ state: "visible" });
 
     await page.getByRole("button", { name: "Cargar demo tecnico" }).click();
-    await page.getByLabel("Preview del tour").getByRole("button", { name: "Ir a Sala" }).waitFor({ state: "visible" });
+    await page.getByLabel("Preview del tour").locator(".tour-canvas").waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Entrada/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: "2. Sala" }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: "3. Cocina" }).waitFor({ state: "visible" });
@@ -92,6 +93,35 @@ async function runChecks() {
     await page.getByRole("heading", { name: "Criterios de exito" }).waitFor({ state: "visible" });
   } finally {
     await browser.close();
+  }
+}
+
+async function assertEditorCanvasHasPixels(page) {
+  await page.locator(".tour-canvas").waitFor({ state: "visible" });
+  await page.waitForTimeout(500);
+  const sample = await page.evaluate(() => {
+    const canvas = document.querySelector(".tour-canvas");
+    if (!canvas) {
+      return { hasCanvas: false, nonBlack: 0 };
+    }
+
+    const sampleCanvas = document.createElement("canvas");
+    sampleCanvas.width = 48;
+    sampleCanvas.height = 48;
+    const context = sampleCanvas.getContext("2d");
+    context.drawImage(canvas, 0, 0, 48, 48);
+    const data = context.getImageData(0, 0, 48, 48).data;
+    let nonBlack = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      if (data[index] + data[index + 1] + data[index + 2] > 15) {
+        nonBlack += 1;
+      }
+    }
+    return { hasCanvas: true, nonBlack };
+  });
+
+  if (!sample.hasCanvas || sample.nonBlack < 100) {
+    throw new Error("Editor canvas did not render visible panorama pixels.");
   }
 }
 

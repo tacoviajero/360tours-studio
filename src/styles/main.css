@@ -180,6 +180,33 @@ label span {
   background: #050507;
 }
 
+.tour-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.tour-canvas:active {
+  cursor: grabbing;
+}
+
+.tour-hotspot-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.tour-hotspot-layer .hotspot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
 .preview-fallback-image {
   position: absolute;
   inset: 0;

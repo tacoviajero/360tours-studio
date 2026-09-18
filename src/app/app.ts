@@ -717,32 +717,8 @@ export class Tours360StudioApp {
     }
 
     const activeScene = this.project.scenes.find((scene) => scene.id === this.activeSceneId) ?? this.project.scenes[0];
-    const asset = await this.assets.loadScenePanorama(this.project.id, activeScene.id);
-    if (!asset) {
-      return;
-    }
-
-    if (this.previewFallbackUrl) {
-      URL.revokeObjectURL(this.previewFallbackUrl);
-    }
-    this.previewFallbackUrl = URL.createObjectURL(asset.blob);
-
-    let fallback = viewerElement.querySelector<HTMLImageElement>(".preview-fallback-image");
-    if (!fallback) {
-      fallback = document.createElement("img");
-      fallback.className = "preview-fallback-image";
-      fallback.alt = "Vista plana temporal de la escena activa";
-      viewerElement.append(fallback);
-    }
-    fallback.src = this.previewFallbackUrl;
-
-    let badge = viewerElement.querySelector<HTMLElement>(".preview-fallback-badge");
-    if (!badge) {
-      badge = document.createElement("span");
-      badge.className = "preview-fallback-badge";
-      viewerElement.append(badge);
-    }
-    badge.textContent = "Vista plana temporal";
+    viewerElement.querySelector(".preview-fallback-image")?.remove();
+    viewerElement.querySelector(".preview-fallback-badge")?.remove();
 
     const sceneIndex = this.project.scenes.findIndex((scene) => scene.id === activeScene.id);
     let controls = viewerElement.querySelector<HTMLElement>(".preview-fallback-controls");
