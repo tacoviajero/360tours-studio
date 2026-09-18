@@ -48,7 +48,7 @@ export class Tours360StudioApp {
           </div>
 
           <section class="import-zone" data-drop-zone>
-            <input id="panorama-import" class="visually-hidden" type="file" accept="image/jpeg,image/jpg" multiple data-action="import-files" />
+            <input id="panorama-import" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple data-action="import-files" />
             <label class="import-label" for="panorama-import">
               <span>Importar panoramas JPG</span>
               <small>Arrastra fotos 360 o selecciona archivos</small>
@@ -452,7 +452,37 @@ export class Tours360StudioApp {
   }
 
   private async importFiles(root: HTMLElement, files: File[]): Promise<void> {
-    const result = await this.importer.import(files.map((file) => ({ file })));
+    if (files.length === 0) {
+      this.renderImportIssues(root, [{ severity: "warning", message: "No se seleccionaron archivos." }]);
+      return;
+    }
+
+    this.renderImportStatus(root, `Importando ${files.length} foto${files.length === 1 ? "" : "s"} 360...`);
+
+    let result;
+    try {
+      result = await this.importer.import(files.map((file) => ({ file })));
+    } catch {
+      this.renderImportIssues(root, [
+        {
+          severity: "error",
+          message: "No se pudieron leer las imagenes. Confirma que sean JPG/JPEG exportados como panoramas 360."
+        }
+      ]);
+      return;
+    }
+
+    if (result.scenes.length === 0) {
+      this.renderImportIssues(root, [
+        ...result.issues,
+        {
+          severity: "warning",
+          message: "No se agrego ninguna escena. Usa fotos JPG/JPEG panoramicas ya procesadas, no archivos RAW/DNG/INSP."
+        }
+      ]);
+      return;
+    }
+
     this.renderImportIssues(root, result.issues);
     const importedScenes = result.scenes.map((scene) => ({ ...scene }));
 
@@ -485,6 +515,7 @@ export class Tours360StudioApp {
     };
     this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
     await this.persistAndRender(root, true);
+    this.renderImportStatus(root, `${newScenes.length} escena${newScenes.length === 1 ? "" : "s"} importada${newScenes.length === 1 ? "" : "s"}.`);
   }
 
   private dedupeSceneIds(scenes: Scene[]): Scene[] {
@@ -548,6 +579,13 @@ export class Tours360StudioApp {
         ${issues.map((issue) => `<li class="issue issue--${escapeHtml(issue.severity)}">${escapeHtml(issue.message)}</li>`).join("")}
       </ul>
     `;
+  }
+
+  private renderImportStatus(root: HTMLElement, message: string): void {
+    const status = root.querySelector<HTMLElement>("[data-import-status]");
+    if (status) {
+      status.innerHTML = `<p class="status-ok">${escapeHtml(message)}</p>`;
+    }
   }
 
   private async mountPreview(root: HTMLElement): Promise<void> {
