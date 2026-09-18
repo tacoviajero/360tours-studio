@@ -1931,6 +1931,13 @@ export class Tours360StudioApp {
             </dl>`
           : ""
       }
+      ${
+        plan?.steps
+          ? `<ol class="publish-steps">
+              ${plan.steps.map((step) => `<li><strong>${escapeHtml(step.label)}</strong><span>${escapeHtml(step.detail)}</span></li>`).join("")}
+            </ol>`
+          : ""
+      }
     `;
     this.flashButton(target, result.ok ? "Publicado" : "Preflight listo");
   }

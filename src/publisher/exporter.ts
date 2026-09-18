@@ -1,5 +1,6 @@
 import type { TourProject } from "../domain/tour";
 import { validateProject } from "../domain/validation";
+import { createPublishManifest } from "./sftpPublisher";
 
 export interface StaticTourFile {
   path: string;
@@ -67,7 +68,7 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
     )
   };
 
-  const manifest = createDeployManifest(project, publishedProject, files.map((file) => file.path));
+  const manifest = createPublishManifest(publishedProject, ["index.html", "tour.json", "viewer.css", "viewer.js", ...files.map((file) => file.path)]);
 
   files.unshift(
     { path: "index.html", content: renderIndexHtml(project.title), mimeType: "text/html" },
@@ -81,21 +82,6 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
     ok: true,
     messages: [`Export listo: ${files.length} archivos para ${project.title}.`],
     files
-  };
-}
-
-function createDeployManifest(project: TourProject, publishedProject: TourProject, assetPaths: string[]): Record<string, unknown> {
-  const slug = project.publish?.slug || project.id;
-  return {
-    app: "360Tours Studio",
-    schemaVersion: project.schemaVersion,
-    title: project.title,
-    slug,
-    publicPath: `/tours/${slug}/`,
-    generatedAt: new Date().toISOString(),
-    sceneCount: publishedProject.scenes.length,
-    startScene: publishedProject.startScene,
-    files: ["index.html", "tour.json", "viewer.css", "viewer.js", ...assetPaths].sort()
   };
 }
 

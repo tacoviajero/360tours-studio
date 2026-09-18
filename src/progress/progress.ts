@@ -14,6 +14,8 @@ interface PlanPoint {
 
 const lastUpdated = "18 septiembre 2026";
 const recentChanges = [
+  "Publicacion ahora tiene checklist seguro: temporal, verificacion, respaldo, activacion y verificacion publica.",
+  "El manifiesto de despliegue ahora sale del modulo de publicacion y queda cubierto por pruebas unitarias.",
   "Se agrego prueba automatizada con las 3 fotos reales de la van: importacion, autosave, recorrido lineal, export y viewer.",
   "El editor ahora tiene modo Preparar rapido para fijar inicio y rehacer un recorrido lineal.",
   "El panel Recorrido muestra las escenas en orden y permite reparar conexiones lineales.",
@@ -55,13 +57,13 @@ const points: PlanPoint[] = [
   { id: 28, title: "Validador antes de publicar", phase: "Publicacion", percent: 65, status: "progress", evidence: "Preflight bloquea errores criticos, assets faltantes y el ZIP incluye manifiesto de despliegue.", next: "Validar conflictos remotos cuando exista SFTP real." },
   { id: 29, title: "Optimizacion de imagenes", phase: "Pipeline", percent: 55, status: "progress", evidence: "La importacion genera thumbnails y panoramas optimizados para preview/export inicial; prueba real cubre JPG 8000x4000.", next: "Crear tiles o multiresolucion para tours grandes." },
   { id: 30, title: "Exportacion", phase: "Pipeline", percent: 99, status: "done", evidence: "Export estatico autocontenido, ZIP descargable, viewer canvas, deploy-manifest y prueba con 3 fotos reales ya existen.", next: "Agregar firma de paquete y validacion de archivos grandes." },
-  { id: 31, title: "Publicacion directa", phase: "Publicacion", percent: 35, status: "progress", evidence: "Existe preflight, plan de rutas y manifest de archivos para publicacion.", next: "Implementar subida SFTP real cuando existan credenciales." },
-  { id: 32, title: "Publicacion segura", phase: "Publicacion", percent: 32, status: "progress", evidence: "Plan usa temporal, final y rollback.", next: "Hacer swap atomico/verificado en servidor." },
+  { id: 31, title: "Publicacion directa", phase: "Publicacion", percent: 42, status: "progress", evidence: "Existe preflight, plan de rutas, manifest de archivos y checklist visible para publicacion.", next: "Implementar subida SFTP real cuando existan credenciales." },
+  { id: 32, title: "Publicacion segura", phase: "Publicacion", percent: 45, status: "progress", evidence: "Plan usa temporal, verificacion, respaldo, activacion y verificacion publica, cubierto por pruebas.", next: "Hacer swap atomico real en servidor." },
   { id: 33, title: "Cuenta SFTP dedicada", phase: "Publicacion", percent: 15, status: "pending", evidence: "Documentado como requisito.", next: "Configurar cuenta real limitada a /tours/." },
   { id: 34, title: "Credenciales", phase: "Publicacion", percent: 10, status: "pending", evidence: "No se guardan credenciales en texto plano.", next: "Integrar almacen seguro de Windows via Tauri." },
   { id: 35, title: "Actualizacion de tours existentes", phase: "Publicacion", percent: 22, status: "pending", evidence: "PublishState existe en el modelo.", next: "Mostrar ultima publicacion y modo actualizar." },
   { id: 36, title: "Versiones publicadas y rollback", phase: "Publicacion", percent: 20, status: "pending", evidence: "Rutas de rollback ya se calculan.", next: "Subir versiones y restaurar una anterior." },
-  { id: 37, title: "Experiencia de publicacion", phase: "Publicacion", percent: 45, status: "progress", evidence: "Panel de publicacion muestra URL destino, preflight y el export incluye manifest para despliegue.", next: "Mostrar exito real, abrir tour y copiar URL tras SFTP." },
+  { id: 37, title: "Experiencia de publicacion", phase: "Publicacion", percent: 52, status: "progress", evidence: "Panel de publicacion muestra URL destino, preflight, rutas seguras y pasos del despliegue.", next: "Mostrar exito real, abrir tour y copiar URL tras SFTP." },
   { id: 38, title: "Manejo de errores", phase: "Robustez", percent: 52, status: "progress", evidence: "Errores de importacion, validacion, assets faltantes y exportacion tienen mensajes; pruebas automatizadas ya cubren casos rotos de validacion/export.", next: "Cubrir SFTP, disco, permisos y fallos de build." },
   { id: 39, title: "Recuperacion ante fallos", phase: "Robustez", percent: 72, status: "progress", evidence: "Autosave, historial restaurable, carpeta editable, abrir carpeta y recuperacion nativa de copia local reducen riesgo de perdida.", next: "Probar recuperacion tras cierre inesperado con Tauri compilado." },
   { id: 40, title: "Rendimiento", phase: "Robustez", percent: 32, status: "pending", evidence: "Preview usa blobs bajo demanda y la lista de escenas ya usa thumbnails cuando existen.", next: "Lazy loading, workers y tiles/multiresolucion." },

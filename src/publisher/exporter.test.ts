@@ -76,9 +76,12 @@ describe("exportStaticTour", () => {
     expect(JSON.parse(String(files.get("deploy-manifest.json")?.content))).toMatchObject({
       app: "360Tours Studio",
       slug: "tour-export-test",
-      publicPath: "/tours/tour-export-test/",
-      sceneCount: 2,
-      startScene: "entrada"
+      url: "https://tacoviajero.com/tours/tour-export-test/",
+      finalPath: "/tours/tour-export-test",
+      temporaryPath: expect.stringContaining("/tours/.deploy/tour-export-test-"),
+      rollbackPath: expect.stringContaining("/tours/.versions/tour-export-test/"),
+      fileCount: expect.any(Number),
+      steps: expect.any(Array)
     });
     expect(viewerJs).toContain("floorplan-switcher");
     expect(viewerJs).toContain("data-floorplan-id");

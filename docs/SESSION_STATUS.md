@@ -5,7 +5,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 ## Estado general
 
 - Producto: `360Tours Studio`.
-- Avance visual: `progress.html` muestra 71% global del plan maestro.
+- Avance visual: `progress.html` muestra 72% global del plan maestro.
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
@@ -35,7 +35,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Exportar ZIP estatico autocontenido.
 - Incluir `deploy-manifest.json` dentro del ZIP exportado para publicar con lista exacta de archivos.
 - Viewer exportado con visor canvas, escenas, hotspots, planos, galeria y fullscreen.
-- Preflight de publicacion con plan de rutas.
+- Preflight de publicacion con plan de rutas y checklist seguro de despliegue.
 - Validacion de schema, escena inicial, hotspots, URLs, slug, accesibilidad, plano, galeria y assets locales faltantes.
 - Bloqueo de exportar/publicar cuando faltan assets locales.
 
@@ -50,7 +50,7 @@ pnpm test:real
 
 Resultados:
 
-- Unitarias: 6 archivos, 11 pruebas pasan.
+- Unitarias: 7 archivos, 14 pruebas pasan.
 - Build web: correcto.
 - E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
