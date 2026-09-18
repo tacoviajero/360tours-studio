@@ -2,7 +2,7 @@ import { CURRENT_SCHEMA_VERSION, type Floorplan, type GalleryItem, type Hotspot,
 import { validateProjectAssets } from "../domain/assetValidation";
 import { demoProject } from "../domain/demoProject";
 import { validateProject } from "../domain/validation";
-import { createImageThumbnail, createPreviewPanorama } from "../importers/imageProcessing";
+import { createImageThumbnail, createOptimizedPanorama } from "../importers/imageProcessing";
 import { JPEG360Importer } from "../importers/jpeg360Importer";
 import { isTauriRuntime, loadProjectFolderNative, saveProjectFolderNative } from "../platform/desktopBridge";
 import { BrowserProjectAssets } from "../project/browserAssets";
@@ -555,10 +555,32 @@ export class Tours360StudioApp {
           let panoramaAsset: File = sourceFile;
 
           try {
-            const optimizedPanorama = await createPreviewPanorama(sourceFile);
-            panoramaAsset = new File([optimizedPanorama], `${scene.id}.jpg`, { type: "image/jpeg" });
+            const optimizedPanorama = await createOptimizedPanorama(sourceFile);
+            panoramaAsset = new File([optimizedPanorama.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
+            scene.metadata = {
+              ...scene.metadata,
+              sourceFileName: sourceFile.name,
+              sourceBytes: optimizedPanorama.sourceBytes,
+              optimizedBytes: optimizedPanorama.outputBytes,
+              sourceSize: `${optimizedPanorama.sourceWidth}x${optimizedPanorama.sourceHeight}`,
+              optimizedSize: `${optimizedPanorama.outputWidth}x${optimizedPanorama.outputHeight}`,
+              optimization: {
+                maxWidth: optimizedPanorama.maxWidth,
+                quality: optimizedPanorama.quality,
+                resized: optimizedPanorama.resized
+              }
+            };
           } catch {
             panoramaAsset = sourceFile;
+            scene.metadata = {
+              ...scene.metadata,
+              sourceFileName: sourceFile.name,
+              sourceBytes: sourceFile.size,
+              optimizedBytes: sourceFile.size,
+              optimization: {
+                fallback: true
+              }
+            };
           }
 
           await this.assets.saveScenePanorama(this.project.id, scene.id, panoramaAsset);

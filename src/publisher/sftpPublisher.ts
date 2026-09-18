@@ -120,6 +120,16 @@ export function createPublishManifest(project: TourProject, files: string[], pla
     rollbackPath: plan.rollbackPath,
     fileCount: files.length,
     files: [...files].sort(),
+    panoramas: project.scenes.map((scene) => ({
+      id: scene.id,
+      name: scene.name,
+      panorama: scene.panorama,
+      sourceSize: scene.metadata?.sourceSize,
+      optimizedSize: scene.metadata?.optimizedSize,
+      sourceBytes: scene.metadata?.sourceBytes,
+      optimizedBytes: scene.metadata?.optimizedBytes,
+      optimization: scene.metadata?.optimization
+    })),
     steps: plan.steps
   };
 }

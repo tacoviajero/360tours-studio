@@ -59,7 +59,14 @@ describe("sftpPublisher", () => {
       slug: "van-demo",
       releaseId: "20260918123456",
       fileCount: 3,
-      files: ["index.html", "tour.json", "viewer.js"]
+      files: ["index.html", "tour.json", "viewer.js"],
+      panoramas: [
+        {
+          id: "entrada",
+          name: "Entrada",
+          panorama: "panoramas/entrada.jpg"
+        }
+      ]
     });
   });
 

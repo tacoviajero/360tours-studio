@@ -15,6 +15,8 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Crear proyecto nuevo.
 - Importar panoramas JPG/JPEG con drag and drop.
 - Generar thumbnails de escenas al importar.
+- Optimizar panoramas importados a 2048px de ancho para preview/export inicial.
+- Guardar metadata de optimizacion por escena: dimensiones, bytes, calidad y si hubo resize.
 - Preview 360 con visor canvas interactivo.
 - Paneles laterales colapsables para dar mas espacio al panorama.
 - Guia de siguiente paso dentro del editor segun el estado real del tour.
@@ -34,6 +36,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Recuperar copia local guardada del proyecto actual desde Tauri.
 - Exportar ZIP estatico autocontenido.
 - Incluir `deploy-manifest.json` dentro del ZIP exportado para publicar con lista exacta de archivos.
+- Incluir metadata de panoramas dentro de `deploy-manifest.json`.
 - Viewer exportado con visor canvas, escenas, hotspots, planos, galeria y fullscreen.
 - Preflight de publicacion con plan de rutas y checklist seguro de despliegue.
 - Validacion de schema, escena inicial, hotspots, URLs, slug, accesibilidad, plano, galeria y assets locales faltantes.
@@ -54,7 +57,7 @@ Resultados:
 - Build web: correcto.
 - E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
-- Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, exporta ZIP y abre el viewer exportado.
+- Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
 - Build Windows NSIS actualizado: correcto.
 
 ## Escritorio Windows

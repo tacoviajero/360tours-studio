@@ -98,6 +98,16 @@ async function runRealWorkflow() {
     if (tour.scenes.length !== 3) {
       throw new Error(`Se esperaban 3 escenas en tour.json y llegaron ${tour.scenes.length}.`);
     }
+    for (const scene of tour.scenes) {
+      if (scene.metadata?.optimizedSize !== "2048x1024" || scene.metadata?.optimization?.resized !== true) {
+        throw new Error(`La escena no trae metadata de optimizacion esperada: ${JSON.stringify(scene.metadata)}`);
+      }
+    }
+
+    const manifest = JSON.parse(new TextDecoder().decode(archive.get("deploy-manifest.json")));
+    if (!Array.isArray(manifest.panoramas) || manifest.panoramas.length !== 3) {
+      throw new Error("El deploy-manifest no incluye metadata de los 3 panoramas.");
+    }
 
     const sceneLinks = tour.scenes.flatMap((scene) => scene.hotspots.filter((hotspot) => hotspot.type === "scene"));
     if (sceneLinks.length < 4) {

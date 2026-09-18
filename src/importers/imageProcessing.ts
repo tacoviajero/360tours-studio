@@ -1,13 +1,32 @@
+export interface ImageOptimizationResult {
+  blob: Blob;
+  sourceWidth: number;
+  sourceHeight: number;
+  outputWidth: number;
+  outputHeight: number;
+  sourceBytes: number;
+  outputBytes: number;
+  maxWidth: number;
+  quality: number;
+  resized: boolean;
+}
+
 export async function createImageThumbnail(file: File, maxWidth = 640, quality = 0.78): Promise<Blob> {
-  return createResizedJpeg(file, maxWidth, quality);
+  return (await createOptimizedJpeg(file, maxWidth, quality)).blob;
 }
 
 export async function createPreviewPanorama(file: File, maxWidth = 2048, quality = 0.9): Promise<Blob> {
-  return createResizedJpeg(file, maxWidth, quality);
+  return (await createOptimizedJpeg(file, maxWidth, quality)).blob;
 }
 
-async function createResizedJpeg(file: File, maxWidth: number, quality: number): Promise<Blob> {
+export async function createOptimizedPanorama(file: File, maxWidth = 2048, quality = 0.9): Promise<ImageOptimizationResult> {
+  return createOptimizedJpeg(file, maxWidth, quality);
+}
+
+async function createOptimizedJpeg(file: File, maxWidth: number, quality: number): Promise<ImageOptimizationResult> {
   const bitmap = await createImageBitmap(file);
+  const sourceWidth = bitmap.width;
+  const sourceHeight = bitmap.height;
   const scale = Math.min(1, maxWidth / bitmap.width);
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
@@ -29,5 +48,16 @@ async function createResizedJpeg(file: File, maxWidth: number, quality: number):
     throw new Error("No se pudo generar la imagen optimizada.");
   }
 
-  return image;
+  return {
+    blob: image,
+    sourceWidth,
+    sourceHeight,
+    outputWidth: width,
+    outputHeight: height,
+    sourceBytes: file.size,
+    outputBytes: image.size,
+    maxWidth,
+    quality,
+    resized: width !== sourceWidth || height !== sourceHeight
+  };
 }
