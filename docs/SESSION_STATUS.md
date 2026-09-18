@@ -5,7 +5,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 ## Estado general
 
 - Producto: `360Tours Studio`.
-- Avance visual: `progress.html` muestra 70% global del plan maestro.
+- Avance visual: `progress.html` muestra 71% global del plan maestro.
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
@@ -20,6 +20,8 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Guia de siguiente paso dentro del editor segun el estado real del tour.
 - Renombrar, ordenar, eliminar escenas y definir escena inicial.
 - Conectar automaticamente importaciones multiples como recorrido lineal.
+- Preparar rapido un tour lineal fijando inicio y reparando conexiones anterior/siguiente.
+- Ver el recorrido como lista visual de escenas conectadas.
 - Guardar vista inicial de escena.
 - Crear hotspots de navegacion, informacion, imagen, video y link.
 - Importar multiples planos de planta, renombrarlos, eliminarlos y ubicar marcadores.
@@ -31,6 +33,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Abrir carpeta editable en navegador compatible.
 - Recuperar copia local guardada del proyecto actual desde Tauri.
 - Exportar ZIP estatico autocontenido.
+- Incluir `deploy-manifest.json` dentro del ZIP exportado para publicar con lista exacta de archivos.
 - Viewer exportado con visor canvas, escenas, hotspots, planos, galeria y fullscreen.
 - Preflight de publicacion con plan de rutas.
 - Validacion de schema, escena inicial, hotspots, URLs, slug, accesibilidad, plano, galeria y assets locales faltantes.
@@ -42,6 +45,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 pnpm test
 pnpm build
 pnpm test:e2e
+pnpm test:real
 ```
 
 Resultados:
@@ -50,6 +54,8 @@ Resultados:
 - Build web: correcto.
 - E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
+- Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, exporta ZIP y abre el viewer exportado.
+- Build Windows NSIS actualizado: correcto.
 
 ## Escritorio Windows
 
@@ -82,11 +88,12 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 - Git guarda los avances recientes en commits, incluyendo:
   - `f4b7e11 Implementar visor canvas 360 interactivo`
   - `8b2f3dc Usar visor canvas en tour exportado`
+  - `8dcc7c1 Cerrar flujo real de tour lineal`
 
 ## Siguientes pasos recomendados
 
-1. Probar cerrar/reabrir un proyecto real desde carpeta editable.
-2. Implementar publicacion SFTP real.
+1. Probar la app instalada manualmente con el proyecto real.
+2. Implementar publicacion SFTP real cuando existan credenciales.
 3. Agregar tiles o multiresolucion para tours grandes.
 4. Mejorar selector nativo de carpeta externa en Tauri.
 5. Resolver MSI/WiX solo si se necesita instalador `.msi`; por ahora NSIS `.exe` es suficiente para probar.

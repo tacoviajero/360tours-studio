@@ -88,7 +88,7 @@ async function runChecks() {
 
     await page.goto(`${baseUrl}/progress.html`);
     await page.getByRole("heading", { name: "Avance de 360Tours Studio" }).waitFor({ state: "visible" });
-    await page.getByLabel("Avance general").getByText("70%").waitFor({ state: "visible" });
+    await page.getByLabel("Avance general").getByText("71%").waitFor({ state: "visible" });
     await page.getByRole("heading", { name: "Plano de planta" }).waitFor({ state: "visible" });
     await page.getByRole("heading", { name: "Criterios de exito" }).waitFor({ state: "visible" });
   } finally {
