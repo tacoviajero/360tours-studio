@@ -646,6 +646,16 @@ h2 {
   gap: 8px;
 }
 
+.scene-search {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.scene-search input {
+  min-height: 36px;
+}
+
 .scene-list-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -668,6 +678,12 @@ h2 {
 .scene-list-summary b {
   color: #f5f0e8;
   font-size: 0.9rem;
+}
+
+.scene-filter-status {
+  margin: 0;
+  color: #d7cec4;
+  font-size: 0.78rem;
 }
 
 .scene-item,

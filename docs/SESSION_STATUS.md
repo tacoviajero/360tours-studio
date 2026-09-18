@@ -5,7 +5,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 ## Estado general
 
 - Producto: `360Tours Studio`.
-- Avance visual: `progress.html` muestra 73% global del plan maestro.
+- Avance visual: `progress.html` muestra 74% global del plan maestro.
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
@@ -23,6 +23,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Paneles laterales colapsables para dar mas espacio al panorama.
 - Guia de siguiente paso dentro del editor segun el estado real del tour.
 - Renombrar, ordenar, eliminar escenas y definir escena inicial.
+- Buscar escenas por nombre, numero o id para manejar tours grandes sin depender solo del scroll.
 - Conectar automaticamente importaciones multiples como recorrido lineal.
 - Preparar rapido un tour lineal fijando inicio y reparando conexiones anterior/siguiente.
 - Ver el recorrido como lista visual de escenas conectadas.
@@ -64,7 +65,7 @@ Resultados:
 - E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
-- Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, recarga autosave, prepara ruta lineal, exporta ZIP y abre el viewer exportado.
+- Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda de escena 050, recarga autosave, prepara ruta lineal, exporta ZIP y abre el viewer exportado.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado e invalido y conserva avisos visibles.
 - Build Windows NSIS actualizado: correcto.
 

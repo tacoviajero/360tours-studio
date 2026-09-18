@@ -66,6 +66,11 @@ async function runLargeWorkflow() {
     await page.getByLabel("Resumen de escenas").getByText(`${(SCENE_COUNT - 1) * 2} conexiones`, { exact: true }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Van 001/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /50\. Van 050/ }).waitFor({ state: "visible" });
+    await page.locator("[data-field='scene-filter']").fill("050");
+    await page.getByText(`1 de ${SCENE_COUNT} escenas coinciden.`).waitFor({ state: "visible" });
+    await page.getByLabel("Proyecto").getByRole("button", { name: /50\. Van 050/ }).waitFor({ state: "visible" });
+    await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Van 001/ }).waitFor({ state: "hidden" });
+    await page.locator("[data-field='scene-filter']").fill("");
 
     await page.reload();
     await page.getByLabel("Proyecto").getByRole("button", { name: /50\. Van 050/ }).waitFor({ state: "visible" });

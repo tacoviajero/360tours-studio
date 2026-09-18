@@ -33,6 +33,7 @@ export class Tours360StudioApp {
   private assetIssues: ValidationIssue[] = [];
   private leftPanelCollapsed = false;
   private rightPanelCollapsed = false;
+  private sceneFilter = "";
 
   mount(root: HTMLElement): void {
     root.innerHTML = this.renderShell();
@@ -78,6 +79,10 @@ export class Tours360StudioApp {
               <h2>Escenas</h2>
               <span data-scene-count>0</span>
             </div>
+            <label class="scene-search">
+              <span>Buscar escena</span>
+              <input value="${escapeHtml(this.sceneFilter)}" placeholder="Nombre o numero" data-field="scene-filter" />
+            </label>
             <div class="scene-list" data-scene-list></div>
           </section>
         </aside>
@@ -269,6 +274,7 @@ export class Tours360StudioApp {
         this.project = createEmptyProject();
         this.activeSceneId = "";
         this.activeFloorplanId = "";
+        this.sceneFilter = "";
         this.syncTitleField(root);
         await this.persistAndRender(root, true);
       }
@@ -281,6 +287,7 @@ export class Tours360StudioApp {
         });
         this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
         this.activeFloorplanId = this.project.floorplans[0]?.id ?? "";
+        this.sceneFilter = "";
         this.syncTitleField(root);
         await this.persistAndRender(root, true);
       }
@@ -295,6 +302,7 @@ export class Tours360StudioApp {
         this.project = project;
         this.activeSceneId = project.startScene ?? project.scenes[0]?.id ?? "";
         this.activeFloorplanId = project.floorplans[0]?.id ?? "";
+        this.sceneFilter = "";
         this.syncTitleField(root);
         await this.renderWorkspace(root, true);
       }
@@ -426,6 +434,11 @@ export class Tours360StudioApp {
         await this.storage.save(this.project);
         this.syncPublishUrl(root);
         this.renderValidation(root);
+      }
+
+      if (target.dataset.field === "scene-filter") {
+        this.sceneFilter = target.value;
+        await this.renderSceneList(root);
       }
 
       if (target.dataset.field === "scene-name") {
@@ -890,6 +903,17 @@ export class Tours360StudioApp {
       return;
     }
 
+    const normalizedFilter = normalizeSearchTerm(this.sceneFilter);
+    const sceneEntries = this.project.scenes
+      .map((scene, index) => ({ scene, index }))
+      .filter(({ scene, index }) => {
+        if (!normalizedFilter) {
+          return true;
+        }
+
+        const searchable = normalizeSearchTerm(`${index + 1} ${scene.name} ${scene.id}`);
+        return searchable.includes(normalizedFilter);
+      });
     const routeLinks = this.project.scenes.reduce((total, scene) => total + scene.hotspots.filter((hotspot) => hotspot.type === "scene").length, 0);
     const optimizedScenes = this.project.scenes.filter((scene) => scene.metadata?.optimizedSize).length;
     const summary = `
@@ -899,10 +923,18 @@ export class Tours360StudioApp {
         <span><b>${optimizedScenes}</b> optimizadas</span>
       </div>
     `;
+    const filterStatus = normalizedFilter
+      ? `<p class="scene-filter-status">${sceneEntries.length} de ${this.project.scenes.length} escenas coinciden.</p>`
+      : "";
 
-    sceneList.innerHTML = summary + (
+    if (sceneEntries.length === 0) {
+      sceneList.innerHTML = `${summary}${filterStatus}<p class="empty-list">No hay escenas que coincidan.</p>`;
+      return;
+    }
+
+    sceneList.innerHTML = summary + filterStatus + (
       await Promise.all(
-        this.project.scenes.map(async (scene, index) => {
+        sceneEntries.map(async ({ scene, index }) => {
           let thumbnailUrl = "";
           if (scene.thumbnail) {
             const asset = await this.assets.loadProjectAsset(this.project.id, scene.thumbnail);
@@ -2312,6 +2344,14 @@ interface WritableFileStream {
 
 function supportsDirectoryExport(): boolean {
   return typeof (window as DirectoryPickerWindow).showDirectoryPicker === "function";
+}
+
+function normalizeSearchTerm(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }
 
 async function pickDirectory(): Promise<DirectoryHandle> {
