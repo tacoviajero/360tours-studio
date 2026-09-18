@@ -2,7 +2,7 @@ import { CURRENT_SCHEMA_VERSION, type Floorplan, type GalleryItem, type Hotspot,
 import { validateProjectAssets } from "../domain/assetValidation";
 import { demoProject } from "../domain/demoProject";
 import { validateProject } from "../domain/validation";
-import { createImageThumbnail } from "../importers/imageProcessing";
+import { createImageThumbnail, createPreviewPanorama } from "../importers/imageProcessing";
 import { JPEG360Importer } from "../importers/jpeg360Importer";
 import { isTauriRuntime, loadProjectFolderNative, saveProjectFolderNative } from "../platform/desktopBridge";
 import { BrowserProjectAssets } from "../project/browserAssets";
@@ -494,8 +494,17 @@ export class Tours360StudioApp {
         scene.panorama = `panoramas/${scene.id}.jpg`;
 
         if (sourceFile) {
-          await this.assets.saveScenePanorama(this.project.id, scene.id, sourceFile);
-          await this.assets.saveProjectAsset(this.project.id, scene.panorama, sourceFile);
+          let panoramaAsset: File = sourceFile;
+
+          try {
+            const optimizedPanorama = await createPreviewPanorama(sourceFile);
+            panoramaAsset = new File([optimizedPanorama], `${scene.id}.jpg`, { type: "image/jpeg" });
+          } catch {
+            panoramaAsset = sourceFile;
+          }
+
+          await this.assets.saveScenePanorama(this.project.id, scene.id, panoramaAsset);
+          await this.assets.saveProjectAsset(this.project.id, scene.panorama, panoramaAsset);
 
           try {
             const thumbnail = await createImageThumbnail(sourceFile);
