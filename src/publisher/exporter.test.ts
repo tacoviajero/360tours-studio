@@ -63,6 +63,7 @@ describe("exportStaticTour", () => {
 
     expect(result.ok).toBe(true);
     expect(files.has("index.html")).toBe(true);
+    expect(files.has("deploy-manifest.json")).toBe(true);
     expect(files.has("viewer.css")).toBe(true);
     expect(files.has("viewer.js")).toBe(true);
     expect(files.has("panoramas/entrada.jpg")).toBe(true);
@@ -72,6 +73,13 @@ describe("exportStaticTour", () => {
     expect(files.has("floorplans/planta-alta.png")).toBe(true);
     expect(files.has("gallery/fachada.jpg")).toBe(true);
     expect(tourJson.floorplans).toHaveLength(2);
+    expect(JSON.parse(String(files.get("deploy-manifest.json")?.content))).toMatchObject({
+      app: "360Tours Studio",
+      slug: "tour-export-test",
+      publicPath: "/tours/tour-export-test/",
+      sceneCount: 2,
+      startScene: "entrada"
+    });
     expect(viewerJs).toContain("floorplan-switcher");
     expect(viewerJs).toContain("data-floorplan-id");
   });

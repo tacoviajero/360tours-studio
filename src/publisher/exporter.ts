@@ -67,9 +67,12 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
     )
   };
 
+  const manifest = createDeployManifest(project, publishedProject, files.map((file) => file.path));
+
   files.unshift(
     { path: "index.html", content: renderIndexHtml(project.title), mimeType: "text/html" },
     { path: "tour.json", content: JSON.stringify(publishedProject, null, 2), mimeType: "application/json" },
+    { path: "deploy-manifest.json", content: JSON.stringify(manifest, null, 2), mimeType: "application/json" },
     { path: "viewer.css", content: viewerCss, mimeType: "text/css" },
     { path: "viewer.js", content: viewerJs, mimeType: "text/javascript" }
   );
@@ -78,6 +81,21 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
     ok: true,
     messages: [`Export listo: ${files.length} archivos para ${project.title}.`],
     files
+  };
+}
+
+function createDeployManifest(project: TourProject, publishedProject: TourProject, assetPaths: string[]): Record<string, unknown> {
+  const slug = project.publish?.slug || project.id;
+  return {
+    app: "360Tours Studio",
+    schemaVersion: project.schemaVersion,
+    title: project.title,
+    slug,
+    publicPath: `/tours/${slug}/`,
+    generatedAt: new Date().toISOString(),
+    sceneCount: publishedProject.scenes.length,
+    startScene: publishedProject.startScene,
+    files: ["index.html", "tour.json", "viewer.css", "viewer.js", ...assetPaths].sort()
   };
 }
 

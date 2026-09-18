@@ -382,6 +382,69 @@ h2 {
   line-height: 1.35;
 }
 
+.route-map {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.route-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgba(255, 209, 102, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 209, 102, 0.055);
+}
+
+.route-step.is-complete {
+  border-color: rgba(116, 214, 128, 0.22);
+  background: rgba(116, 214, 128, 0.06);
+}
+
+.route-step.is-active {
+  border-color: rgba(240, 138, 75, 0.7);
+}
+
+.route-step button {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.route-step button span {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #24232a;
+  color: #f5f0e8;
+  font-weight: 800;
+}
+
+.route-step button strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f5f0e8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-step small {
+  color: #b9b0a6;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .import-zone {
   border: 1px dashed rgba(245, 240, 232, 0.25);
   border-radius: 8px;

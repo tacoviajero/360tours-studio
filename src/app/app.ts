@@ -98,6 +98,7 @@ export class Tours360StudioApp {
           <div class="topbar-actions">
             <button data-action="toggle-left-panel">Escenas</button>
             <button data-action="toggle-right-panel">Herramientas</button>
+            <button data-action="quick-tour">Preparar rapido</button>
             <a class="button-link" href="/progress.html">Ver avance</a>
             <button data-action="snapshot">Guardar snapshot</button>
             <button data-action="duplicate-project">Duplicar</button>
@@ -122,6 +123,10 @@ export class Tours360StudioApp {
           <section>
             <h2>Escena activa</h2>
             <div data-scene-properties></div>
+          </section>
+          <section>
+            <h2>Recorrido</h2>
+            <div data-route-map></div>
           </section>
           <section>
             <h2>Plano</h2>
@@ -212,6 +217,16 @@ export class Tours360StudioApp {
 
       if (action === "next-scene") {
         await this.navigateRelativeScene(root, 1);
+        return;
+      }
+
+      if (action === "repair-linear-route") {
+        await this.repairLinearRoute(root, target);
+        return;
+      }
+
+      if (action === "quick-tour") {
+        await this.prepareQuickTour(root, target);
         return;
       }
 
@@ -604,35 +619,79 @@ export class Tours360StudioApp {
       }
 
       const index = importedScenes.findIndex((item) => item.id === scene.id);
-      const previousScene = importedScenes[index - 1];
-      const nextScene = importedScenes[index + 1];
-      const existingTargets = new Set(scene.hotspots.filter((hotspot) => hotspot.type === "scene").map((hotspot) => hotspot.targetScene));
-      const hotspots = [...scene.hotspots];
-
-      if (previousScene && !existingTargets.has(previousScene.id)) {
-        hotspots.push({
-          id: `auto-prev-${previousScene.id}`,
-          type: "scene",
-          yaw: -1.57,
-          pitch: 0,
-          targetScene: previousScene.id,
-          label: `Volver a ${previousScene.name}`
-        });
-      }
-
-      if (nextScene && !existingTargets.has(nextScene.id)) {
-        hotspots.push({
-          id: `auto-next-${nextScene.id}`,
-          type: "scene",
-          yaw: 1.57,
-          pitch: 0,
-          targetScene: nextScene.id,
-          label: `Ir a ${nextScene.name}`
-        });
-      }
-
-      return { ...scene, hotspots };
+      return {
+        ...scene,
+        hotspots: this.mergeLinearSceneLinks(scene, importedScenes[index - 1], importedScenes[index + 1])
+      };
     });
+  }
+
+  private mergeLinearSceneLinks(scene: Scene, previousScene: Scene | undefined, nextScene: Scene | undefined): Scene["hotspots"] {
+    const existingTargets = new Set(scene.hotspots.filter((hotspot) => hotspot.type === "scene").map((hotspot) => hotspot.targetScene));
+    const hotspots = [...scene.hotspots];
+
+    if (previousScene && !existingTargets.has(previousScene.id)) {
+      hotspots.push(createLinearHotspot("prev", previousScene));
+    }
+
+    if (nextScene && !existingTargets.has(nextScene.id)) {
+      hotspots.push(createLinearHotspot("next", nextScene));
+    }
+
+    return hotspots;
+  }
+
+  private replaceLinearSceneLinks(scene: Scene, previousScene: Scene | undefined, nextScene: Scene | undefined): Scene["hotspots"] {
+    const hotspots: Scene["hotspots"] = scene.hotspots.filter((hotspot) => hotspot.type !== "scene");
+
+    if (previousScene) {
+      hotspots.push(createLinearHotspot("prev", previousScene));
+    }
+
+    if (nextScene) {
+      hotspots.push(createLinearHotspot("next", nextScene));
+    }
+
+    return hotspots;
+  }
+
+  private async repairLinearRoute(root: HTMLElement, target: HTMLElement): Promise<void> {
+    if (this.project.scenes.length < 2) {
+      return;
+    }
+
+    await this.storage.snapshot(this.project);
+    this.project = {
+      ...this.project,
+      scenes: this.project.scenes.map((scene, index, scenes) => ({
+        ...scene,
+        hotspots: this.replaceLinearSceneLinks(scene, scenes[index - 1], scenes[index + 1])
+      }))
+    };
+    await this.persistAndRender(root, true);
+    this.flashButton(target, "Recorrido listo");
+  }
+
+  private async prepareQuickTour(root: HTMLElement, target: HTMLElement): Promise<void> {
+    if (this.project.scenes.length === 0) {
+      this.renderImportStatus(root, "Importa tus panoramas antes de preparar el tour.");
+      return;
+    }
+
+    const startSceneId = this.project.scenes[0].id;
+    await this.storage.snapshot(this.project);
+    this.project = {
+      ...this.project,
+      startScene: startSceneId,
+      scenes: this.project.scenes.map((scene, index, scenes) => ({
+        ...scene,
+        hotspots: this.replaceLinearSceneLinks(scene, scenes[index - 1], scenes[index + 1])
+      }))
+    };
+    this.activeSceneId = startSceneId;
+    await this.persistAndRender(root, true);
+    this.renderImportStatus(root, "Tour rapido preparado: inicio y recorrido lineal listos.");
+    this.flashButton(target, "Listo");
   }
 
   private async persistAndRender(root: HTMLElement, remountPreview: boolean): Promise<void> {
@@ -653,6 +712,7 @@ export class Tours360StudioApp {
     this.renderRecentProjects(root);
     this.renderSceneProperties(root);
     this.renderNextSteps(root);
+    this.renderRouteMap(root);
     await this.renderFloorplanPanel(root);
     await this.renderGalleryPanel(root);
     this.renderValidation(root);
@@ -1038,6 +1098,46 @@ export class Tours360StudioApp {
           ? `<p class="muted">${warnings.length} aviso${warnings.length === 1 ? "" : "s"} pendiente${warnings.length === 1 ? "" : "s"}; no bloquea exportar.</p>`
           : ""
       }
+    `;
+  }
+
+  private renderRouteMap(root: HTMLElement): void {
+    const panel = root.querySelector<HTMLElement>("[data-route-map]");
+    if (!panel) {
+      return;
+    }
+
+    if (this.project.scenes.length === 0) {
+      panel.innerHTML = `<p class="muted">Importa panoramas para ver el recorrido.</p>`;
+      return;
+    }
+
+    const items = this.project.scenes
+      .map((scene, index) => {
+        const previous = this.project.scenes[index - 1];
+        const next = this.project.scenes[index + 1];
+        const sceneLinks = scene.hotspots.filter((hotspot) => hotspot.type === "scene");
+        const hasPrevious = !previous || sceneLinks.some((hotspot) => hotspot.targetScene === previous.id);
+        const hasNext = !next || sceneLinks.some((hotspot) => hotspot.targetScene === next.id);
+        const isComplete = hasPrevious && hasNext;
+
+        return `
+          <article class="route-step${scene.id === this.activeSceneId ? " is-active" : ""}${isComplete ? " is-complete" : ""}">
+            <button data-scene-id="${escapeHtml(scene.id)}">
+              <span>${index + 1}</span>
+              <strong>${escapeHtml(scene.name)}</strong>
+            </button>
+            <small>${isComplete ? "Conectada" : "Falta enlace"}</small>
+          </article>
+        `;
+      })
+      .join("");
+
+    panel.innerHTML = `
+      <div class="route-map">
+        ${items}
+      </div>
+      <button data-action="repair-linear-route" ${this.project.scenes.length < 2 ? "disabled" : ""}>Reparar recorrido lineal</button>
     `;
   }
 
@@ -1961,6 +2061,17 @@ function toSlug(value: string): string {
 
 function cloneProject(project: TourProject): TourProject {
   return JSON.parse(JSON.stringify(project)) as TourProject;
+}
+
+function createLinearHotspot(direction: "prev" | "next", targetScene: Scene): Scene["hotspots"][number] {
+  return {
+    id: `auto-${direction}-${targetScene.id}`,
+    type: "scene",
+    yaw: direction === "prev" ? -1.57 : 1.57,
+    pitch: 0,
+    targetScene: targetScene.id,
+    label: direction === "prev" ? `Volver a ${targetScene.name}` : `Ir a ${targetScene.name}`
+  };
 }
 
 function updateHotspotField(hotspot: Hotspot, hotspotId: string, field: string, value: string): Hotspot {
