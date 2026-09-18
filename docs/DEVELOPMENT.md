@@ -26,6 +26,12 @@ La app se abre durante desarrollo en:
 http://127.0.0.1:5173/
 ```
 
+Para hacer pruebas manuales con fotos reales sin abrir ChatGPT, usa:
+
+```text
+docs/MANUAL_TESTING.md
+```
+
 ## Verificar build
 
 ```powershell
@@ -57,4 +63,3 @@ publicar
 ↓
 abrir tour desde internet
 ```
-

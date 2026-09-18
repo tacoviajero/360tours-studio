@@ -34,6 +34,7 @@ https://tacoviajero.com/tours/[slug]/
 - [progress.html](./progress.html): tablero visual de avance de los 50 puntos del plan.
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md): separacion tecnica inicial.
 - [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md): comandos locales.
+- [docs/MANUAL_TESTING.md](./docs/MANUAL_TESTING.md): como levantar el servidor y probar fotos reales sin abrir ChatGPT.
 - [docs/READY_TO_START.md](./docs/READY_TO_START.md): estado exacto para comenzar desarrollo.
 
 ## Stack inicial
