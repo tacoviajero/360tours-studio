@@ -4,6 +4,7 @@ import type { TourRenderer } from "./tourRenderer";
 interface RenderedScene {
   data: Scene;
   image: HTMLImageElement;
+  source?: ImageData;
 }
 
 const MIN_FOV = 0.55;
@@ -193,16 +194,11 @@ export class CanvasTourRenderer implements TourRenderer {
     const height = this.canvas.height;
     const buffer = this.context.createImageData(width, height);
     const data = buffer.data;
-    const sourceCanvas = document.createElement("canvas");
-    sourceCanvas.width = scene.image.naturalWidth;
-    sourceCanvas.height = scene.image.naturalHeight;
-    const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
-    if (!sourceContext) {
+    const source = getSceneSource(scene);
+    if (!source) {
       return;
     }
 
-    sourceContext.drawImage(scene.image, 0, 0);
-    const source = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
     const aspect = width / Math.max(1, height);
     const verticalFov = this.view.fov;
     const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
@@ -216,15 +212,15 @@ export class CanvasTourRenderer implements TourRenderer {
         const direction = rotateDirection(normalizedX * tanHalfH, normalizedY * tanHalfV, -1, this.view.yaw, this.view.pitch);
         const yaw = Math.atan2(direction.x, -direction.z);
         const pitch = Math.asin(clamp(direction.y, -1, 1));
-        const sourceX = positiveModulo(yaw / (2 * Math.PI) + 0.5, 1) * sourceCanvas.width;
-        const sourceY = clamp(0.5 - pitch / Math.PI, 0, 0.999999) * sourceCanvas.height;
-        const sx = Math.floor(sourceX) % sourceCanvas.width;
+        const sourceX = positiveModulo(yaw / (2 * Math.PI) + 0.5, 1) * source.width;
+        const sourceY = clamp(0.5 - pitch / Math.PI, 0, 0.999999) * source.height;
+        const sx = Math.floor(sourceX) % source.width;
         const sy = Math.floor(sourceY);
-        const sourceIndex = (sy * sourceCanvas.width + sx) * 4;
+        const sourceIndex = (sy * source.width + sx) * 4;
         const targetIndex = (y * width + x) * 4;
-        data[targetIndex] = source[sourceIndex];
-        data[targetIndex + 1] = source[sourceIndex + 1];
-        data[targetIndex + 2] = source[sourceIndex + 2];
+        data[targetIndex] = source.data[sourceIndex];
+        data[targetIndex + 1] = source.data[sourceIndex + 1];
+        data[targetIndex + 2] = source.data[sourceIndex + 2];
         data[targetIndex + 3] = 255;
       }
     }
@@ -322,6 +318,24 @@ export class CanvasTourRenderer implements TourRenderer {
 
     return { x, y };
   }
+}
+
+function getSceneSource(scene: RenderedScene): ImageData | null {
+  if (scene.source) {
+    return scene.source;
+  }
+
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = scene.image.naturalWidth;
+  sourceCanvas.height = scene.image.naturalHeight;
+  const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+  if (!sourceContext) {
+    return null;
+  }
+
+  sourceContext.drawImage(scene.image, 0, 0);
+  scene.source = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+  return scene.source;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

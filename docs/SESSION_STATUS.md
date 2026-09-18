@@ -21,6 +21,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Optimizar panoramas importados a 2048px de ancho para preview/export inicial.
 - Guardar metadata de optimizacion por escena: dimensiones, bytes, calidad y si hubo resize.
 - Preview 360 con visor canvas interactivo.
+- Renderer del editor y viewer exportado con cache de pixeles por escena para reducir trabajo al mover la vista.
 - Paneles laterales colapsables para dar mas espacio al panorama.
 - Guia de siguiente paso dentro del editor segun el estado real del tour.
 - Renombrar, ordenar, eliminar escenas y definir escena inicial.
@@ -68,6 +69,7 @@ Resultados:
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda de escena 050, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
+- Renderer verificado despues del cache de pixeles con `pnpm test:real` y `pnpm test:large`.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
 - Build Windows NSIS actualizado: correcto.
 
