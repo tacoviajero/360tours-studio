@@ -545,57 +545,10 @@ export class Tours360StudioApp {
     const importedScenes = result.scenes.map((scene) => ({ ...scene }));
 
     const newScenes = this.dedupeSceneIds(importedScenes);
-    await Promise.all(
-      newScenes.map(async (scene, index) => {
-        const originalScene = importedScenes[index];
-        const sourceFile = files.find((file) => originalScene.panorama.endsWith(file.name));
-        scene.panorama = `panoramas/${scene.id}.jpg`;
-
-        if (sourceFile) {
-          let panoramaAsset: File = sourceFile;
-
-          try {
-            const optimizedPanorama = await createOptimizedPanorama(sourceFile);
-            panoramaAsset = new File([optimizedPanorama.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
-            scene.metadata = {
-              ...scene.metadata,
-              sourceFileName: sourceFile.name,
-              sourceBytes: optimizedPanorama.sourceBytes,
-              optimizedBytes: optimizedPanorama.outputBytes,
-              sourceSize: `${optimizedPanorama.sourceWidth}x${optimizedPanorama.sourceHeight}`,
-              optimizedSize: `${optimizedPanorama.outputWidth}x${optimizedPanorama.outputHeight}`,
-              optimization: {
-                maxWidth: optimizedPanorama.maxWidth,
-                quality: optimizedPanorama.quality,
-                resized: optimizedPanorama.resized
-              }
-            };
-          } catch {
-            panoramaAsset = sourceFile;
-            scene.metadata = {
-              ...scene.metadata,
-              sourceFileName: sourceFile.name,
-              sourceBytes: sourceFile.size,
-              optimizedBytes: sourceFile.size,
-              optimization: {
-                fallback: true
-              }
-            };
-          }
-
-          await this.assets.saveScenePanorama(this.project.id, scene.id, panoramaAsset);
-          await this.assets.saveProjectAsset(this.project.id, scene.panorama, panoramaAsset);
-
-          try {
-            const thumbnail = await createImageThumbnail(sourceFile);
-            scene.thumbnail = `thumbnails/${scene.id}.jpg`;
-            await this.assets.saveProjectAsset(this.project.id, scene.thumbnail, new File([thumbnail], `${scene.id}.jpg`, { type: "image/jpeg" }));
-          } catch {
-            scene.thumbnail = undefined;
-          }
-        }
-      })
-    );
+    for (const [index, scene] of newScenes.entries()) {
+      this.renderImportStatus(root, `Procesando ${index + 1} de ${newScenes.length}: ${scene.name}`);
+      await this.prepareImportedScene(scene, importedScenes[index], files);
+    }
 
     this.project = {
       ...this.project,
@@ -610,6 +563,57 @@ export class Tours360StudioApp {
         newScenes.length > 1 ? "Se conectaron en linea automaticamente." : ""
       }`
     );
+  }
+
+  private async prepareImportedScene(scene: Scene, originalScene: Scene, files: File[]): Promise<void> {
+    const sourceFile = files.find((file) => originalScene.panorama.endsWith(file.name));
+    scene.panorama = `panoramas/${scene.id}.jpg`;
+
+    if (!sourceFile) {
+      return;
+    }
+
+    let panoramaAsset: File = sourceFile;
+
+    try {
+      const optimizedPanorama = await createOptimizedPanorama(sourceFile);
+      panoramaAsset = new File([optimizedPanorama.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
+      scene.metadata = {
+        ...scene.metadata,
+        sourceFileName: sourceFile.name,
+        sourceBytes: optimizedPanorama.sourceBytes,
+        optimizedBytes: optimizedPanorama.outputBytes,
+        sourceSize: `${optimizedPanorama.sourceWidth}x${optimizedPanorama.sourceHeight}`,
+        optimizedSize: `${optimizedPanorama.outputWidth}x${optimizedPanorama.outputHeight}`,
+        optimization: {
+          maxWidth: optimizedPanorama.maxWidth,
+          quality: optimizedPanorama.quality,
+          resized: optimizedPanorama.resized
+        }
+      };
+    } catch {
+      panoramaAsset = sourceFile;
+      scene.metadata = {
+        ...scene.metadata,
+        sourceFileName: sourceFile.name,
+        sourceBytes: sourceFile.size,
+        optimizedBytes: sourceFile.size,
+        optimization: {
+          fallback: true
+        }
+      };
+    }
+
+    await this.assets.saveScenePanorama(this.project.id, scene.id, panoramaAsset);
+    await this.assets.saveProjectAsset(this.project.id, scene.panorama, panoramaAsset);
+
+    try {
+      const thumbnail = await createImageThumbnail(sourceFile);
+      scene.thumbnail = `thumbnails/${scene.id}.jpg`;
+      await this.assets.saveProjectAsset(this.project.id, scene.thumbnail, new File([thumbnail], `${scene.id}.jpg`, { type: "image/jpeg" }));
+    } catch {
+      scene.thumbnail = undefined;
+    }
   }
 
   private dedupeSceneIds(scenes: Scene[]): Scene[] {

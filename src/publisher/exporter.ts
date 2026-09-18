@@ -161,13 +161,24 @@ body {
   top: 18px;
   z-index: 10;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 8px;
   width: min(260px, calc(100vw - 36px));
+  max-height: calc(100vh - 36px);
   padding: 12px;
   border: 1px solid rgba(247, 242, 234, 0.16);
   border-radius: 8px;
   background: rgba(15, 15, 18, 0.86);
   backdrop-filter: blur(12px);
+}
+
+.scene-menu-list {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
 }
 
 .tour-menu h1 {
@@ -334,7 +345,6 @@ body {
     bottom: 14px;
     top: auto;
     max-height: 42vh;
-    overflow: auto;
   }
 
   .media-panel {
@@ -362,10 +372,11 @@ const viewerJs = `(async function () {
   await viewer.ready;
 
   function renderMenu(activeSceneId) {
-    menu.innerHTML = "<h1>" + escapeHtml(project.title) + "</h1>" + project.scenes.map((scene) => {
+    menu.innerHTML = "<h1>" + escapeHtml(project.title) + "</h1><div class='scene-menu-list'>" + project.scenes.map((scene) => {
       const className = scene.id === activeSceneId ? ' class="is-active"' : "";
       return '<button type="button"' + className + ' data-scene-id="' + escapeHtml(scene.id) + '">' + escapeHtml(scene.name) + "</button>";
-    }).join("") + '<div class="menu-actions"><button type="button" data-panel="floorplan">Plano</button><button type="button" data-panel="gallery">Galeria</button></div>';
+    }).join("") + '</div><div class="menu-actions"><button type="button" data-panel="floorplan">Plano</button><button type="button" data-panel="gallery">Galeria</button></div>';
+    menu.querySelector("[data-scene-id].is-active")?.scrollIntoView({ block: "nearest" });
     renderMediaPanel(activeSceneId, "");
   }
 

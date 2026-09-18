@@ -5,7 +5,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 ## Estado general
 
 - Producto: `360Tours Studio`.
-- Avance visual: `progress.html` muestra 72% global del plan maestro.
+- Avance visual: `progress.html` muestra 73% global del plan maestro.
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
@@ -14,6 +14,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 
 - Crear proyecto nuevo.
 - Importar panoramas JPG/JPEG con drag and drop.
+- Procesar importaciones por cola con progreso visible para reducir picos de memoria.
 - Generar thumbnails de escenas al importar.
 - Optimizar panoramas importados a 2048px de ancho para preview/export inicial.
 - Guardar metadata de optimizacion por escena: dimensiones, bytes, calidad y si hubo resize.
@@ -38,6 +39,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Incluir `deploy-manifest.json` dentro del ZIP exportado para publicar con lista exacta de archivos.
 - Incluir metadata de panoramas dentro de `deploy-manifest.json`.
 - Viewer exportado con visor canvas, escenas, hotspots, planos, galeria y fullscreen.
+- Menu del viewer exportado scrollable para tours grandes.
 - Preflight de publicacion con plan de rutas y checklist seguro de despliegue.
 - Validacion de schema, escena inicial, hotspots, URLs, slug, accesibilidad, plano, galeria y assets locales faltantes.
 - Bloqueo de exportar/publicar cuando faltan assets locales.
@@ -49,6 +51,7 @@ pnpm test
 pnpm build
 pnpm test:e2e
 pnpm test:real
+pnpm test:large
 ```
 
 Resultados:
@@ -58,6 +61,7 @@ Resultados:
 - E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
+- Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, recarga autosave, prepara ruta lineal, exporta ZIP y abre el viewer exportado.
 - Build Windows NSIS actualizado: correcto.
 
 ## Escritorio Windows
