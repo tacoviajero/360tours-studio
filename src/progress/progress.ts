@@ -14,6 +14,8 @@ interface PlanPoint {
 
 const lastUpdated = "18 septiembre 2026";
 const recentChanges = [
+  "La importacion ahora conserva avisos visibles aunque parte del lote haya importado correctamente.",
+  "Se agrego test:diagnostics para lote mixto con archivos validos, duplicado e invalido.",
   "Se agrego prueba automatizada test:large con 50 escenas: importacion, autosave, ruta rapida, export y viewer.",
   "La importacion ahora procesa panoramas por cola con progreso visible para evitar picos de memoria.",
   "El menu del viewer exportado ahora es scrollable y funciona con 50 escenas.",
@@ -69,7 +71,7 @@ const points: PlanPoint[] = [
   { id: 35, title: "Actualizacion de tours existentes", phase: "Publicacion", percent: 22, status: "pending", evidence: "PublishState existe en el modelo.", next: "Mostrar ultima publicacion y modo actualizar." },
   { id: 36, title: "Versiones publicadas y rollback", phase: "Publicacion", percent: 20, status: "pending", evidence: "Rutas de rollback ya se calculan.", next: "Subir versiones y restaurar una anterior." },
   { id: 37, title: "Experiencia de publicacion", phase: "Publicacion", percent: 52, status: "progress", evidence: "Panel de publicacion muestra URL destino, preflight, rutas seguras y pasos del despliegue.", next: "Mostrar exito real, abrir tour y copiar URL tras SFTP." },
-  { id: 38, title: "Manejo de errores", phase: "Robustez", percent: 52, status: "progress", evidence: "Errores de importacion, validacion, assets faltantes y exportacion tienen mensajes; pruebas automatizadas ya cubren casos rotos de validacion/export.", next: "Cubrir SFTP, disco, permisos y fallos de build." },
+  { id: 38, title: "Manejo de errores", phase: "Robustez", percent: 64, status: "progress", evidence: "Importacion muestra resumen de archivos, escenas, avisos y errores; test:diagnostics cubre lote mixto con duplicado e invalido.", next: "Cubrir SFTP, disco, permisos y fallos de build." },
   { id: 39, title: "Recuperacion ante fallos", phase: "Robustez", percent: 72, status: "progress", evidence: "Autosave, historial restaurable, carpeta editable, abrir carpeta y recuperacion nativa de copia local reducen riesgo de perdida.", next: "Probar recuperacion tras cierre inesperado con Tauri compilado." },
   { id: 40, title: "Rendimiento", phase: "Robustez", percent: 58, status: "progress", evidence: "Preview usa blobs bajo demanda, thumbnails, panoramas 2048px, cola de importacion y prueba automatizada de 50 escenas.", next: "Workers, lazy loading mas agresivo y tiles/multiresolucion." },
   { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 55, status: "progress", evidence: "Labels, botones claros, contraste y focus basicos.", next: "Auditar teclado completo y tooltips." },

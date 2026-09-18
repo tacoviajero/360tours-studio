@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:e2e": "node scripts/e2e-runner.mjs",
     "test:real": "node scripts/real-van-workflow.mjs",
-    "test:large": "node scripts/large-tour-workflow.mjs"
+    "test:large": "node scripts/large-tour-workflow.mjs",
+    "test:diagnostics": "node scripts/import-diagnostics-workflow.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1"

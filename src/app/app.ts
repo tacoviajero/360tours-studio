@@ -541,7 +541,6 @@ export class Tours360StudioApp {
       return;
     }
 
-    this.renderImportIssues(root, result.issues);
     const importedScenes = result.scenes.map((scene) => ({ ...scene }));
 
     const newScenes = this.dedupeSceneIds(importedScenes);
@@ -561,7 +560,14 @@ export class Tours360StudioApp {
       root,
       `${newScenes.length} escena${newScenes.length === 1 ? "" : "s"} importada${newScenes.length === 1 ? "" : "s"}. ${
         newScenes.length > 1 ? "Se conectaron en linea automaticamente." : ""
-      }`
+      }`,
+      result.issues,
+      {
+        files: files.length,
+        imported: newScenes.length,
+        warnings: result.issues.filter((issue) => issue.severity !== "error").length,
+        errors: result.issues.filter((issue) => issue.severity === "error").length
+      }
     );
   }
 
@@ -770,10 +776,34 @@ export class Tours360StudioApp {
     `;
   }
 
-  private renderImportStatus(root: HTMLElement, message: string): void {
+  private renderImportStatus(
+    root: HTMLElement,
+    message: string,
+    issues: Array<{ severity: string; message: string }> = [],
+    summary?: { files: number; imported: number; warnings: number; errors: number }
+  ): void {
     const status = root.querySelector<HTMLElement>("[data-import-status]");
     if (status) {
-      status.innerHTML = `<p class="status-ok">${escapeHtml(message)}</p>`;
+      status.innerHTML = `
+        <p class="status-ok">${escapeHtml(message)}</p>
+        ${
+          summary
+            ? `<div class="import-summary" aria-label="Resumen de importacion">
+                <span><b>${summary.files}</b> archivos</span>
+                <span><b>${summary.imported}</b> escenas</span>
+                <span><b>${summary.warnings}</b> avisos</span>
+                <span><b>${summary.errors}</b> errores</span>
+              </div>`
+            : ""
+        }
+        ${
+          issues.length
+            ? `<ul class="issue-list import-issue-list">
+                ${issues.map((issue) => `<li class="issue issue--${escapeHtml(issue.severity)}">${escapeHtml(issue.message)}</li>`).join("")}
+              </ul>`
+            : ""
+        }
+      `;
     }
   }
 
