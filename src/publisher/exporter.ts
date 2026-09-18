@@ -474,6 +474,7 @@ class CanvasTourViewer {
     this.onMediaPanel = onMediaPanel;
     this.scenes = new Map();
     this.currentSceneId = "";
+    this.failedSceneId = "";
     this.view = { yaw: 0, pitch: 0, fov: 1.2 };
     this.isDragging = false;
     this.lastPointer = null;
@@ -488,16 +489,12 @@ class CanvasTourViewer {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.resize();
-    this.ready = this.loadScenes();
+    this.ready = this.indexScenes();
   }
 
-  async loadScenes() {
-    const loadedScenes = await Promise.all(this.project.scenes.map(async (scene) => {
-      const image = await loadImage(scene.panorama);
-      return { scene, image };
-    }));
-    for (const item of loadedScenes) {
-      this.scenes.set(item.scene.id, { data: item.scene, image: item.image });
+  async indexScenes() {
+    for (const scene of this.project.scenes) {
+      this.scenes.set(scene.id, { data: scene, image: null, loading: null });
     }
   }
 
@@ -505,10 +502,54 @@ class CanvasTourViewer {
     const scene = this.scenes.get(sceneId);
     if (!scene) return false;
     this.currentSceneId = sceneId;
+    this.failedSceneId = "";
     this.view = clampView(scene.data.initialView || { yaw: 0, pitch: 0, fov: 1.2 });
     this.renderHotspots(scene.data.hotspots || []);
     this.requestRender();
+    this.ensureSceneImage(sceneId)
+      .then(() => {
+        if (this.currentSceneId === sceneId) this.requestRender();
+        this.preloadRelatedScenes(sceneId);
+      })
+      .catch(() => {
+        this.failedSceneId = sceneId;
+        if (this.currentSceneId === sceneId) this.requestRender();
+      });
     return true;
+  }
+
+  ensureSceneImage(sceneId) {
+    const scene = this.scenes.get(sceneId);
+    if (!scene) return Promise.reject(new Error("Escena no encontrada."));
+    if (scene.image) return Promise.resolve(scene.image);
+    if (scene.loading) return scene.loading;
+
+    scene.loading = loadImage(scene.data.panorama).then((image) => {
+      scene.image = image;
+      scene.loading = null;
+      return image;
+    });
+    return scene.loading;
+  }
+
+  preloadRelatedScenes(sceneId) {
+    const sceneIndex = this.project.scenes.findIndex((scene) => scene.id === sceneId);
+    const relatedIds = new Set();
+    const previous = this.project.scenes[sceneIndex - 1];
+    const next = this.project.scenes[sceneIndex + 1];
+    if (previous) relatedIds.add(previous.id);
+    if (next) relatedIds.add(next.id);
+
+    const current = this.scenes.get(sceneId)?.data;
+    for (const hotspot of current?.hotspots || []) {
+      if (hotspot.type === "scene" && hotspot.targetScene) relatedIds.add(hotspot.targetScene);
+    }
+
+    window.setTimeout(() => {
+      for (const id of relatedIds) {
+        this.ensureSceneImage(id).catch(() => undefined);
+      }
+    }, 80);
   }
 
   bindEvents() {
@@ -563,6 +604,11 @@ class CanvasTourViewer {
     if (!scene || !this.context) return;
     const width = this.canvas.width;
     const height = this.canvas.height;
+    if (!scene.image) {
+      this.renderLoadingState(width, height, this.failedSceneId === this.currentSceneId);
+      return;
+    }
+
     const buffer = this.context.createImageData(width, height);
     const data = buffer.data;
     const sourceCanvas = document.createElement("canvas");
@@ -598,6 +644,15 @@ class CanvasTourViewer {
     }
     this.context.putImageData(buffer, 0, 0);
     this.positionHotspots();
+  }
+
+  renderLoadingState(width, height, failed) {
+    this.context.fillStyle = "#050507";
+    this.context.fillRect(0, 0, width, height);
+    this.context.fillStyle = failed ? "#ffaaa2" : "#f5f0e8";
+    this.context.font = Math.max(14, Math.round(width / 72)) + "px sans-serif";
+    this.context.textAlign = "center";
+    this.context.fillText(failed ? "No se pudo cargar esta escena." : "Cargando escena...", width / 2, height / 2);
   }
 
   renderHotspots(hotspots) {

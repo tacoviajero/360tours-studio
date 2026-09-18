@@ -44,6 +44,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Incluir metadata de panoramas dentro de `deploy-manifest.json`.
 - Viewer exportado con visor canvas, escenas, hotspots, planos, galeria y fullscreen.
 - Menu del viewer exportado scrollable para tours grandes.
+- Viewer exportado con carga bajo demanda de panoramas y precarga ligera de escenas cercanas/conectadas.
 - Preflight de publicacion con plan de rutas y checklist seguro de despliegue.
 - Validacion de schema, escena inicial, hotspots, URLs, slug, accesibilidad, plano, galeria y assets locales faltantes.
 - Bloqueo de exportar/publicar cuando faltan assets locales.
@@ -66,7 +67,7 @@ Resultados:
 - E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
-- Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda de escena 050, recarga autosave, prepara ruta lineal, exporta ZIP y abre el viewer exportado.
+- Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda de escena 050, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
 - Build Windows NSIS actualizado: correcto.
 
