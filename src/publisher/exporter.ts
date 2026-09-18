@@ -338,11 +338,11 @@ const viewerJs = `(async function () {
   const scenes = new Map();
 
   for (const sceneData of project.scenes) {
-    const view = new Marzipano.RectilinearView(sceneData.initialView);
     const source = Marzipano.ImageUrlSource.fromString(sceneData.panorama);
-    const geometry = new Marzipano.EquirectGeometry([{ width: 4096 }]);
-    const limiter = Marzipano.RectilinearView.limit.traditional(4096, Math.PI / 2);
-    const scene = viewer.createScene({ source, geometry, view, limiter });
+    const geometry = new Marzipano.EquirectGeometry([{ width: 2048 }]);
+    const limiter = Marzipano.RectilinearView.limit.traditional(2048, Math.PI / 2);
+    const view = new Marzipano.RectilinearView(sceneData.initialView, limiter);
+    const scene = viewer.createScene({ source, geometry, view, pinFirstLevel: true });
     scenes.set(sceneData.id, { data: sceneData, scene });
 
     for (const hotspot of sceneData.hotspots) {

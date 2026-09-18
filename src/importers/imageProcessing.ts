@@ -2,7 +2,7 @@ export async function createImageThumbnail(file: File, maxWidth = 640, quality =
   return createResizedJpeg(file, maxWidth, quality);
 }
 
-export async function createPreviewPanorama(file: File, maxWidth = 4096, quality = 0.9): Promise<Blob> {
+export async function createPreviewPanorama(file: File, maxWidth = 2048, quality = 0.9): Promise<Blob> {
   return createResizedJpeg(file, maxWidth, quality);
 }
 

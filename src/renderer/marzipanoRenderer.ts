@@ -27,11 +27,11 @@ export class MarzipanoTourRenderer implements TourRenderer {
     this.viewer = new Marzipano.Viewer(container);
 
     for (const scene of project.scenes) {
-      const view = new Marzipano.RectilinearView(scene.initialView);
       const source = Marzipano.ImageUrlSource.fromString(scene.panorama);
-      const geometry = new Marzipano.EquirectGeometry([{ width: 4096 }]);
-      const limiter = Marzipano.RectilinearView.limit.traditional(4096, Math.PI / 2);
-      const renderedScene = this.viewer.createScene({ source, geometry, view, limiter });
+      const geometry = new Marzipano.EquirectGeometry([{ width: 2048 }]);
+      const limiter = Marzipano.RectilinearView.limit.traditional(2048, Math.PI / 2);
+      const view = new Marzipano.RectilinearView(scene.initialView, limiter);
+      const renderedScene = this.viewer.createScene({ source, geometry, view, pinFirstLevel: true });
 
       this.scenes.set(scene.id, { data: scene, scene: renderedScene, view });
       this.createHotspots(renderedScene, scene.hotspots);

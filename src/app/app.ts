@@ -23,6 +23,7 @@ export class Tours360StudioApp {
   private activeSceneId = "";
   private activeFloorplanId = "";
   private previewUrls: string[] = [];
+  private previewFallbackUrl = "";
   private sceneThumbnailUrls: string[] = [];
   private mediaPreviewUrls: string[] = [];
   private galleryPreviewUrls: string[] = [];
@@ -176,6 +177,7 @@ export class Tours360StudioApp {
       if (target.dataset.sceneId) {
         this.activeSceneId = target.dataset.sceneId;
         this.renderer?.goToScene(this.activeSceneId);
+        await this.renderPreviewFallback(root);
         this.renderWorkspace(root, false);
       }
 
@@ -569,6 +571,8 @@ export class Tours360StudioApp {
 
     if (remountPreview) {
       await this.mountPreview(root);
+    } else {
+      await this.renderPreviewFallback(root);
     }
   }
 
@@ -619,9 +623,46 @@ export class Tours360StudioApp {
     const previewProject = await this.createPreviewProject();
     this.renderer = new MarzipanoTourRenderer((sceneId) => {
       this.activeSceneId = sceneId;
+      void this.renderPreviewFallback(root);
       void this.renderWorkspace(root, false);
     });
     this.renderer.mount(viewerElement, previewProject);
+    await this.renderPreviewFallback(root);
+  }
+
+  private async renderPreviewFallback(root: HTMLElement): Promise<void> {
+    const viewerElement = root.querySelector<HTMLElement>("[data-viewer]");
+    if (!viewerElement || this.project.scenes.length === 0) {
+      return;
+    }
+
+    const activeScene = this.project.scenes.find((scene) => scene.id === this.activeSceneId) ?? this.project.scenes[0];
+    const asset = await this.assets.loadScenePanorama(this.project.id, activeScene.id);
+    if (!asset) {
+      return;
+    }
+
+    if (this.previewFallbackUrl) {
+      URL.revokeObjectURL(this.previewFallbackUrl);
+    }
+    this.previewFallbackUrl = URL.createObjectURL(asset.blob);
+
+    let fallback = viewerElement.querySelector<HTMLImageElement>(".preview-fallback-image");
+    if (!fallback) {
+      fallback = document.createElement("img");
+      fallback.className = "preview-fallback-image";
+      fallback.alt = "Vista plana temporal de la escena activa";
+      viewerElement.append(fallback);
+    }
+    fallback.src = this.previewFallbackUrl;
+
+    let badge = viewerElement.querySelector<HTMLElement>(".preview-fallback-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "preview-fallback-badge";
+      viewerElement.append(badge);
+    }
+    badge.textContent = "Vista plana temporal";
   }
 
   private async renderSceneList(root: HTMLElement): Promise<void> {
