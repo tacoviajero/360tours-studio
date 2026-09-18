@@ -17,7 +17,8 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background:
     linear-gradient(90deg, rgba(205, 78, 42, 0.08), transparent 34%),
     #101014;
@@ -91,7 +92,26 @@ label span {
 .studio-shell {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(240px, 320px);
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.studio-shell.is-left-collapsed {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+}
+
+.studio-shell.is-right-collapsed {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+}
+
+.studio-shell.is-left-collapsed.is-right-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.studio-shell.is-left-collapsed .project-panel,
+.studio-shell.is-right-collapsed .properties-panel {
+  display: none;
 }
 
 .project-panel,
@@ -99,6 +119,8 @@ label span {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-height: 0;
+  overflow: auto;
   padding: 24px;
   background: #17171d;
   border-color: rgba(245, 240, 232, 0.08);
@@ -116,6 +138,7 @@ label span {
   display: grid;
   grid-template-rows: auto 1fr;
   min-width: 0;
+  min-height: 0;
 }
 
 .topbar {
@@ -124,9 +147,11 @@ label span {
   justify-content: space-between;
   gap: 16px;
   min-height: 84px;
+  max-height: 164px;
   padding: 18px 22px;
   border-bottom: 1px solid rgba(245, 240, 232, 0.08);
   background: rgba(16, 16, 20, 0.86);
+  overflow: auto;
 }
 
 .topbar-actions {
@@ -151,6 +176,7 @@ label span {
 .viewer-surface {
   position: relative;
   min-height: 0;
+  overflow: hidden;
   background: #050507;
 }
 
@@ -161,6 +187,7 @@ label span {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
   background: #050507;
   pointer-events: none;
 }

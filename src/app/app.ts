@@ -31,6 +31,8 @@ export class Tours360StudioApp {
   private recentProjects: ProjectSummary[] = [];
   private snapshots: ProjectSnapshotSummary[] = [];
   private assetIssues: ValidationIssue[] = [];
+  private leftPanelCollapsed = false;
+  private rightPanelCollapsed = false;
 
   mount(root: HTMLElement): void {
     root.innerHTML = this.renderShell();
@@ -92,8 +94,10 @@ export class Tours360StudioApp {
                 <span>Slug publico</span>
                 <input value="${escapeHtml(this.project.publish?.slug ?? this.project.id)}" data-field="publish-slug" />
               </label>
-            </div>
+          </div>
           <div class="topbar-actions">
+            <button data-action="toggle-left-panel">Escenas</button>
+            <button data-action="toggle-right-panel">Herramientas</button>
             <a class="button-link" href="/progress.html">Ver avance</a>
             <button data-action="snapshot">Guardar snapshot</button>
             <button data-action="duplicate-project">Duplicar</button>
@@ -162,7 +166,18 @@ export class Tours360StudioApp {
     }
     this.snapshots = await this.storage.listSnapshots(this.project.id);
 
+    this.syncShellLayout(root);
     this.renderWorkspace(root, true);
+  }
+
+  private syncShellLayout(root: HTMLElement): void {
+    const shell = root.querySelector<HTMLElement>(".studio-shell");
+    if (!shell) {
+      return;
+    }
+
+    shell.classList.toggle("is-left-collapsed", this.leftPanelCollapsed);
+    shell.classList.toggle("is-right-collapsed", this.rightPanelCollapsed);
   }
 
   private bindActions(root: HTMLElement): void {
@@ -184,6 +199,18 @@ export class Tours360StudioApp {
       if (action === "select-floorplan" && target.dataset.floorplanId) {
         this.activeFloorplanId = target.dataset.floorplanId;
         await this.renderFloorplanPanel(root);
+      }
+
+      if (action === "toggle-left-panel") {
+        this.leftPanelCollapsed = !this.leftPanelCollapsed;
+        this.syncShellLayout(root);
+        return;
+      }
+
+      if (action === "toggle-right-panel") {
+        this.rightPanelCollapsed = !this.rightPanelCollapsed;
+        this.syncShellLayout(root);
+        return;
       }
 
       if (action === "snapshot") {
