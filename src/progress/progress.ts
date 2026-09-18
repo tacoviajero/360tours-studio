@@ -15,6 +15,7 @@ interface PlanPoint {
 const lastUpdated = "18 septiembre 2026";
 const recentChanges = [
   "La lista de escenas ahora tiene busqueda por nombre/numero/id, verificada dentro de la prueba de 50 escenas.",
+  "La importacion ahora avisa dimensiones exactas cuando una imagen JPG no parece panoramica 360 2:1.",
   "La lista de escenas ahora muestra resumen de escenas, conexiones y panoramas optimizados.",
   "Cada escena muestra estado de conexion, peso optimizado y reduccion aproximada para auditar tours grandes.",
   "La importacion ahora conserva avisos visibles aunque parte del lote haya importado correctamente.",
@@ -42,7 +43,7 @@ const points: PlanPoint[] = [
   { id: 3, title: "Plataforma objetivo", phase: "Base", percent: 78, status: "progress", evidence: "Configuracion Tauri define ventana Windows, carpeta local de datos, build x64 generado y lectura/escritura nativa conectada al editor.", next: "Abrir el binario instalado y probar guardado nativo con datos reales." },
   { id: 4, title: "Stack tecnico recomendado", phase: "Base", percent: 92, status: "done", evidence: "TypeScript, Vite, canvas renderer, pnpm, Tauri CLI/API y export estatico implementados.", next: "Agregar SFTP sin inflar dependencias." },
   { id: 5, title: "Flujo real de uso", phase: "Editor", percent: 82, status: "progress", evidence: "Crear, importar 3 JPG reales, conectar linealmente, previsualizar, guardar carpeta, abrir carpeta y exportar ya existe.", next: "Cerrar el tramo de publicacion real." },
-  { id: 6, title: "Formato de entrada V1", phase: "Base", percent: 78, status: "progress", evidence: "Importador acepta JPG/JPEG 2:1 y ya se probo con panoramas reales 8000x4000.", next: "Mejorar mensajes por archivo corrupto y resolucion." },
+  { id: 6, title: "Formato de entrada V1", phase: "Base", percent: 82, status: "progress", evidence: "Importador acepta JPG/JPEG 2:1, ya se probo con panoramas reales 8000x4000 y avisa dimensiones cuando una imagen no parece 360.", next: "Mejorar recuperacion de archivos corruptos y documentar limites de resolucion." },
   { id: 7, title: "Soporte futuro Insta360", phase: "Base", percent: 30, status: "progress", evidence: "Arquitectura de importadores ya permite adaptadores.", next: "Crear stub formal Insta360Importer cuando toque V2." },
   { id: 8, title: "Estructura local de proyectos", phase: "Pipeline", percent: 75, status: "progress", evidence: "La app ya guarda y abre carpetas editables con project.json, assets y .history/; Tauri puede guardar y recuperar la copia local del proyecto actual.", next: "Agregar selector nativo de carpeta externa en Windows." },
   { id: 9, title: "Modelo de datos", phase: "Base", percent: 90, status: "done", evidence: "TourProject versionado con schemaVersion 1.", next: "Agregar migraciones al cambiar schema." },
@@ -74,7 +75,7 @@ const points: PlanPoint[] = [
   { id: 35, title: "Actualizacion de tours existentes", phase: "Publicacion", percent: 22, status: "pending", evidence: "PublishState existe en el modelo.", next: "Mostrar ultima publicacion y modo actualizar." },
   { id: 36, title: "Versiones publicadas y rollback", phase: "Publicacion", percent: 20, status: "pending", evidence: "Rutas de rollback ya se calculan.", next: "Subir versiones y restaurar una anterior." },
   { id: 37, title: "Experiencia de publicacion", phase: "Publicacion", percent: 52, status: "progress", evidence: "Panel de publicacion muestra URL destino, preflight, rutas seguras y pasos del despliegue.", next: "Mostrar exito real, abrir tour y copiar URL tras SFTP." },
-  { id: 38, title: "Manejo de errores", phase: "Robustez", percent: 64, status: "progress", evidence: "Importacion muestra resumen de archivos, escenas, avisos y errores; test:diagnostics cubre lote mixto con duplicado e invalido.", next: "Cubrir SFTP, disco, permisos y fallos de build." },
+  { id: 38, title: "Manejo de errores", phase: "Robustez", percent: 66, status: "progress", evidence: "Importacion muestra resumen de archivos, escenas, avisos y errores; test:diagnostics cubre lote mixto con duplicado, imagen no 2:1 e invalido.", next: "Cubrir SFTP, disco, permisos y fallos de build." },
   { id: 39, title: "Recuperacion ante fallos", phase: "Robustez", percent: 72, status: "progress", evidence: "Autosave, historial restaurable, carpeta editable, abrir carpeta y recuperacion nativa de copia local reducen riesgo de perdida.", next: "Probar recuperacion tras cierre inesperado con Tauri compilado." },
   { id: 40, title: "Rendimiento", phase: "Robustez", percent: 63, status: "progress", evidence: "Preview usa blobs bajo demanda, thumbnails, panoramas 2048px, cola de importacion, busqueda de escenas y prueba automatizada de 50 escenas.", next: "Workers, lazy loading mas agresivo y tiles/multiresolucion." },
   { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 55, status: "progress", evidence: "Labels, botones claros, contraste y focus basicos.", next: "Auditar teclado completo y tooltips." },

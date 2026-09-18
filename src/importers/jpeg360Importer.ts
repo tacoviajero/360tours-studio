@@ -48,7 +48,7 @@ export class JPEG360Importer implements PanoramaImporter {
       if (Math.abs(aspectRatio - 2) > 0.12) {
         issues.push({
           severity: "warning",
-          message: `${candidate.file.name} no parece una foto 360 completa.`
+          message: `${candidate.file.name} mide ${dimensions.width}x${dimensions.height}; se esperaba una panoramica 360 completa con proporcion 2:1.`
         });
       }
 

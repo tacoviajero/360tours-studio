@@ -16,6 +16,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Importar panoramas JPG/JPEG con drag and drop.
 - Procesar importaciones por cola con progreso visible para reducir picos de memoria.
 - Mantener visibles los avisos/errores de importacion aunque parte del lote haya sido valido.
+- Avisar dimensiones exactas cuando un JPG no parece panorama 360 completo 2:1.
 - Generar thumbnails de escenas al importar.
 - Optimizar panoramas importados a 2048px de ancho para preview/export inicial.
 - Guardar metadata de optimizacion por escena: dimensiones, bytes, calidad y si hubo resize.
@@ -66,7 +67,7 @@ Resultados:
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda de escena 050, recarga autosave, prepara ruta lineal, exporta ZIP y abre el viewer exportado.
-- Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado e invalido y conserva avisos visibles.
+- Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
 - Build Windows NSIS actualizado: correcto.
 
 ## Escritorio Windows

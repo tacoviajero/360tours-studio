@@ -62,22 +62,29 @@ async function runDiagnosticsWorkflow() {
         buffer: createPngFixture(1024, 512, 3)
       },
       {
+        name: "foto-plana.jpg",
+        mimeType: "image/jpeg",
+        buffer: createPngFixture(1024, 768, 4)
+      },
+      {
         name: "not-a-panorama.txt",
         mimeType: "text/plain",
         buffer: Buffer.from("not an image")
       }
     ]);
 
-    await page.getByText("2 escenas importadas. Se conectaron en linea automaticamente.").waitFor({ state: "visible" });
+    await page.getByText("3 escenas importadas. Se conectaron en linea automaticamente.").waitFor({ state: "visible" });
     const summary = page.getByLabel("Resumen de importacion");
-    await summary.getByText("4 archivos", { exact: true }).waitFor({ state: "visible" });
-    await summary.getByText("2 escenas", { exact: true }).waitFor({ state: "visible" });
-    await summary.getByText("1 avisos", { exact: true }).waitFor({ state: "visible" });
+    await summary.getByText("5 archivos", { exact: true }).waitFor({ state: "visible" });
+    await summary.getByText("3 escenas", { exact: true }).waitFor({ state: "visible" });
+    await summary.getByText("2 avisos", { exact: true }).waitFor({ state: "visible" });
     await summary.getByText("1 errores", { exact: true }).waitFor({ state: "visible" });
     await page.getByText("van-002.jpg esta duplicado en esta importacion.").waitFor({ state: "visible" });
+    await page.getByText(/foto-plana\.jpg mide .* se esperaba una panoramica 360 completa con proporcion 2:1\./).waitFor({ state: "visible" });
     await page.getByText("not-a-panorama.txt no es un JPG compatible.").waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Van 001/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /2\. Van 002/ }).waitFor({ state: "visible" });
+    await page.getByLabel("Proyecto").getByRole("button", { name: /3\. Foto Plana/ }).waitFor({ state: "visible" });
   } finally {
     await browser.close();
   }
