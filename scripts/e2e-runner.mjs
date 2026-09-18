@@ -66,7 +66,7 @@ async function runChecks() {
       throw new Error(`Unexpected export filename: ${download.suggestedFilename()}`);
     }
     const archive = await readZipEntries(await download.path());
-    assertZipEntries(archive, ["index.html", "tour.json", "viewer.css", "viewer.js", "vendor/marzipano.js", "panoramas/entrada-real.jpg"]);
+    assertZipEntries(archive, ["index.html", "tour.json", "viewer.css", "viewer.js", "panoramas/entrada-real.jpg"]);
     const tour = JSON.parse(new TextDecoder().decode(archive.get("tour.json")));
     if (tour.scenes.length !== 1 || tour.scenes[0].name !== "Entrada Real") {
       throw new Error("Exported tour.json does not contain the imported scene.");

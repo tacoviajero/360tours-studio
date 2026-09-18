@@ -1,4 +1,3 @@
-import marzipanoSource from "marzipano/dist/marzipano.js?raw";
 import type { TourProject } from "../domain/tour";
 import { validateProject } from "../domain/validation";
 
@@ -72,8 +71,7 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
     { path: "index.html", content: renderIndexHtml(project.title), mimeType: "text/html" },
     { path: "tour.json", content: JSON.stringify(publishedProject, null, 2), mimeType: "application/json" },
     { path: "viewer.css", content: viewerCss, mimeType: "text/css" },
-    { path: "viewer.js", content: viewerJs, mimeType: "text/javascript" },
-    { path: "vendor/marzipano.js", content: marzipanoSource, mimeType: "text/javascript" }
+    { path: "viewer.js", content: viewerJs, mimeType: "text/javascript" }
   );
 
   return {
@@ -94,7 +92,6 @@ function renderIndexHtml(title: string): string {
   </head>
   <body>
     <div id="tour"></div>
-    <script src="./vendor/marzipano.js"></script>
     <script src="./viewer.js"></script>
   </body>
 </html>

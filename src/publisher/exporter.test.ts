@@ -65,7 +65,6 @@ describe("exportStaticTour", () => {
     expect(files.has("index.html")).toBe(true);
     expect(files.has("viewer.css")).toBe(true);
     expect(files.has("viewer.js")).toBe(true);
-    expect(files.has("vendor/marzipano.js")).toBe(true);
     expect(files.has("panoramas/entrada.jpg")).toBe(true);
     expect(files.has("thumbnails/entrada.jpg")).toBe(true);
     expect(files.has("panoramas/sala.jpg")).toBe(true);

@@ -16,8 +16,7 @@
     "test:e2e": "node scripts/e2e-runner.mjs"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.11.1",
-    "marzipano": "^0.10.2"
+    "@tauri-apps/api": "^2.11.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
