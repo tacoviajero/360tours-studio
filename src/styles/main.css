@@ -206,6 +206,37 @@ label span {
   pointer-events: none;
 }
 
+.preview-fallback-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 220px);
+  padding: 8px;
+  border: 1px solid rgba(245, 240, 232, 0.16);
+  border-radius: 10px;
+  background: rgba(16, 16, 20, 0.82);
+  transform: translateX(-50%);
+}
+
+.preview-fallback-controls button {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.preview-fallback-controls span {
+  max-width: min(420px, 42vw);
+  overflow: hidden;
+  color: #f5f0e8;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .empty-viewer {
   position: absolute;
   inset: 0;

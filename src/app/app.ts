@@ -201,6 +201,16 @@ export class Tours360StudioApp {
         await this.renderFloorplanPanel(root);
       }
 
+      if (action === "previous-scene") {
+        await this.navigateRelativeScene(root, -1);
+        return;
+      }
+
+      if (action === "next-scene") {
+        await this.navigateRelativeScene(root, 1);
+        return;
+      }
+
       if (action === "toggle-left-panel") {
         this.leftPanelCollapsed = !this.leftPanelCollapsed;
         this.syncShellLayout(root);
@@ -548,7 +558,7 @@ export class Tours360StudioApp {
 
     this.project = {
       ...this.project,
-      scenes: [...this.project.scenes, ...newScenes],
+      scenes: this.autoConnectLinearScenes([...this.project.scenes, ...newScenes], newScenes),
       startScene: this.project.startScene ?? newScenes[0]?.id ?? null
     };
     this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
@@ -570,6 +580,49 @@ export class Tours360StudioApp {
 
       usedIds.add(id);
       return { ...scene, id };
+    });
+  }
+
+  private autoConnectLinearScenes(allScenes: Scene[], importedScenes: Scene[]): Scene[] {
+    if (importedScenes.length < 2) {
+      return allScenes;
+    }
+
+    const importedIds = new Set(importedScenes.map((scene) => scene.id));
+    return allScenes.map((scene) => {
+      if (!importedIds.has(scene.id)) {
+        return scene;
+      }
+
+      const index = importedScenes.findIndex((item) => item.id === scene.id);
+      const previousScene = importedScenes[index - 1];
+      const nextScene = importedScenes[index + 1];
+      const existingTargets = new Set(scene.hotspots.filter((hotspot) => hotspot.type === "scene").map((hotspot) => hotspot.targetScene));
+      const hotspots = [...scene.hotspots];
+
+      if (previousScene && !existingTargets.has(previousScene.id)) {
+        hotspots.push({
+          id: `auto-prev-${previousScene.id}`,
+          type: "scene",
+          yaw: -1.57,
+          pitch: 0,
+          targetScene: previousScene.id,
+          label: `Volver a ${previousScene.name}`
+        });
+      }
+
+      if (nextScene && !existingTargets.has(nextScene.id)) {
+        hotspots.push({
+          id: `auto-next-${nextScene.id}`,
+          type: "scene",
+          yaw: 1.57,
+          pitch: 0,
+          targetScene: nextScene.id,
+          label: `Ir a ${nextScene.name}`
+        });
+      }
+
+      return { ...scene, hotspots };
     });
   }
 
@@ -690,6 +743,31 @@ export class Tours360StudioApp {
       viewerElement.append(badge);
     }
     badge.textContent = "Vista plana temporal";
+
+    const sceneIndex = this.project.scenes.findIndex((scene) => scene.id === activeScene.id);
+    let controls = viewerElement.querySelector<HTMLElement>(".preview-fallback-controls");
+    if (!controls) {
+      controls = document.createElement("div");
+      controls.className = "preview-fallback-controls";
+      viewerElement.append(controls);
+    }
+    controls.innerHTML = `
+      <button data-action="previous-scene" ${sceneIndex <= 0 ? "disabled" : ""}>Anterior</button>
+      <span>${escapeHtml(activeScene.name)}</span>
+      <button data-action="next-scene" ${sceneIndex >= this.project.scenes.length - 1 ? "disabled" : ""}>Siguiente</button>
+    `;
+  }
+
+  private async navigateRelativeScene(root: HTMLElement, direction: -1 | 1): Promise<void> {
+    const currentIndex = this.project.scenes.findIndex((scene) => scene.id === this.activeSceneId);
+    const nextScene = this.project.scenes[currentIndex + direction];
+    if (!nextScene) {
+      return;
+    }
+
+    this.activeSceneId = nextScene.id;
+    this.renderer?.goToScene(nextScene.id);
+    await this.renderWorkspace(root, false);
   }
 
   private async renderSceneList(root: HTMLElement): Promise<void> {
