@@ -24,6 +24,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Renderer del editor y viewer exportado con cache de pixeles por escena para reducir trabajo al mover la vista.
 - Paneles laterales colapsables para dar mas espacio al panorama.
 - Guia de siguiente paso dentro del editor segun el estado real del tour.
+- Panel de exportacion orientado a prueba local completa antes de instalacion o publicacion.
 - Renombrar, ordenar, eliminar escenas y definir escena inicial.
 - Buscar escenas por nombre, numero o id para manejar tours grandes sin depender solo del scroll.
 - Conectar automaticamente importaciones multiples como recorrido lineal.
@@ -59,6 +60,7 @@ pnpm test:e2e
 pnpm test:real
 pnpm test:large
 pnpm test:diagnostics
+pnpm test:local
 ```
 
 Resultados:
@@ -71,6 +73,7 @@ Resultados:
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda de escena 050, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
 - Renderer verificado despues del cache de pixeles con `pnpm test:real` y `pnpm test:large`.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
+- Prueba automatizada `pnpm test:local`: correcto; ejecuta build, unitarias, flujo basico en navegador, 3 fotos reales, 50 escenas, diagnosticos y viewer exportado.
 - Build Windows NSIS actualizado: correcto.
 
 ## Escritorio Windows

@@ -382,6 +382,27 @@ h2 {
   line-height: 1.35;
 }
 
+.local-test-card {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(116, 214, 128, 0.24);
+  border-radius: 8px;
+  background: rgba(116, 214, 128, 0.08);
+}
+
+.local-test-card strong {
+  color: #f5f0e8;
+  font-size: 0.88rem;
+}
+
+.local-test-card span {
+  color: #d7cec4;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .route-map {
   display: grid;
   gap: 8px;

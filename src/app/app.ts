@@ -1443,6 +1443,14 @@ export class Tours360StudioApp {
           )
           .join("")}
       </div>
+      <div class="local-test-card">
+        <strong>${errors === 0 ? "Flujo local listo para probar" : "Falta corregir errores criticos"}</strong>
+        <span>${
+          errors === 0
+            ? "La prueba automatizada completa para navegador/local es pnpm test:local."
+            : "Cuando la validacion quede sin errores, corre pnpm test:local antes de perder tiempo en instalacion o publicacion."
+        }</span>
+      </div>
     `;
   }
 

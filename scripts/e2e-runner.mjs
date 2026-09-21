@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { deflateSync } from "node:zlib";
 import { chromium } from "@playwright/test";
 
 const port = 4300 + Math.floor(Math.random() * 1000);
 const baseUrl = `http://127.0.0.1:${port}`;
+const progressPercent = await readProgressPercent();
 const preview =
   process.platform === "win32"
     ? spawn(process.env.ComSpec ?? "cmd.exe", [
@@ -88,12 +90,22 @@ async function runChecks() {
 
     await page.goto(`${baseUrl}/progress.html`);
     await page.getByRole("heading", { name: "Avance de 360Tours Studio" }).waitFor({ state: "visible" });
-    await page.getByLabel("Avance general").getByText("73%").waitFor({ state: "visible" });
+    await page.getByLabel("Avance general").getByText(`${progressPercent}%`).waitFor({ state: "visible" });
     await page.getByRole("heading", { name: "Plano de planta" }).waitFor({ state: "visible" });
     await page.getByRole("heading", { name: "Criterios de exito" }).waitFor({ state: "visible" });
   } finally {
     await browser.close();
   }
+}
+
+async function readProgressPercent() {
+  const source = await readFile(new URL("../src/progress/progress.ts", import.meta.url), "utf8");
+  const values = Array.from(source.matchAll(/percent: (\d+)/g), (match) => Number(match[1]));
+  if (values.length === 0) {
+    throw new Error("No se pudo calcular el avance del tablero.");
+  }
+
+  return Math.round(values.reduce((total, value) => total + value, 0) / values.length);
 }
 
 async function assertEditorCanvasHasPixels(page) {
