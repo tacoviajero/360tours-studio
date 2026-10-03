@@ -50,10 +50,34 @@ describe("BrowserProjectStorage", () => {
       expect.objectContaining({ id: olderProject.id, title: olderProject.title })
     ]);
   });
+
+  it("recovers a corrupt current project from its newest valid snapshot", async () => {
+    const storage = new BrowserProjectStorage();
+    await storage.save(project);
+    await storage.snapshot({ ...project, title: "Recovered Project" });
+    localStorage.setItem("360tours-project:storage-test", "{broken-json");
+
+    const recovery = await storage.recoverLast();
+
+    expect(recovery.project?.title).toBe("Recovered Project");
+    expect(recovery.warning).toContain("snapshot");
+  });
+
+  it("ignores corrupt indexes and reports storage write failures", async () => {
+    const storage = new BrowserProjectStorage();
+    localStorage.setItem("360tours-project:index", "not-json");
+    await expect(storage.list()).resolves.toEqual([]);
+
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: new FailingLocalStorage()
+    });
+    await expect(storage.save(project)).rejects.toThrow("Los cambios siguen abiertos");
+  });
 });
 
 class MemoryLocalStorage {
-  private values = new Map<string, string>();
+  protected values = new Map<string, string>();
 
   getItem(key: string): string | null {
     return this.values.get(key) ?? null;
@@ -65,5 +89,11 @@ class MemoryLocalStorage {
 
   removeItem(key: string): void {
     this.values.delete(key);
+  }
+}
+
+class FailingLocalStorage extends MemoryLocalStorage {
+  override setItem(): void {
+    throw new DOMException("Storage full", "QuotaExceededError");
   }
 }

@@ -109,6 +109,7 @@ export class Tours360StudioApp {
             <button data-action="export">Exportar tour</button>
             <button data-action="publish">Publicar</button>
           </div>
+          <div class="persistence-status" data-persistence-status role="status" aria-live="polite"></div>
           </header>
           <div class="viewer-surface" data-viewer>
             <div class="empty-viewer">
@@ -168,7 +169,8 @@ export class Tours360StudioApp {
   }
 
   private async initialize(root: HTMLElement): Promise<void> {
-    const savedProject = await this.storage.loadLast();
+    const recovery = await this.storage.recoverLast();
+    const savedProject = recovery.project;
     this.recentProjects = await this.storage.list();
     if (savedProject) {
       this.project = savedProject;
@@ -179,7 +181,8 @@ export class Tours360StudioApp {
     this.snapshots = await this.storage.listSnapshots(this.project.id);
 
     this.syncShellLayout(root);
-    this.renderWorkspace(root, true);
+    await this.renderWorkspace(root, true);
+    this.renderPersistenceStatus(root, recovery.warning ?? (savedProject ? "Proyecto local recuperado y listo." : "Listo para crear un tour local."), Boolean(recovery.warning));
   }
 
   private syncShellLayout(root: HTMLElement): void {
@@ -246,10 +249,9 @@ export class Tours360StudioApp {
       }
 
       if (action === "snapshot") {
-        await this.storage.snapshot(this.project);
-        this.snapshots = await this.storage.listSnapshots(this.project.id);
-        this.renderSnapshots(root);
-        this.flashButton(target, "Snapshot guardado");
+        if (await this.saveSnapshot(root)) {
+          this.flashButton(target, "Snapshot guardado");
+        }
       }
 
       if (action === "duplicate-project") {
@@ -296,13 +298,18 @@ export class Tours360StudioApp {
       }
 
       if (target.dataset.projectId) {
-        const project = await this.storage.load(target.dataset.projectId);
-        this.project = project;
-        this.activeSceneId = project.startScene ?? project.scenes[0]?.id ?? "";
-        this.activeFloorplanId = project.floorplans[0]?.id ?? "";
-        this.sceneFilter = "";
-        this.syncTitleField(root);
-        await this.renderWorkspace(root, true);
+        try {
+          const project = await this.storage.load(target.dataset.projectId);
+          this.project = project;
+          this.activeSceneId = project.startScene ?? project.scenes[0]?.id ?? "";
+          this.activeFloorplanId = project.floorplans[0]?.id ?? "";
+          this.sceneFilter = "";
+          this.syncTitleField(root);
+          await this.renderWorkspace(root, true);
+          this.renderPersistenceStatus(root, "Proyecto local abierto.");
+        } catch (error) {
+          this.renderPersistenceStatus(root, getErrorMessage(error), true);
+        }
       }
 
       if (action === "set-start") {
@@ -416,7 +423,7 @@ export class Tours360StudioApp {
 
       if (target.dataset.field === "project-title") {
         this.project = { ...this.project, title: target.value };
-        await this.storage.save(this.project);
+        await this.saveProject(root);
       }
 
       if (target.dataset.field === "publish-slug") {
@@ -429,7 +436,7 @@ export class Tours360StudioApp {
           }
         };
         target.value = slug;
-        await this.storage.save(this.project);
+        await this.saveProject(root);
         this.syncPublishUrl(root);
         this.renderValidation(root);
       }
@@ -703,7 +710,7 @@ export class Tours360StudioApp {
       return;
     }
 
-    await this.storage.snapshot(this.project);
+    if (!(await this.saveSnapshot(root))) return;
     this.project = {
       ...this.project,
       scenes: this.project.scenes.map((scene, index, scenes) => ({
@@ -722,7 +729,7 @@ export class Tours360StudioApp {
     }
 
     const startSceneId = this.project.scenes[0].id;
-    await this.storage.snapshot(this.project);
+    if (!(await this.saveSnapshot(root))) return;
     this.project = {
       ...this.project,
       startScene: startSceneId,
@@ -738,10 +745,43 @@ export class Tours360StudioApp {
   }
 
   private async persistAndRender(root: HTMLElement, remountPreview: boolean): Promise<void> {
-    await this.storage.save(this.project);
+    await this.saveProject(root);
     this.recentProjects = await this.storage.list();
     this.snapshots = await this.storage.listSnapshots(this.project.id);
     await this.renderWorkspace(root, remountPreview);
+  }
+
+  private async saveProject(root: HTMLElement): Promise<boolean> {
+    try {
+      await this.storage.save(this.project);
+      this.renderPersistenceStatus(root, "Guardado local.");
+      return true;
+    } catch (error) {
+      this.renderPersistenceStatus(root, getErrorMessage(error), true);
+      return false;
+    }
+  }
+
+  private async saveSnapshot(root: HTMLElement): Promise<boolean> {
+    try {
+      await this.storage.snapshot(this.project);
+      this.snapshots = await this.storage.listSnapshots(this.project.id);
+      this.renderSnapshots(root);
+      this.renderPersistenceStatus(root, "Punto de recuperacion guardado.");
+      return true;
+    } catch (error) {
+      this.renderPersistenceStatus(root, `No se creo el punto de recuperacion. ${getErrorMessage(error)}`, true);
+      return false;
+    }
+  }
+
+  private renderPersistenceStatus(root: HTMLElement, message: string, isError = false): void {
+    const status = root.querySelector<HTMLElement>("[data-persistence-status]");
+    if (!status) {
+      return;
+    }
+    status.textContent = message;
+    status.classList.toggle("is-error", isError);
   }
 
   private async renderWorkspace(root: HTMLElement, remountPreview: boolean): Promise<void> {
@@ -1494,7 +1534,7 @@ export class Tours360StudioApp {
       return;
     }
 
-    await this.storage.snapshot(this.project);
+    if (!(await this.saveSnapshot(root))) return;
     const snapshot = await this.storage.loadSnapshot(this.project.id, snapshotId);
     this.project = cloneProject(snapshot);
     this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
@@ -1563,7 +1603,7 @@ export class Tours360StudioApp {
     try {
       const loaded = isTauriRuntime() ? await this.loadNativeProjectFolder() : await this.loadBrowserProjectFolder();
 
-      await this.storage.snapshot(this.project);
+      if (!(await this.saveSnapshot(root))) return;
       for (const asset of loaded.assetFiles) {
         await this.assets.saveProjectAsset(loaded.project.id, asset.path, asset.file);
         const scene = loaded.project.scenes.find((item) => item.panorama === asset.path);
@@ -1575,7 +1615,7 @@ export class Tours360StudioApp {
       this.project = loaded.project;
       this.activeSceneId = loaded.project.startScene ?? loaded.project.scenes[0]?.id ?? "";
       this.activeFloorplanId = loaded.project.floorplans[0]?.id ?? "";
-      await this.storage.save(this.project);
+      await this.saveProject(root);
       for (const snapshot of loaded.snapshots) {
         await this.storage.snapshot(snapshot.project);
       }
@@ -1645,7 +1685,7 @@ export class Tours360StudioApp {
       ...this.project,
       scenes: this.project.scenes.map((scene) => (scene.id === this.activeSceneId ? { ...scene, name } : scene))
     };
-    await this.storage.save(this.project);
+    await this.saveProject(root);
     await this.renderSceneList(root);
   }
 
@@ -1669,7 +1709,7 @@ export class Tours360StudioApp {
       return;
     }
 
-    await this.storage.snapshot(this.project);
+    if (!(await this.saveSnapshot(root))) return;
     const scenes = this.project.scenes
       .filter((item) => item.id !== scene.id)
       .map((item) => ({
@@ -1766,7 +1806,7 @@ export class Tours360StudioApp {
   }
 
   private async deleteFloorplanMarker(root: HTMLElement, markerId: string): Promise<void> {
-    await this.storage.snapshot(this.project);
+    if (!(await this.saveSnapshot(root))) return;
     this.project = {
       ...this.project,
       floorplans: this.project.floorplans.map((floorplan) => ({
@@ -1784,7 +1824,7 @@ export class Tours360StudioApp {
         floorplan.id === floorplanId ? { ...floorplan, name } : floorplan
       )
     };
-    await this.storage.save(this.project);
+    await this.saveProject(root);
     this.renderValidation(root);
     this.renderExportReadiness(root);
   }
@@ -1795,7 +1835,7 @@ export class Tours360StudioApp {
       return;
     }
 
-    await this.storage.snapshot(this.project);
+    if (!(await this.saveSnapshot(root))) return;
     this.project = {
       ...this.project,
       floorplans: this.project.floorplans.filter((item) => item.id !== floorplanId)
@@ -1809,12 +1849,12 @@ export class Tours360StudioApp {
       ...this.project,
       gallery: this.project.gallery.map((item) => (item.id === galleryId ? { ...item, caption } : item))
     };
-    await this.storage.save(this.project);
+    await this.saveProject(root);
     this.renderValidation(root);
   }
 
   private async deleteGalleryItem(root: HTMLElement, galleryId: string): Promise<void> {
-    await this.storage.snapshot(this.project);
+    if (!(await this.saveSnapshot(root))) return;
     this.project = {
       ...this.project,
       gallery: this.project.gallery.filter((item) => item.id !== galleryId)
@@ -1846,7 +1886,7 @@ export class Tours360StudioApp {
       ...this.project,
       scenes: this.project.scenes.map((scene) => (scene.id === this.activeSceneId ? { ...scene, initialView } : scene))
     };
-    await this.storage.save(this.project);
+    await this.saveProject(root);
     this.flashButton(target, "Vista guardada");
     this.renderValidation(root);
   }
@@ -1920,7 +1960,7 @@ export class Tours360StudioApp {
           : scene
       )
     };
-    await this.storage.save(this.project);
+    await this.saveProject(root);
 
     if (field === "targetScene" || field === "url") {
       await this.renderWorkspace(root, true);
@@ -1955,7 +1995,7 @@ export class Tours360StudioApp {
   }
 
   private async deleteHotspot(root: HTMLElement, hotspotId: string): Promise<void> {
-    await this.storage.snapshot(this.project);
+    if (!(await this.saveSnapshot(root))) return;
     this.project = {
       ...this.project,
       scenes: this.project.scenes.map((scene) =>
@@ -2422,4 +2462,8 @@ async function writeFilesToDirectory(rootName: string, files: Array<{ path: stri
     await writable.write(file.content);
     await writable.close();
   }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Ocurrio un error local inesperado.";
 }

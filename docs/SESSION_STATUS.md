@@ -9,6 +9,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
+- Recuperacion: si el proyecto actual queda corrupto, intenta restaurar el snapshot valido mas reciente y repara la copia principal.
 
 ## Funciones listas
 
@@ -38,6 +39,9 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Importar multiples planos de planta, renombrarlos, eliminarlos y ubicar marcadores.
 - Importar galeria, editar captions, ordenar y eliminar fotos.
 - Guardar snapshots y restaurarlos.
+- Mostrar estado de guardado y errores de cuota/permisos sin descartar los cambios abiertos.
+- Bloquear operaciones destructivas cuando no puede crearse su snapshot preventivo.
+- Ignorar indices locales corruptos y ocultar proyectos imposibles de leer sin borrar sus datos.
 - Duplicar proyectos con assets.
 - Eliminar proyectos recientes con confirmacion y limpieza local de historial/assets.
 - Guardar carpeta editable con `project.json`, assets y `.history/`.
@@ -67,9 +71,9 @@ pnpm test:local
 
 Resultados:
 
-- Unitarias: 7 archivos, 14 pruebas pasan.
+- Unitarias: 7 archivos, 16 pruebas pasan.
 - Build web: correcto.
-- E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
+- E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, recuperacion desde snapshot, aviso de almacenamiento lleno, reanudacion del guardado, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda y navegacion hasta la escena 050, limita a 4 panoramas la cache del editor, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
@@ -114,7 +118,7 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 ## Siguientes pasos recomendados
 
 1. Cerrar el flujo guiado local de importar, conectar, revisar y exportar un tour.
-2. Probar recuperacion local ante recarga, cierre inesperado, assets faltantes y almacenamiento lleno.
-3. Pulir edicion visual de hotspots y conexiones entre escenas.
+2. Pulir edicion visual de hotspots y conexiones entre escenas.
+3. Agregar copia de emergencia descargable y probar cierre durante una importacion.
 4. Medir memoria del navegador; agregar workers o multiresolucion solo si los resultados lo justifican.
 5. Mantener instalacion y publicacion fuera del siguiente tramo hasta que el flujo local quede aprobado.

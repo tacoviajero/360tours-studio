@@ -143,6 +143,7 @@ label span {
 
 .topbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -166,6 +167,18 @@ label span {
 .primary-action {
   min-height: 38px;
   padding: 0 14px;
+}
+
+.persistence-status {
+  flex: 0 0 100%;
+  min-height: 1rem;
+  color: #9cc5a6;
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.persistence-status.is-error {
+  color: #ff9d91;
 }
 
 .primary-action {

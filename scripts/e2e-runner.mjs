@@ -30,7 +30,7 @@ try {
   await waitForServer(baseUrl, 120_000);
   await runChecks();
   finished = true;
-  console.log("E2E checks passed: app shell, demo workflow, progress dashboard.");
+  console.log("E2E checks passed: app shell, local recovery, demo workflow, progress dashboard.");
 } catch (error) {
   exitCode = 1;
   console.error(error);
@@ -61,6 +61,34 @@ async function runChecks() {
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Entrada Real/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").locator(".scene-item img").first().waitFor({ state: "visible" });
     await assertEditorCanvasHasPixels(page);
+    await page.getByRole("button", { name: "Guardar snapshot" }).click();
+    await page.getByRole("button", { name: "Snapshot guardado" }).waitFor({ state: "visible" });
+    await page.evaluate(() => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      if (!projectId) throw new Error("No last project to corrupt for recovery check.");
+      localStorage.setItem(`360tours-project:${projectId}`, "{broken-json");
+    });
+    await page.reload();
+    await page.getByText(/Se recupero el snapshot mas reciente/).waitFor({ state: "visible" });
+    await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Entrada Real/ }).waitFor({ state: "visible" });
+    await assertEditorCanvasHasPixels(page);
+    await page.evaluate(() => {
+      const originalSetItem = Storage.prototype.setItem;
+      window.__failLocalWrites = true;
+      Storage.prototype.setItem = function (key, value) {
+        if (window.__failLocalWrites && key.startsWith("360tours-project:")) {
+          throw new DOMException("Storage full", "QuotaExceededError");
+        }
+        return originalSetItem.call(this, key, value);
+      };
+    });
+    await page.locator("[data-field='project-title']").fill("Cambio sin guardar");
+    await page.getByText(/No hay espacio local suficiente/).waitFor({ state: "visible" });
+    await page.evaluate(() => {
+      window.__failLocalWrites = false;
+    });
+    await page.locator("[data-field='project-title']").fill("Nuevo tour 360");
+    await page.getByText("Guardado local.", { exact: true }).waitFor({ state: "visible" });
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar tour" }).click();
     const download = await downloadPromise;
