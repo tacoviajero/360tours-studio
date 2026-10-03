@@ -1,11 +1,11 @@
-# Estado de sesion - 18 septiembre 2026
+# Estado de sesion - 2 octubre 2026
 
 Este archivo resume el estado actual para retomar 360Tours Studio sin depender del historial del chat.
 
 ## Estado general
 
 - Producto: `360Tours Studio`.
-- Avance visual: `progress.html` muestra 74% global del plan maestro.
+- Avance visual: `progress.html` muestra 75% global del plan maestro.
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
@@ -22,6 +22,8 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Guardar metadata de optimizacion por escena: dimensiones, bytes, calidad y si hubo resize.
 - Preview 360 con visor canvas interactivo.
 - Renderer del editor y viewer exportado con cache de pixeles por escena para reducir trabajo al mover la vista.
+- Editor con carga bajo demanda, precarga de escenas cercanas y cache LRU limitada a 4 panoramas.
+- Mensaje visible mientras una escena carga y error explicito si el panorama no puede abrirse.
 - Paneles laterales colapsables para dar mas espacio al panorama.
 - Guia de siguiente paso dentro del editor segun el estado real del tour.
 - Panel de exportacion orientado a prueba local completa antes de instalacion o publicacion.
@@ -70,7 +72,7 @@ Resultados:
 - E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
-- Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda de escena 050, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
+- Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda y navegacion hasta la escena 050, limita a 4 panoramas la cache del editor, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
 - Renderer verificado despues del cache de pixeles con `pnpm test:real` y `pnpm test:large`.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
 - Prueba automatizada `pnpm test:local`: correcto; ejecuta build, unitarias, flujo basico en navegador, 3 fotos reales, 50 escenas, diagnosticos y viewer exportado.
@@ -111,8 +113,8 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 
 ## Siguientes pasos recomendados
 
-1. Probar la app instalada manualmente con el proyecto real.
-2. Implementar publicacion SFTP real cuando existan credenciales.
-3. Agregar tiles o multiresolucion para tours grandes.
-4. Mejorar selector nativo de carpeta externa en Tauri.
-5. Resolver MSI/WiX solo si se necesita instalador `.msi`; por ahora NSIS `.exe` es suficiente para probar.
+1. Cerrar el flujo guiado local de importar, conectar, revisar y exportar un tour.
+2. Probar recuperacion local ante recarga, cierre inesperado, assets faltantes y almacenamiento lleno.
+3. Pulir edicion visual de hotspots y conexiones entre escenas.
+4. Medir memoria del navegador; agregar workers o multiresolucion solo si los resultados lo justifican.
+5. Mantener instalacion y publicacion fuera del siguiente tramo hasta que el flujo local quede aprobado.

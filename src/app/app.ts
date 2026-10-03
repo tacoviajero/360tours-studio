@@ -22,8 +22,6 @@ export class Tours360StudioApp {
   private renderer: CanvasTourRenderer | null = null;
   private activeSceneId = "";
   private activeFloorplanId = "";
-  private previewUrls: string[] = [];
-  private previewFallbackUrl = "";
   private sceneThumbnailUrls: string[] = [];
   private mediaPreviewUrls: string[] = [];
   private galleryPreviewUrls: string[] = [];
@@ -839,13 +837,20 @@ export class Tours360StudioApp {
       return;
     }
 
-    const previewProject = await this.createPreviewProject();
     this.renderer = new CanvasTourRenderer((sceneId) => {
       this.activeSceneId = sceneId;
       void this.renderPreviewFallback(root);
       void this.renderWorkspace(root, false);
+    }, async (scene) => {
+      const asset = await this.assets.loadScenePanorama(this.project.id, scene.id);
+      if (!asset) {
+        return { src: scene.panorama };
+      }
+
+      const src = URL.createObjectURL(asset.blob);
+      return { src, release: () => URL.revokeObjectURL(src) };
     });
-    this.renderer.mount(viewerElement, previewProject);
+    this.renderer.mount(viewerElement, this.project);
     await this.renderPreviewFallback(root);
   }
 
@@ -2071,29 +2076,6 @@ export class Tours360StudioApp {
     setTimeout(() => {
       target.textContent = original;
     }, 1400);
-  }
-
-  private async createPreviewProject(): Promise<TourProject> {
-    for (const url of this.previewUrls) {
-      URL.revokeObjectURL(url);
-    }
-    this.previewUrls = [];
-
-    return {
-      ...this.project,
-      scenes: await Promise.all(
-        this.project.scenes.map(async (scene) => {
-          const asset = await this.assets.loadScenePanorama(this.project.id, scene.id);
-          if (!asset) {
-            return scene;
-          }
-
-          const url = URL.createObjectURL(asset.blob);
-          this.previewUrls.push(url);
-          return { ...scene, panorama: url };
-        })
-      )
-    };
   }
 
   private syncTitleField(root: HTMLElement): void {

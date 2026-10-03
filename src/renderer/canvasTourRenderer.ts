@@ -5,33 +5,58 @@ interface RenderedScene {
   data: Scene;
   image: HTMLImageElement;
   source?: ImageData;
+  release?: () => void;
+  lastUsed: number;
 }
+
+export interface ResolvedSceneSource {
+  src: string;
+  release?: () => void;
+}
+
+export type SceneSourceResolver = (scene: Scene) => Promise<ResolvedSceneSource>;
 
 const MIN_FOV = 0.55;
 const MAX_FOV = 1.55;
 const MAX_RENDER_WIDTH = 1100;
+const DEFAULT_CACHE_LIMIT = 4;
 
 export class CanvasTourRenderer implements TourRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private context: CanvasRenderingContext2D | null = null;
   private hotspotLayer: HTMLDivElement | null = null;
+  private statusElement: HTMLDivElement | null = null;
   private container: HTMLElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private scenes = new Map<string, RenderedScene>();
+  private pendingScenes = new Map<string, Promise<RenderedScene>>();
+  private project: TourProject | null = null;
   private currentSceneId = "";
   private view: ViewState = { yaw: 0, pitch: 0, fov: 1.2 };
   private isDragging = false;
   private lastPointer: { x: number; y: number } | null = null;
   private renderHandle = 0;
+  private navigationVersion = 0;
+  private usageCounter = 0;
   private onSceneChange: (sceneId: string) => void;
+  private resolveSceneSource: SceneSourceResolver;
+  private cacheLimit: number;
 
-  constructor(onSceneChange: (sceneId: string) => void = () => undefined) {
+  constructor(
+    onSceneChange: (sceneId: string) => void = () => undefined,
+    resolveSceneSource: SceneSourceResolver = async (scene) => ({ src: scene.panorama }),
+    cacheLimit = DEFAULT_CACHE_LIMIT
+  ) {
     this.onSceneChange = onSceneChange;
+    this.resolveSceneSource = resolveSceneSource;
+    this.cacheLimit = Math.max(2, cacheLimit);
   }
 
   mount(container: HTMLElement, project: TourProject): void {
     this.destroy();
     this.container = container;
+    this.project = project;
+    this.updateCacheDiagnostics();
     container.innerHTML = "";
 
     this.canvas = document.createElement("canvas");
@@ -39,29 +64,21 @@ export class CanvasTourRenderer implements TourRenderer {
     this.context = this.canvas.getContext("2d", { alpha: false });
     this.hotspotLayer = document.createElement("div");
     this.hotspotLayer.className = "tour-hotspot-layer";
-    container.append(this.canvas, this.hotspotLayer);
+    this.statusElement = document.createElement("div");
+    this.statusElement.className = "tour-renderer-status";
+    this.statusElement.hidden = true;
+    container.append(this.canvas, this.hotspotLayer, this.statusElement);
 
     this.bindCanvasEvents();
     this.resizeObserver = new ResizeObserver(() => this.resizeCanvas());
     this.resizeObserver.observe(container);
     this.resizeCanvas();
 
-    void this.loadScenes(project).then(() => {
-      this.goToScene(project.startScene ?? project.scenes[0]?.id ?? "");
-    });
+    this.goToScene(project.startScene ?? project.scenes[0]?.id ?? "");
   }
 
   goToScene(sceneId: string): void {
-    const renderedScene = this.scenes.get(sceneId);
-    if (!renderedScene) {
-      return;
-    }
-
-    this.currentSceneId = sceneId;
-    this.view = clampView(renderedScene.data.initialView);
-    this.renderHotspots(renderedScene.data.hotspots);
-    this.requestRender();
-    this.onSceneChange(sceneId);
+    void this.activateScene(sceneId);
   }
 
   getCurrentViewState(): ViewState | null {
@@ -97,25 +114,166 @@ export class CanvasTourRenderer implements TourRenderer {
 
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    this.navigationVersion += 1;
+    for (const scene of this.scenes.values()) {
+      scene.release?.();
+    }
     this.scenes.clear();
+    this.pendingScenes.clear();
+    this.project = null;
     this.currentSceneId = "";
     this.container = null;
     this.context = null;
     this.hotspotLayer = null;
+    this.statusElement = null;
     this.canvas?.remove();
     this.canvas = null;
   }
 
-  private async loadScenes(project: TourProject): Promise<void> {
-    const loadedScenes = await Promise.all(
-      project.scenes.map(async (scene) => {
-        const image = await loadImage(scene.panorama);
-        return { scene, image };
-      })
-    );
+  private async activateScene(sceneId: string): Promise<void> {
+    const scene = this.project?.scenes.find((item) => item.id === sceneId);
+    if (!scene) {
+      return;
+    }
 
-    for (const item of loadedScenes) {
-      this.scenes.set(item.scene.id, { data: item.scene, image: item.image });
+    const requestVersion = ++this.navigationVersion;
+    this.showStatus("Cargando panorama...");
+
+    try {
+      const renderedScene = await this.ensureSceneLoaded(scene);
+      if (requestVersion !== this.navigationVersion || !this.project) {
+        return;
+      }
+
+      this.currentSceneId = sceneId;
+      if (this.container) {
+        this.container.dataset.rendererSceneId = sceneId;
+      }
+      this.touchScene(renderedScene);
+      this.view = clampView(renderedScene.data.initialView);
+      this.renderHotspots(renderedScene.data.hotspots);
+      this.hideStatus();
+      this.trimCache();
+      this.requestRender();
+      this.onSceneChange(sceneId);
+      void this.preloadNearbyScenes(sceneId);
+    } catch (error) {
+      if (requestVersion === this.navigationVersion) {
+        const message = error instanceof Error ? error.message : "No se pudo cargar el panorama.";
+        this.showStatus(message, true);
+      }
+    }
+  }
+
+  private async ensureSceneLoaded(scene: Scene): Promise<RenderedScene> {
+    const cached = this.scenes.get(scene.id);
+    if (cached) {
+      this.touchScene(cached);
+      return cached;
+    }
+
+    const pending = this.pendingScenes.get(scene.id);
+    if (pending) {
+      return pending;
+    }
+
+    const load = this.resolveSceneSource(scene)
+      .then(async (source) => {
+        let released = false;
+        const release = () => {
+          if (!released) {
+            released = true;
+            source.release?.();
+          }
+        };
+        try {
+          const image = await loadImage(source.src);
+          const renderedScene: RenderedScene = {
+            data: scene,
+            image,
+            release,
+            lastUsed: ++this.usageCounter
+          };
+          if (!this.project) {
+            throw new Error("El visor se cerro durante la carga.");
+          }
+          this.scenes.set(scene.id, renderedScene);
+          this.updateCacheDiagnostics();
+          this.trimCache();
+          return renderedScene;
+        } catch (error) {
+          release();
+          throw error;
+        }
+      })
+      .finally(() => this.pendingScenes.delete(scene.id));
+
+    this.pendingScenes.set(scene.id, load);
+    return load;
+  }
+
+  private async preloadNearbyScenes(sceneId: string): Promise<void> {
+    if (!this.project) {
+      return;
+    }
+
+    const index = this.project.scenes.findIndex((scene) => scene.id === sceneId);
+    const current = this.project.scenes[index];
+    const candidates = [
+      this.project.scenes[index - 1],
+      this.project.scenes[index + 1],
+      ...((current?.hotspots ?? [])
+        .filter((hotspot): hotspot is Extract<Hotspot, { type: "scene" }> => hotspot.type === "scene")
+        .map((hotspot) => this.project?.scenes.find((scene) => scene.id === hotspot.targetScene)))
+    ].filter((scene): scene is Scene => Boolean(scene));
+
+    for (const scene of candidates.slice(0, 2)) {
+      try {
+        await this.ensureSceneLoaded(scene);
+        this.trimCache();
+      } catch {
+        // The active navigation reports errors; speculative preload stays silent.
+      }
+    }
+  }
+
+  private touchScene(scene: RenderedScene): void {
+    scene.lastUsed = ++this.usageCounter;
+  }
+
+  private trimCache(): void {
+    while (this.scenes.size > this.cacheLimit) {
+      const candidate = [...this.scenes.entries()]
+        .filter(([sceneId]) => sceneId !== this.currentSceneId)
+        .sort(([, left], [, right]) => left.lastUsed - right.lastUsed)[0];
+      if (!candidate) {
+        return;
+      }
+      candidate[1].release?.();
+      this.scenes.delete(candidate[0]);
+      this.updateCacheDiagnostics();
+    }
+  }
+
+  private updateCacheDiagnostics(): void {
+    if (this.container) {
+      this.container.dataset.rendererCacheSize = String(this.scenes.size);
+      this.container.dataset.rendererCacheLimit = String(this.cacheLimit);
+    }
+  }
+
+  private showStatus(message: string, isError = false): void {
+    if (!this.statusElement) {
+      return;
+    }
+    this.statusElement.textContent = message;
+    this.statusElement.classList.toggle("is-error", isError);
+    this.statusElement.hidden = false;
+  }
+
+  private hideStatus(): void {
+    if (this.statusElement) {
+      this.statusElement.hidden = true;
     }
   }
 

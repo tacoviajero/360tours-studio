@@ -74,6 +74,14 @@ async function runLargeWorkflow() {
 
     await page.reload();
     await page.getByLabel("Proyecto").getByRole("button", { name: /50\. Van 050/ }).waitFor({ state: "visible" });
+    await assertEditorCacheBounded(page);
+
+    await page.locator("[data-field='scene-filter']").fill("050");
+    await page.getByLabel("Proyecto").getByRole("button", { name: /50\. Van 050/ }).click();
+    await page.locator("[data-viewer][data-renderer-cache-size]").waitFor({ state: "visible" });
+    await page.waitForFunction(() => document.querySelector("[data-viewer]")?.dataset.rendererSceneId?.includes("van-050"));
+    await assertEditorCacheBounded(page);
+    await page.locator("[data-field='scene-filter']").fill("");
 
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar tour" }).click();
@@ -100,6 +108,17 @@ async function runLargeWorkflow() {
     await verifyExportedViewer(context, archive);
   } finally {
     await browser.close();
+  }
+}
+
+async function assertEditorCacheBounded(page) {
+  await page.waitForFunction(() => Number(document.querySelector("[data-viewer]")?.dataset.rendererCacheSize ?? 0) > 0);
+  const cache = await page.locator("[data-viewer]").evaluate((element) => ({
+    size: Number(element.dataset.rendererCacheSize),
+    limit: Number(element.dataset.rendererCacheLimit)
+  }));
+  if (!cache.limit || cache.size > cache.limit) {
+    throw new Error(`El editor excedio su cache de panoramas: ${JSON.stringify(cache)}`);
   }
 }
 
