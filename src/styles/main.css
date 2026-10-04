@@ -238,6 +238,12 @@ label span {
   position: absolute;
   transform: translate(-50%, -50%);
   pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.tour-hotspot-layer .hotspot:active {
+  cursor: grabbing;
 }
 
 .preview-fallback-image {
@@ -368,6 +374,27 @@ h2 {
   line-height: 1.35;
 }
 
+.next-step-card button {
+  margin-top: 8px;
+}
+
+.workflow-progress {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.workflow-progress span {
+  color: #d7cec4;
+  font-size: 0.8rem;
+}
+
+.workflow-progress meter {
+  width: 100%;
+  height: 10px;
+  accent-color: #74d680;
+}
+
 .next-step-list {
   display: grid;
   gap: 8px;
@@ -440,6 +467,20 @@ h2 {
   display: grid;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.route-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #9af2b4;
+  font-size: 0.8rem;
+}
+
+.route-summary.has-warnings {
+  color: #ffd28a;
 }
 
 .route-step {

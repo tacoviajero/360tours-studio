@@ -30,7 +30,7 @@ try {
   await waitForServer(baseUrl, 120_000);
   await runChecks();
   finished = true;
-  console.log("E2E checks passed: app shell, local recovery, demo workflow, progress dashboard.");
+  console.log("E2E checks passed: guided flow, hotspot drag, editable backup, local recovery, export, and progress dashboard.");
 } catch (error) {
   exitCode = 1;
   console.error(error);
@@ -61,6 +61,9 @@ async function runChecks() {
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Entrada Real/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").locator(".scene-item img").first().waitFor({ state: "visible" });
     await assertEditorCanvasHasPixels(page);
+    await page.getByLabel("Progreso para crear el tour").getByText("2 de 4", { exact: true }).first().waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Confirmar escena actual" }).click();
+    await page.getByLabel("Progreso para crear el tour").getByText("4 de 4", { exact: true }).first().waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Guardar snapshot" }).click();
     await page.getByRole("button", { name: "Snapshot guardado" }).waitFor({ state: "visible" });
     await page.evaluate(() => {
@@ -103,6 +106,44 @@ async function runChecks() {
     }
     await verifyExportedViewer(context, archive);
     await page.getByText("ZIP descargado.").waitFor({ state: "visible" });
+    const backupDownloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Descargar respaldo" }).click();
+    const backupDownload = await backupDownloadPromise;
+    if (backupDownload.suggestedFilename() !== "nuevo-tour-respaldo.zip") {
+      throw new Error(`Unexpected backup filename: ${backupDownload.suggestedFilename()}`);
+    }
+    const backup = await readZipEntries(await backupDownload.path());
+    assertZipEntries(backup, ["project.json", "README.txt", "panoramas/entrada-real.jpg", "thumbnails/entrada-real.jpg"]);
+    if (![...backup.keys()].some((path) => path.startsWith(".history/") && path.endsWith(".json"))) {
+      throw new Error("Editable backup does not include snapshot history.");
+    }
+
+    await page.locator("#panorama-import").setInputFiles({
+      name: "pasillo.jpg",
+      mimeType: "image/jpeg",
+      buffer: createPngFixture(1024, 512)
+    });
+    await page.getByLabel("Proyecto").getByRole("button", { name: /2\. Pasillo/ }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Preparar rapido" }).click();
+    await page.getByRole("button", { name: "Mover al centro visible" }).first().click();
+    const draggableHotspot = page.locator(".tour-hotspot-layer .hotspot--scene").first();
+    await draggableHotspot.waitFor({ state: "visible" });
+    const hotspotBefore = await readStoredHotspotPosition(page, "entrada-real");
+    const hotspotBox = await draggableHotspot.boundingBox();
+    if (!hotspotBox) throw new Error("The navigation hotspot has no visible bounds.");
+    await page.mouse.move(hotspotBox.x + hotspotBox.width / 2, hotspotBox.y + hotspotBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hotspotBox.x + hotspotBox.width / 2 + 48, hotspotBox.y + hotspotBox.height / 2 + 24, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForFunction(
+      ({ yaw, pitch }) => {
+        const projectId = localStorage.getItem("360tours-project:last");
+        const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+        const hotspot = project?.scenes.find((scene) => scene.id === "entrada-real")?.hotspots.find((item) => item.type === "scene");
+        return hotspot && (hotspot.yaw !== yaw || hotspot.pitch !== pitch);
+      },
+      hotspotBefore
+    );
 
     await page.getByRole("button", { name: "Cargar demo tecnico" }).click();
     await page.getByLabel("Preview del tour").locator(".tour-canvas").waitFor({ state: "visible" });
@@ -124,6 +165,16 @@ async function runChecks() {
   } finally {
     await browser.close();
   }
+}
+
+async function readStoredHotspotPosition(page, sceneId) {
+  return page.evaluate((targetSceneId) => {
+    const projectId = localStorage.getItem("360tours-project:last");
+    const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+    const hotspot = project?.scenes.find((scene) => scene.id === targetSceneId)?.hotspots.find((item) => item.type === "scene");
+    if (!hotspot) throw new Error(`No scene hotspot found in ${targetSceneId}.`);
+    return { yaw: hotspot.yaw, pitch: hotspot.pitch };
+  }, sceneId);
 }
 
 async function readProgressPercent() {

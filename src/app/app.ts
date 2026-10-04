@@ -104,6 +104,7 @@ export class Tours360StudioApp {
             <button data-action="quick-tour">Preparar rapido</button>
             <a class="button-link" href="/progress.html">Ver avance</a>
             <button data-action="snapshot">Guardar snapshot</button>
+            <button data-action="download-backup">Descargar respaldo</button>
             <button data-action="duplicate-project">Duplicar</button>
             <button data-action="save-project-folder">Guardar carpeta</button>
             <button data-action="export">Exportar tour</button>
@@ -256,6 +257,10 @@ export class Tours360StudioApp {
 
       if (action === "duplicate-project") {
         await this.duplicateProject(root, target);
+      }
+
+      if (action === "download-backup") {
+        await this.downloadProjectBackup(root, target);
       }
 
       if (action === "save-project-folder") {
@@ -877,19 +882,24 @@ export class Tours360StudioApp {
       return;
     }
 
-    this.renderer = new CanvasTourRenderer((sceneId) => {
-      this.activeSceneId = sceneId;
-      void this.renderPreviewFallback(root);
-      void this.renderWorkspace(root, false);
-    }, async (scene) => {
-      const asset = await this.assets.loadScenePanorama(this.project.id, scene.id);
-      if (!asset) {
-        return { src: scene.panorama };
-      }
+    this.renderer = new CanvasTourRenderer(
+      (sceneId) => {
+        this.activeSceneId = sceneId;
+        void this.renderPreviewFallback(root);
+        void this.renderWorkspace(root, false);
+      },
+      async (scene) => {
+        const asset = await this.assets.loadScenePanorama(this.project.id, scene.id);
+        if (!asset) {
+          return { src: scene.panorama };
+        }
 
-      const src = URL.createObjectURL(asset.blob);
-      return { src, release: () => URL.revokeObjectURL(src) };
-    });
+        const src = URL.createObjectURL(asset.blob);
+        return { src, release: () => URL.revokeObjectURL(src) };
+      },
+      4,
+      (hotspotId, coordinates) => void this.moveHotspotFromCanvas(root, hotspotId, coordinates)
+    );
     this.renderer.mount(viewerElement, this.project);
     await this.renderPreviewFallback(root);
   }
@@ -1066,7 +1076,7 @@ export class Tours360StudioApp {
           <button data-action="move-scene-down" ${sceneIndex >= this.project.scenes.length - 1 ? "disabled" : ""}>Bajar</button>
         </div>
         <button data-action="set-start">Usar como escena inicial</button>
-        <button data-action="save-view">Guardar vista actual</button>
+        <button data-action="save-view">Confirmar vista inicial</button>
         <button class="danger-action" data-action="delete-scene">Eliminar escena</button>
       </div>
 
@@ -1178,12 +1188,9 @@ export class Tours360StudioApp {
     const issues = this.getProjectIssues();
     const errors = issues.filter((issue) => issue.severity === "error");
     const warnings = issues.filter((issue) => issue.severity === "warning");
-    const connections = this.project.scenes.reduce(
-      (total, scene) => total + scene.hotspots.filter((hotspot) => hotspot.type === "scene").length,
-      0
-    );
+    const routeComplete = isLinearRouteComplete(this.project.scenes);
     const activeScene = this.project.scenes.find((scene) => scene.id === this.activeSceneId);
-    const requiredLinearConnections = Math.max(0, this.project.scenes.length - 1);
+    const reviewedScenes = this.project.scenes.filter((scene) => typeof scene.metadata?.reviewedAt === "string").length;
     const canExport = this.project.scenes.length > 0 && errors.length === 0;
     const steps = [
       {
@@ -1195,36 +1202,54 @@ export class Tours360StudioApp {
             : "Arrastra los JPG equirectangulares al panel izquierdo."
       },
       {
-        title: "Revisar recorrido lineal",
-        done: this.project.scenes.length <= 1 || connections >= requiredLinearConnections,
+        title: "Conectar recorrido",
+        done: routeComplete,
         detail:
           this.project.scenes.length <= 1
             ? "Con una sola escena no hacen falta conexiones."
-            : `${connections} conexion${connections === 1 ? "" : "es"} de navegacion creadas.`
+            : routeComplete
+              ? "Todas las escenas tienen sus enlaces anterior y siguiente."
+              : "Faltan conexiones; puedes preparar o reparar la linea automaticamente.",
+        action: "quick-tour",
+        actionLabel: "Preparar recorrido"
       },
       {
-        title: "Ajustar vista inicial",
-        done: Boolean(activeScene?.initialView),
-        detail: activeScene ? `Escena activa: ${activeScene.name}.` : "Selecciona una escena cuando exista el tour."
+        title: "Revisar escenas",
+        done: this.project.scenes.length > 0 && reviewedScenes === this.project.scenes.length,
+        detail: activeScene
+          ? `${reviewedScenes} de ${this.project.scenes.length} revisadas. Activa: ${activeScene.name}.`
+          : "Selecciona una escena cuando exista el tour.",
+        action: "save-view",
+        actionLabel: "Confirmar escena actual"
       },
       {
-        title: "Guardar copia editable",
-        done: false,
-        detail: "Usa Guardar carpeta antes de entregar o mover el proyecto."
-      },
-      {
-        title: "Exportar ZIP",
-        done: canExport,
-        detail: canExport ? "El tour ya puede generar un ZIP de prueba." : "Corrige errores criticos antes de exportar."
+        title: "Exportar tour",
+        done: canExport && routeComplete && reviewedScenes === this.project.scenes.length,
+        detail:
+          canExport && routeComplete && reviewedScenes === this.project.scenes.length
+            ? "El tour esta revisado y listo para generar su ZIP."
+            : "Completa el recorrido y la revision; los errores criticos tambien bloquean la salida.",
+        action: "export",
+        actionLabel: "Exportar ZIP"
       }
     ];
     const nextStep = steps.find((step) => !step.done) ?? steps[steps.length - 1];
+    const completedSteps = steps.filter((step) => step.done).length;
 
     panel.innerHTML = `
+      <div class="workflow-progress" aria-label="Progreso para crear el tour">
+        <span><strong>${completedSteps} de ${steps.length}</strong> etapas completas</span>
+        <meter min="0" max="${steps.length}" value="${completedSteps}">${completedSteps} de ${steps.length}</meter>
+      </div>
       <div class="next-step-card">
         <p class="eyebrow">Ahora</p>
         <strong>${escapeHtml(nextStep.title)}</strong>
         <span>${escapeHtml(nextStep.detail)}</span>
+        ${
+          nextStep.action
+            ? `<button data-action="${escapeHtml(nextStep.action)}" ${this.project.scenes.length === 0 ? "disabled" : ""}>${escapeHtml(nextStep.actionLabel)}</button>`
+            : ""
+        }
       </div>
       <div class="next-step-list">
         ${steps
@@ -1260,6 +1285,9 @@ export class Tours360StudioApp {
       return;
     }
 
+    let completeScenes = 0;
+    let routeWarnings = 0;
+    const sceneIds = new Set(this.project.scenes.map((scene) => scene.id));
     const items = this.project.scenes
       .map((scene, index) => {
         const previous = this.project.scenes[index - 1];
@@ -1268,20 +1296,38 @@ export class Tours360StudioApp {
         const hasPrevious = !previous || sceneLinks.some((hotspot) => hotspot.targetScene === previous.id);
         const hasNext = !next || sceneLinks.some((hotspot) => hotspot.targetScene === next.id);
         const isComplete = hasPrevious && hasNext;
+        const targetCounts = new Map<string, number>();
+        for (const hotspot of sceneLinks) {
+          targetCounts.set(hotspot.targetScene, (targetCounts.get(hotspot.targetScene) ?? 0) + 1);
+        }
+        const duplicateCount = [...targetCounts.values()].filter((count) => count > 1).length;
+        const brokenCount = sceneLinks.filter((hotspot) => !sceneIds.has(hotspot.targetScene)).length;
+        const missing = [!hasPrevious ? "anterior" : "", !hasNext ? "siguiente" : ""].filter(Boolean);
+        if (isComplete && duplicateCount === 0 && brokenCount === 0) completeScenes += 1;
+        routeWarnings += duplicateCount + brokenCount + missing.length;
+        const details = [
+          missing.length ? `Falta ${missing.join(" y ")}` : "Linea completa",
+          duplicateCount ? `${duplicateCount} destino duplicado${duplicateCount === 1 ? "" : "s"}` : "",
+          brokenCount ? `${brokenCount} enlace${brokenCount === 1 ? "" : "s"} roto${brokenCount === 1 ? "" : "s"}` : ""
+        ].filter(Boolean);
 
         return `
-          <article class="route-step${scene.id === this.activeSceneId ? " is-active" : ""}${isComplete ? " is-complete" : ""}">
+          <article class="route-step${scene.id === this.activeSceneId ? " is-active" : ""}${isComplete && duplicateCount === 0 && brokenCount === 0 ? " is-complete" : ""}">
             <button data-scene-id="${escapeHtml(scene.id)}">
               <span>${index + 1}</span>
               <strong>${escapeHtml(scene.name)}</strong>
             </button>
-            <small>${isComplete ? "Conectada" : "Falta enlace"}</small>
+            <small>${escapeHtml(details.join(" · "))}</small>
           </article>
         `;
       })
       .join("");
 
     panel.innerHTML = `
+      <div class="route-summary${routeWarnings ? " has-warnings" : ""}">
+        <strong>${completeScenes} de ${this.project.scenes.length}</strong>
+        <span>${routeWarnings ? `${routeWarnings} detalle${routeWarnings === 1 ? "" : "s"} por corregir` : "Recorrido lineal completo"}</span>
+      </div>
       <div class="route-map">
         ${items}
       </div>
@@ -1593,6 +1639,32 @@ export class Tours360StudioApp {
     this.flashButton(target, "Carpeta guardada");
   }
 
+  private async downloadProjectBackup(root: HTMLElement, target: HTMLElement): Promise<void> {
+    const status = root.querySelector<HTMLElement>("[data-export-status]");
+    this.assetIssues = await this.validateAssets();
+    const missingAssets = this.assetIssues.filter((issue) => issue.severity === "error");
+    if (missingAssets.length > 0) {
+      this.renderValidation(root);
+      status!.innerHTML = `<ul class="issue-list">${missingAssets.map((issue) => `<li class="issue issue--error">${escapeHtml(issue.message)}</li>`).join("")}</ul>`;
+      return;
+    }
+
+    try {
+      const files = await buildProjectFolder(
+        this.project,
+        async (project, assetPath) => this.resolveProjectAsset(project, assetPath),
+        this.snapshots,
+        async (projectId, snapshotId) => this.storage.loadSnapshot(projectId, snapshotId)
+      );
+      const archive = await createZipArchive(files);
+      this.downloadBlob(archive, `${this.getExportSlug()}-respaldo.zip`);
+      status!.innerHTML = `<p class="status-ok">Respaldo editable descargado con ${files.length} archivos.</p>`;
+      this.flashButton(target, "Respaldado");
+    } catch (error) {
+      status!.innerHTML = `<p class="issue issue--warning">No se pudo crear el respaldo: ${escapeHtml(getErrorMessage(error))}</p>`;
+    }
+  }
+
   private async openProjectFolder(root: HTMLElement, target: HTMLElement): Promise<void> {
     const status = root.querySelector<HTMLElement>("[data-import-status]");
     if (!isTauriRuntime() && !supportsDirectoryExport()) {
@@ -1884,10 +1956,16 @@ export class Tours360StudioApp {
 
     this.project = {
       ...this.project,
-      scenes: this.project.scenes.map((scene) => (scene.id === this.activeSceneId ? { ...scene, initialView } : scene))
+      scenes: this.project.scenes.map((scene) =>
+        scene.id === this.activeSceneId
+          ? { ...scene, initialView, metadata: { ...scene.metadata, reviewedAt: new Date().toISOString() } }
+          : scene
+      )
     };
     await this.saveProject(root);
-    this.flashButton(target, "Vista guardada");
+    this.flashButton(target, "Escena confirmada");
+    await this.renderSceneList(root);
+    this.renderNextSteps(root);
     this.renderValidation(root);
   }
 
@@ -1992,6 +2070,29 @@ export class Tours360StudioApp {
     };
     await this.persistAndRender(root, true);
     this.flashButton(target, "Movido");
+  }
+
+  private async moveHotspotFromCanvas(
+    root: HTMLElement,
+    hotspotId: string,
+    coordinates: { yaw: number; pitch: number }
+  ): Promise<void> {
+    this.project = {
+      ...this.project,
+      scenes: this.project.scenes.map((scene) =>
+        scene.id === this.activeSceneId
+          ? {
+              ...scene,
+              hotspots: scene.hotspots.map((hotspot) =>
+                hotspot.id === hotspotId ? { ...hotspot, yaw: coordinates.yaw, pitch: coordinates.pitch } : hotspot
+              )
+            }
+          : scene
+      )
+    };
+    await this.saveProject(root);
+    this.renderSceneProperties(root);
+    this.renderNextSteps(root);
   }
 
   private async deleteHotspot(root: HTMLElement, hotspotId: string): Promise<void> {
@@ -2210,6 +2311,22 @@ function getSceneRouteStatus(scenes: Scene[], scene: Scene, index: number): stri
   const hasPrevious = !previous || sceneLinks.some((hotspot) => hotspot.targetScene === previous.id);
   const hasNext = !next || sceneLinks.some((hotspot) => hotspot.targetScene === next.id);
   return hasPrevious && hasNext ? "conectada" : "revisar conexion";
+}
+
+function isLinearRouteComplete(scenes: Scene[]): boolean {
+  const sceneIds = new Set(scenes.map((scene) => scene.id));
+  return (
+    scenes.length > 0 &&
+    scenes.every((scene, index) => {
+      const links = scene.hotspots.filter((hotspot) => hotspot.type === "scene");
+      const targets = links.map((hotspot) => hotspot.targetScene);
+      return (
+        getSceneRouteStatus(scenes, scene, index) === "conectada" &&
+        targets.every((target) => sceneIds.has(target)) &&
+        new Set(targets).size === targets.length
+      );
+    })
+  );
 }
 
 function getSceneOptimizationLabel(scene: Scene): string {

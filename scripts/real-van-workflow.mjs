@@ -67,11 +67,11 @@ async function runRealWorkflow() {
     await page.getByLabel("Proyecto").getByRole("button", { name: /2\. 20260917 094704 585/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /3\. 20260917 095036 680/ }).waitFor({ state: "visible" });
     await page.getByText("3 panoramas cargados.").waitFor({ state: "visible" });
-    await page.getByText(/conexion(?:es)? de navegacion creadas/).waitFor({ state: "visible" });
+    await page.getByLabel("Propiedades").getByText("Recorrido lineal completo", { exact: true }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Preparar rapido" }).click();
     await page.getByText("Tour rapido preparado: inicio y recorrido lineal listos.").waitFor({ state: "visible" });
     await page.getByLabel("Propiedades").getByRole("heading", { name: "Recorrido" }).waitFor({ state: "visible" });
-    await page.getByLabel("Propiedades").getByText("Conectada").first().waitFor({ state: "visible" });
+    await page.getByLabel("Propiedades").getByText("Linea completa").first().waitFor({ state: "visible" });
     await assertCanvasHasVisiblePixels(page, ".tour-canvas", "editor");
 
     await page.reload();

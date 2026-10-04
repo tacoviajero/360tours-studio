@@ -15,6 +15,7 @@ export interface ResolvedSceneSource {
 }
 
 export type SceneSourceResolver = (scene: Scene) => Promise<ResolvedSceneSource>;
+export type HotspotMoveHandler = (hotspotId: string, coordinates: Pick<ViewState, "yaw" | "pitch">) => void;
 
 const MIN_FOV = 0.55;
 const MAX_FOV = 1.55;
@@ -41,15 +42,18 @@ export class CanvasTourRenderer implements TourRenderer {
   private onSceneChange: (sceneId: string) => void;
   private resolveSceneSource: SceneSourceResolver;
   private cacheLimit: number;
+  private onHotspotMove: HotspotMoveHandler;
 
   constructor(
     onSceneChange: (sceneId: string) => void = () => undefined,
     resolveSceneSource: SceneSourceResolver = async (scene) => ({ src: scene.panorama }),
-    cacheLimit = DEFAULT_CACHE_LIMIT
+    cacheLimit = DEFAULT_CACHE_LIMIT,
+    onHotspotMove: HotspotMoveHandler = () => undefined
   ) {
     this.onSceneChange = onSceneChange;
     this.resolveSceneSource = resolveSceneSource;
     this.cacheLimit = Math.max(2, cacheLimit);
+    this.onHotspotMove = onHotspotMove;
   }
 
   mount(container: HTMLElement, project: TourProject): void {
@@ -399,17 +403,74 @@ export class CanvasTourRenderer implements TourRenderer {
       element.type = "button";
       element.dataset.yaw = String(hotspot.yaw);
       element.dataset.pitch = String(hotspot.pitch);
-      element.title = hotspot.label ?? hotspot.type;
+      element.dataset.hotspotId = hotspot.id;
+      element.title = `${hotspot.label ?? hotspot.type}. Arrastra para mover.`;
+
+      let dragStart: { x: number; y: number } | null = null;
+      let dragCoordinates: Pick<ViewState, "yaw" | "pitch"> | null = null;
+      let suppressClick = false;
+      element.addEventListener("pointerdown", (event) => {
+        dragStart = { x: event.clientX, y: event.clientY };
+        dragCoordinates = null;
+        element.setPointerCapture(event.pointerId);
+      });
+      element.addEventListener("pointermove", (event) => {
+        if (!dragStart || Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y) < 4) {
+          return;
+        }
+        const coordinates = this.screenToCoordinates(event.clientX, event.clientY);
+        if (!coordinates) {
+          return;
+        }
+        dragCoordinates = coordinates;
+        element.dataset.yaw = String(coordinates.yaw);
+        element.dataset.pitch = String(coordinates.pitch);
+        this.positionHotspots();
+      });
+      element.addEventListener("pointerup", (event) => {
+        element.releasePointerCapture(event.pointerId);
+        dragStart = null;
+        if (!dragCoordinates) {
+          return;
+        }
+        suppressClick = true;
+        this.onHotspotMove(hotspot.id, dragCoordinates);
+        dragCoordinates = null;
+        window.setTimeout(() => {
+          suppressClick = false;
+        }, 0);
+      });
+      element.addEventListener("pointercancel", () => {
+        dragStart = null;
+        dragCoordinates = null;
+        suppressClick = false;
+      });
+
+      const shouldSuppressClick = (event: MouseEvent): boolean => {
+        if (!suppressClick) {
+          return false;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        suppressClick = false;
+        return true;
+      };
 
       if (hotspot.type === "scene") {
         element.textContent = hotspot.label ?? "Ir";
-        element.addEventListener("click", () => this.goToScene(hotspot.targetScene));
+        element.addEventListener("click", (event) => {
+          if (!shouldSuppressClick(event)) this.goToScene(hotspot.targetScene);
+        });
       } else if (hotspot.type === "info") {
         element.textContent = "Info";
-        element.addEventListener("click", () => window.alert(`${hotspot.title}\n\n${hotspot.text}`));
+        element.addEventListener("click", (event) => {
+          if (!shouldSuppressClick(event)) window.alert(`${hotspot.title}\n\n${hotspot.text}`);
+        });
       } else {
         element.textContent = hotspot.title ?? "Abrir";
-        element.addEventListener("click", () => window.open(hotspot.url, "_blank", "noopener"));
+        element.addEventListener("click", (event) => {
+          if (!shouldSuppressClick(event)) window.open(hotspot.url, "_blank", "noopener");
+        });
       }
 
       this.hotspotLayer.append(element);

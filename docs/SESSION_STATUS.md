@@ -1,11 +1,11 @@
-# Estado de sesion - 2 octubre 2026
+# Estado de sesion - 4 octubre 2026
 
 Este archivo resume el estado actual para retomar 360Tours Studio sin depender del historial del chat.
 
 ## Estado general
 
 - Producto: `360Tours Studio`.
-- Avance visual: `progress.html` muestra 75% global del plan maestro.
+- Avance visual: `progress.html` muestra 76% global del plan maestro.
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
@@ -27,6 +27,8 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Mensaje visible mientras una escena carga y error explicito si el panorama no puede abrirse.
 - Paneles laterales colapsables para dar mas espacio al panorama.
 - Guia de siguiente paso dentro del editor segun el estado real del tour.
+- Flujo guiado con 4 etapas medibles: importar, conectar, revisar escenas y exportar.
+- Confirmacion individual de vista inicial y conteo de escenas revisadas.
 - Panel de exportacion orientado a prueba local completa antes de instalacion o publicacion.
 - Renombrar, ordenar, eliminar escenas y definir escena inicial.
 - Buscar escenas por nombre, numero o id para manejar tours grandes sin depender solo del scroll.
@@ -36,11 +38,13 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Auditar escenas con resumen de total, conexiones, optimizadas, estado de conexion y peso optimizado.
 - Guardar vista inicial de escena.
 - Crear hotspots de navegacion, informacion, imagen, video y link.
+- Arrastrar hotspots directamente sobre el panorama y guardar su posicion sin activar el enlace.
 - Importar multiples planos de planta, renombrarlos, eliminarlos y ubicar marcadores.
 - Importar galeria, editar captions, ordenar y eliminar fotos.
 - Guardar snapshots y restaurarlos.
 - Mostrar estado de guardado y errores de cuota/permisos sin descartar los cambios abiertos.
 - Bloquear operaciones destructivas cuando no puede crearse su snapshot preventivo.
+- Descargar respaldo ZIP editable con `project.json`, assets, miniaturas e historial.
 - Ignorar indices locales corruptos y ocultar proyectos imposibles de leer sin borrar sus datos.
 - Duplicar proyectos con assets.
 - Eliminar proyectos recientes con confirmacion y limpieza local de historial/assets.
@@ -73,7 +77,7 @@ Resultados:
 
 - Unitarias: 7 archivos, 16 pruebas pasan.
 - Build web: correcto.
-- E2E con Edge: correcto; cubre app shell, importacion, thumbnail visible, recuperacion desde snapshot, aviso de almacenamiento lleno, reanudacion del guardado, export ZIP, viewer exportado, demo, eliminacion de proyecto reciente y tablero de progreso.
+- E2E con Edge: correcto; cubre flujo guiado, confirmacion de escena, arrastre de hotspot, respaldo editable, recuperacion, almacenamiento lleno, export ZIP, viewer y tablero.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda y navegacion hasta la escena 050, limita a 4 panoramas la cache del editor, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
@@ -117,8 +121,8 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 
 ## Siguientes pasos recomendados
 
-1. Cerrar el flujo guiado local de importar, conectar, revisar y exportar un tour.
-2. Pulir edicion visual de hotspots y conexiones entre escenas.
-3. Agregar copia de emergencia descargable y probar cierre durante una importacion.
+1. Ejecutar una prueba manual de aceptacion con las tres fotos reales usando solo la interfaz.
+2. Probar recarga o cierre durante una importacion activa y limpiar assets parciales.
+3. Agregar seleccion visual y deshacer para movimientos de hotspots.
 4. Medir memoria del navegador; agregar workers o multiresolucion solo si los resultados lo justifican.
 5. Mantener instalacion y publicacion fuera del siguiente tramo hasta que el flujo local quede aprobado.
