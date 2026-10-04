@@ -7,6 +7,10 @@ src-tauri/target/
 test-results/
 playwright-report/
 
+# Local 8K panoramas used for manual and automated checks.
+assets/images_test/
+assets/Photos-1-001/
+
 # Local app data generated during development.
 projects/*
 !projects/.gitkeep

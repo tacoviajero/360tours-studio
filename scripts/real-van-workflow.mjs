@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { inflateRawSync } from "node:zlib";
 import { chromium } from "@playwright/test";
@@ -72,12 +72,12 @@ async function runRealWorkflow() {
     await page.getByText("Tour rapido preparado: inicio y recorrido lineal listos.").waitFor({ state: "visible" });
     await page.getByLabel("Propiedades").getByRole("heading", { name: "Recorrido" }).waitFor({ state: "visible" });
     await page.getByLabel("Propiedades").getByText("Linea completa").first().waitFor({ state: "visible" });
-    await assertCanvasHasVisiblePixels(page, ".tour-canvas", "editor");
+    await assertCanvasHasPanoramaDetail(page, ".tour-canvas", "editor");
 
     await page.reload();
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. 20260917 094621 759/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /3\. 20260917 095036 680/ }).waitFor({ state: "visible" });
-    await assertCanvasHasVisiblePixels(page, ".tour-canvas", "editor despues de recargar");
+    await assertCanvasHasPanoramaDetail(page, ".tour-canvas", "editor despues de recargar");
 
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar tour" }).click();
@@ -120,13 +120,13 @@ async function runRealWorkflow() {
   }
 }
 
-async function assertCanvasHasVisiblePixels(page, selector, label) {
+async function assertCanvasHasPanoramaDetail(page, selector, label) {
   await page.locator(selector).first().waitFor({ state: "visible" });
   await page.waitForTimeout(700);
   const sample = await page.evaluate((selector) => {
     const canvas = document.querySelector(selector);
     if (!canvas) {
-      return { hasCanvas: false, nonBlack: 0, avg: 0 };
+      return { hasCanvas: false, nonBlack: 0, avg: 0, colors: 0, horizontalDetail: 0, verticalDetail: 0 };
     }
 
     const sampleCanvas = document.createElement("canvas");
@@ -137,18 +137,56 @@ async function assertCanvasHasVisiblePixels(page, selector, label) {
     const data = context.getImageData(0, 0, 48, 48).data;
     let nonBlack = 0;
     let total = 0;
+    let horizontalDetail = 0;
+    let verticalDetail = 0;
+    const colors = new Set();
     for (let index = 0; index < data.length; index += 4) {
       const value = data[index] + data[index + 1] + data[index + 2];
       total += value;
       if (value > 15) {
         nonBlack += 1;
       }
+      colors.add(`${data[index] >> 4}:${data[index + 1] >> 4}:${data[index + 2] >> 4}`);
+
+      const pixel = index / 4;
+      const x = pixel % 48;
+      const y = Math.floor(pixel / 48);
+      if (x > 0) {
+        horizontalDetail += colorDifference(data, index, index - 4);
+      }
+      if (y > 0) {
+        verticalDetail += colorDifference(data, index, index - 48 * 4);
+      }
     }
-    return { hasCanvas: true, nonBlack, avg: total / (data.length / 4) };
+    return {
+      hasCanvas: true,
+      nonBlack,
+      avg: total / (data.length / 4),
+      colors: colors.size,
+      horizontalDetail: horizontalDetail / (48 * 47),
+      verticalDetail: verticalDetail / (48 * 47)
+    };
+
+    function colorDifference(pixels, left, right) {
+      return (
+        Math.abs(pixels[left] - pixels[right]) +
+        Math.abs(pixels[left + 1] - pixels[right + 1]) +
+        Math.abs(pixels[left + 2] - pixels[right + 2])
+      );
+    }
   }, selector);
 
-  if (!sample.hasCanvas || sample.nonBlack < 500 || sample.avg < 20) {
-    throw new Error(`El canvas ${label} no renderizo pixeles visibles suficientes: ${JSON.stringify(sample)}.`);
+  const invalid =
+    !sample.hasCanvas ||
+    sample.nonBlack < 1800 ||
+    sample.avg < 45 ||
+    sample.colors < 80 ||
+    sample.horizontalDetail < 4 ||
+    sample.verticalDetail < 4;
+  if (invalid) {
+    await mkdir("test-results", { recursive: true });
+    await page.screenshot({ path: `test-results/real-${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png` });
+    throw new Error(`El canvas ${label} no parece un panorama reconocible: ${JSON.stringify(sample)}.`);
   }
 }
 
@@ -174,7 +212,7 @@ async function verifyExportedViewer(context, archive) {
   await viewerPage.getByRole("heading", { name: "Nuevo tour 360" }).waitFor({ state: "visible" });
   await viewerPage.getByRole("button", { name: /20260917 094621 759/ }).waitFor({ state: "visible" });
   await viewerPage.getByRole("button", { name: /20260917 095036 680/ }).waitFor({ state: "visible" });
-  await assertCanvasHasVisiblePixels(viewerPage, ".viewer-canvas canvas", "exportado");
+  await assertCanvasHasPanoramaDetail(viewerPage, ".viewer-canvas canvas", "exportado");
   await viewerPage.getByRole("button", { name: /20260917 094704 585/ }).click();
   await viewerPage.getByRole("button", { name: /20260917 094704 585/ }).waitFor({ state: "visible" });
   await viewerPage.close();

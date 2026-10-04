@@ -15,7 +15,7 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
     watch: {
-      ignored: ["**/src-tauri/**"]
+      ignored: ["**/src-tauri/**", "**/assets/images_test/**", "**/assets/Photos-1-001/**"]
     }
   },
   preview: {

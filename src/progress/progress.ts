@@ -12,8 +12,10 @@ interface PlanPoint {
   next: string;
 }
 
-const lastUpdated = "18 septiembre 2026";
-const recentChanges = [
+  const lastUpdated = "4 octubre 2026";
+  const recentChanges = [
+    "La prueba con los 3 JPG reales ahora valida detalle visual horizontal/vertical y variedad de color; ya no acepta un canvas negro o con salida degenerada.",
+    "El servidor local deja de vigilar las carpetas de fotos 8K para evitar cierres EBUSY de Vite en Windows.",
   "Se agrego pnpm test:local para validar build, browser, 3 fotos reales, 50 escenas, diagnosticos y viewer exportado sin instalar la app.",
   "El panel Exportacion ahora muestra el flujo local recomendado antes de pensar en instalacion o publicacion.",
   "El viewer exportado ahora carga panoramas bajo demanda y precarga solo escenas cercanas/conectadas.",
@@ -66,7 +68,7 @@ const points: PlanPoint[] = [
   { id: 21, title: "Menu de escenas", phase: "Producto", percent: 82, status: "progress", evidence: "Viewer exportado incluye menu de escenas scrollable y compatible con carga bajo demanda.", next: "Convertirlo en drawer movil mas fino." },
   { id: 22, title: "Fullscreen", phase: "Producto", percent: 82, status: "done", evidence: "Tour exportado tiene boton fullscreen sin recarga.", next: "QA en navegadores moviles reales." },
   { id: 23, title: "Preview", phase: "Producto", percent: 90, status: "done", evidence: "Preview del editor renderiza panoramas reales con canvas, navegacion, hotspots y controles anterior/siguiente.", next: "QA con mas camaras y navegadores." },
-  { id: 24, title: "Renderer", phase: "Producto", percent: 92, status: "done", evidence: "Renderer canvas independiente con navegacion, hotspots, coordenadas, zoom, drag y cache de pixeles; el export tambien usa canvas.", next: "Renombrar el modulo legado y ampliar pruebas visuales." },
+  { id: 24, title: "Renderer", phase: "Producto", percent: 94, status: "done", evidence: "Renderer canvas independiente con navegacion, hotspots, coordenadas, zoom, drag y cache de pixeles; editor y export pasan una comprobacion visual con los 3 JPG reales.", next: "Agregar comparacion visual de referencia para mas modelos de camara." },
   { id: 25, title: "Guardado", phase: "Robustez", percent: 94, status: "done", evidence: "Autosave local, indicador visible, errores de cuota recuperables, guardar/abrir carpeta y puente de escritura nativa implementados.", next: "Probar guardado nativo solo cuando vuelva a priorizarse la app instalada." },
   { id: 26, title: "Historial", phase: "Robustez", percent: 90, status: "progress", evidence: "Snapshots manuales y preventivos, restauracion UI, recuperacion automatica y respaldo ZIP editable con historial incluido.", next: "Restaurar snapshots importados conservando sus fechas originales." },
   { id: 27, title: "Validacion continua", phase: "Robustez", percent: 92, status: "done", evidence: "Valida escena inicial, hotspots, URLs, slug, plano, galeria, accesibilidad y assets locales faltantes con pruebas automatizadas.", next: "Mantener reglas al crecer el schema." },

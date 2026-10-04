@@ -80,6 +80,8 @@ Resultados:
 - E2E con Edge: correcto; cubre flujo guiado, confirmacion de escena, arrastre de hotspot, respaldo editable, recuperacion, almacenamiento lleno, export ZIP, viewer y tablero.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
+- La prueba real ahora rechaza lienzos negros, sin variedad de color o sin detalle horizontal/vertical; guarda captura diagnostica solo cuando falla.
+- Vite ignora las carpetas locales de panoramas 8K para evitar que el watcher de Windows caiga con `EBUSY`.
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda y navegacion hasta la escena 050, limita a 4 panoramas la cache del editor, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
 - Renderer verificado despues del cache de pixeles con `pnpm test:real` y `pnpm test:large`.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
