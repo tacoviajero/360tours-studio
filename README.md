@@ -102,7 +102,8 @@ cmd.exe /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Buil
 ## Salidas locales
 
 - **Guardar carpeta** crea una copia editable del proyecto con `project.json`, assets y `.history/`.
-- **Exportar tour** descarga un ZIP con el sitio estatico autonomo que se puede subir a `/tours/[slug]/`.
+- **Exportar tour** descarga un ZIP con el minisitio estatico que se puede subir a `/tours/[slug]/`.
+- Para revisarlo localmente en Windows, extrae el ZIP completo y ejecuta `ABRIR_TOUR.cmd`; el iniciador abre Chrome cuando esta disponible. Abrir `index.html` directamente como `file://` esta bloqueado por la seguridad del navegador.
 
 ## Escritorio Windows
 

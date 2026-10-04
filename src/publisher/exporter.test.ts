@@ -66,6 +66,9 @@ describe("exportStaticTour", () => {
     expect(files.has("deploy-manifest.json")).toBe(true);
     expect(files.has("viewer.css")).toBe(true);
     expect(files.has("viewer.js")).toBe(true);
+    expect(files.has("ABRIR_TOUR.cmd")).toBe(true);
+    expect(files.has("servidor-local.ps1")).toBe(true);
+    expect(files.has("LEEME.txt")).toBe(true);
     expect(files.has("panoramas/entrada.jpg")).toBe(true);
     expect(files.has("thumbnails/entrada.jpg")).toBe(true);
     expect(files.has("panoramas/sala.jpg")).toBe(true);
@@ -85,6 +88,10 @@ describe("exportStaticTour", () => {
     });
     expect(viewerJs).toContain("floorplan-switcher");
     expect(viewerJs).toContain("data-floorplan-id");
+    expect(viewerJs).toContain('window.location.protocol === "file:"');
+    expect(viewerJs).toContain("ABRIR_TOUR.cmd");
+    expect(String(files.get("servidor-local.ps1")?.content)).toContain("System.Net.Sockets.TcpListener");
+    expect(String(files.get("servidor-local.ps1")?.content)).toContain("Google\\Chrome\\Application\\chrome.exe");
   });
 
   it("blocks export when the project has validation errors", async () => {

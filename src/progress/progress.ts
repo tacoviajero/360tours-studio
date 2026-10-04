@@ -14,6 +14,7 @@ interface PlanPoint {
 
   const lastUpdated = "4 octubre 2026";
   const recentChanges = [
+    "Cada ZIP exportado incluye ABRIR_TOUR.cmd, un servidor local PowerShell e instrucciones; abrir index.html como file:// ya muestra ayuda en vez de una pantalla negra.",
     "La prueba con los 3 JPG reales ahora valida detalle visual horizontal/vertical y variedad de color; ya no acepta un canvas negro o con salida degenerada.",
     "El servidor local deja de vigilar las carpetas de fotos 8K para evitar cierres EBUSY de Vite en Windows.",
   "Se agrego pnpm test:local para validar build, browser, 3 fotos reales, 50 escenas, diagnosticos y viewer exportado sin instalar la app.",
@@ -74,7 +75,7 @@ const points: PlanPoint[] = [
   { id: 27, title: "Validacion continua", phase: "Robustez", percent: 92, status: "done", evidence: "Valida escena inicial, hotspots, URLs, slug, plano, galeria, accesibilidad y assets locales faltantes con pruebas automatizadas.", next: "Mantener reglas al crecer el schema." },
   { id: 28, title: "Validador antes de publicar", phase: "Publicacion", percent: 65, status: "progress", evidence: "Preflight bloquea errores criticos, assets faltantes y el ZIP incluye manifiesto de despliegue.", next: "Validar conflictos remotos cuando exista SFTP real." },
   { id: 29, title: "Optimizacion de imagenes", phase: "Pipeline", percent: 80, status: "progress", evidence: "La importacion genera thumbnails y panoramas 2048px; editor y viewer exportado cargan panoramas bajo demanda.", next: "Crear tiles o multiresolucion solo si las mediciones con tours pesados lo justifican." },
-  { id: 30, title: "Exportacion", phase: "Pipeline", percent: 99, status: "done", evidence: "Export estatico autocontenido, ZIP descargable, viewer canvas, deploy-manifest y prueba con 3 fotos reales ya existen.", next: "Agregar firma de paquete y validacion de archivos grandes." },
+  { id: 30, title: "Exportacion", phase: "Pipeline", percent: 100, status: "done", evidence: "Export estatico, ZIP descargable, viewer canvas, deploy-manifest, apertura local guiada y prueba con 3 fotos reales ya existen.", next: "Mantener compatibilidad del paquete al evolucionar el viewer." },
   { id: 31, title: "Publicacion directa", phase: "Publicacion", percent: 42, status: "progress", evidence: "Existe preflight, plan de rutas, manifest de archivos y checklist visible para publicacion.", next: "Implementar subida SFTP real cuando existan credenciales." },
   { id: 32, title: "Publicacion segura", phase: "Publicacion", percent: 45, status: "progress", evidence: "Plan usa temporal, verificacion, respaldo, activacion y verificacion publica, cubierto por pruebas.", next: "Hacer swap atomico real en servidor." },
   { id: 33, title: "Cuenta SFTP dedicada", phase: "Publicacion", percent: 15, status: "pending", evidence: "Documentado como requisito.", next: "Configurar cuenta real limitada a /tours/." },

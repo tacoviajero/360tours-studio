@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { chromium } from "@playwright/test";
 
@@ -89,6 +90,9 @@ async function runRealWorkflow() {
       "deploy-manifest.json",
       "viewer.css",
       "viewer.js",
+      "ABRIR_TOUR.cmd",
+      "servidor-local.ps1",
+      "LEEME.txt",
       "panoramas/20260917-094621-759.jpg",
       "panoramas/20260917-094704-585.jpg",
       "panoramas/20260917-095036-680.jpg"
@@ -115,6 +119,7 @@ async function runRealWorkflow() {
     }
 
     await verifyExportedViewer(context, archive);
+    await verifyWindowsLocalServer(archive);
   } finally {
     await browser.close();
   }
@@ -216,6 +221,57 @@ async function verifyExportedViewer(context, archive) {
   await viewerPage.getByRole("button", { name: /20260917 094704 585/ }).click();
   await viewerPage.getByRole("button", { name: /20260917 094704 585/ }).waitFor({ state: "visible" });
   await viewerPage.close();
+}
+
+async function verifyWindowsLocalServer(archive) {
+  if (process.platform !== "win32") return;
+
+  const target = resolve("test-results", `real-export-local-${Date.now()}`);
+  for (const [path, content] of archive) {
+    const outputPath = join(target, ...path.split("/"));
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, content);
+  }
+
+  const port = 8800 + Math.floor(Math.random() * 100);
+  const server = spawn(
+    "powershell.exe",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", join(target, "servidor-local.ps1")],
+    {
+      cwd: target,
+      env: { ...process.env, TOUR_NO_BROWSER: "1", TOUR_PORT: String(port) },
+      stdio: ["ignore", "pipe", "pipe"]
+    }
+  );
+  let stderr = "";
+  server.stderr.on("data", (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  try {
+    const localUrl = `http://127.0.0.1:${port}`;
+    await waitForServer(localUrl, 15_000);
+    const [indexResponse, tourResponse] = await Promise.all([fetch(`${localUrl}/index.html`), fetch(`${localUrl}/tour.json`)]);
+    if (!indexResponse.ok || !tourResponse.ok) {
+      throw new Error(`El servidor local respondio index=${indexResponse.status}, tour=${tourResponse.status}.`);
+    }
+    const tour = await tourResponse.json();
+    if (tour.scenes?.length !== 3) {
+      throw new Error("El servidor local no entrego las tres escenas del tour real.");
+    }
+  } catch (error) {
+    throw new Error(`${error instanceof Error ? error.message : String(error)} ${stderr}`.trim());
+  } finally {
+    await killProcessTree(server.pid);
+    if (server.exitCode === null) {
+      await Promise.race([new Promise((resolveExit) => server.once("exit", resolveExit)), sleep(3_000)]);
+    }
+    try {
+      await rm(target, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+    } catch (error) {
+      if (error?.code !== "EBUSY") throw error;
+    }
+  }
 }
 
 async function waitForServer(url, timeoutMs) {

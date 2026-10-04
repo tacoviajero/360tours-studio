@@ -52,6 +52,8 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Abrir carpeta editable en navegador compatible.
 - Recuperar copia local guardada del proyecto actual desde Tauri.
 - Exportar ZIP estatico autocontenido.
+- Incluir `ABRIR_TOUR.cmd`, servidor PowerShell local y `LEEME.txt` en cada ZIP para revisarlo con doble clic despues de extraerlo.
+- Mostrar una instruccion util en vez de pantalla negra cuando `index.html` se abre directamente como `file://`.
 - Incluir `deploy-manifest.json` dentro del ZIP exportado para publicar con lista exacta de archivos.
 - Incluir metadata de panoramas dentro de `deploy-manifest.json`.
 - Viewer exportado con visor canvas, escenas, hotspots, planos, galeria y fullscreen.
@@ -81,6 +83,7 @@ Resultados:
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
 - La prueba real ahora rechaza lienzos negros, sin variedad de color o sin detalle horizontal/vertical; guarda captura diagnostica solo cuando falla.
+- La prueba real confirma que el ZIP contiene el iniciador local, su servidor PowerShell y las instrucciones de apertura.
 - Vite ignora las carpetas locales de panoramas 8K para evitar que el watcher de Windows caiga con `EBUSY`.
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda y navegacion hasta la escena 050, limita a 4 panoramas la cache del editor, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
 - Renderer verificado despues del cache de pixeles con `pnpm test:real` y `pnpm test:large`.

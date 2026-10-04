@@ -2134,7 +2134,7 @@ export class Tours360StudioApp {
       return;
     }
 
-    status!.innerHTML = `<p class="status-ok">${escapeHtml(result.messages[0])} ZIP descargado.</p>`;
+    status!.innerHTML = `<p class="status-ok">${escapeHtml(result.messages[0])} ZIP descargado. Extraelo completo y ejecuta ABRIR_TOUR.cmd para revisarlo en Windows.</p>`;
     this.flashButton(target, "Exportado");
   }
 

@@ -68,14 +68,27 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
     )
   };
 
-  const manifest = createPublishManifest(publishedProject, ["index.html", "tour.json", "viewer.css", "viewer.js", ...files.map((file) => file.path)]);
+  const localSupportFiles: StaticTourFile[] = [
+    { path: "ABRIR_TOUR.cmd", content: localLauncherCmd, mimeType: "text/plain" },
+    { path: "servidor-local.ps1", content: localServerPowerShell, mimeType: "text/plain" },
+    { path: "LEEME.txt", content: localReadme, mimeType: "text/plain" }
+  ];
+  const manifest = createPublishManifest(publishedProject, [
+    "index.html",
+    "tour.json",
+    "viewer.css",
+    "viewer.js",
+    ...localSupportFiles.map((file) => file.path),
+    ...files.map((file) => file.path)
+  ]);
 
   files.unshift(
     { path: "index.html", content: renderIndexHtml(project.title), mimeType: "text/html" },
     { path: "tour.json", content: JSON.stringify(publishedProject, null, 2), mimeType: "application/json" },
     { path: "deploy-manifest.json", content: JSON.stringify(manifest, null, 2), mimeType: "application/json" },
     { path: "viewer.css", content: viewerCss, mimeType: "text/css" },
-    { path: "viewer.js", content: viewerJs, mimeType: "text/javascript" }
+    { path: "viewer.js", content: viewerJs, mimeType: "text/javascript" },
+    ...localSupportFiles
   );
 
   return {
@@ -141,6 +154,26 @@ body {
 
 .viewer-canvas canvas:active {
   cursor: grabbing;
+}
+
+.local-open-help {
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  width: min(620px, calc(100vw - 40px));
+  min-height: 100vh;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.local-open-help h1,
+.local-open-help p {
+  margin: 0;
+}
+
+.local-open-help p {
+  color: #d8d0c7;
+  line-height: 1.55;
 }
 
 .viewer-hotspot-layer {
@@ -358,6 +391,10 @@ body {
 
 const viewerJs = `(async function () {
   const root = document.getElementById("tour");
+  if (window.location.protocol === "file:") {
+    root.innerHTML = '<main class="local-open-help"><h1>Este tour necesita un servidor local</h1><p>No abras index.html directamente. Regresa a la carpeta del tour y ejecuta <strong>ABRIR_TOUR.cmd</strong>.</p></main>';
+    return;
+  }
   const response = await fetch("./tour.json");
   const project = await response.json();
 
@@ -765,6 +802,127 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+`;
+
+const localLauncherCmd = `@echo off\r
+cd /d "%~dp0"\r
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0servidor-local.ps1"\r
+if errorlevel 1 pause\r
+`;
+
+const localServerPowerShell = `$ErrorActionPreference = "Stop"
+$root = [System.IO.Path]::GetFullPath((Split-Path -Parent $MyInvocation.MyCommand.Path))
+$listener = $null
+$port = $null
+$ports = if ($env:TOUR_PORT) { @([int]$env:TOUR_PORT) } else { @(8765..8785) }
+
+foreach ($candidate in $ports) {
+  $candidateListener = $null
+  try {
+    $candidateListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $candidate)
+    $candidateListener.Start()
+    $listener = $candidateListener
+    $port = $candidate
+    break
+  } catch {
+    if ($null -ne $candidateListener) { $candidateListener.Stop() }
+  }
+}
+
+if ($null -eq $listener) {
+  Write-Host "No se encontro un puerto local disponible." -ForegroundColor Red
+  exit 1
+}
+
+$contentTypes = @{
+  ".html" = "text/html; charset=utf-8"
+  ".css" = "text/css; charset=utf-8"
+  ".js" = "text/javascript; charset=utf-8"
+  ".json" = "application/json; charset=utf-8"
+  ".jpg" = "image/jpeg"
+  ".jpeg" = "image/jpeg"
+  ".png" = "image/png"
+  ".webp" = "image/webp"
+  ".svg" = "image/svg+xml"
+}
+
+$url = "http://127.0.0.1:$port/"
+Write-Host "360Tours Studio" -ForegroundColor Cyan
+Write-Host "Tour disponible en $url"
+Write-Host "Deja esta ventana abierta. Presiona Ctrl+C para cerrar el tour."
+if ($env:TOUR_NO_BROWSER -ne "1") {
+  $chromeCandidates = @(
+    "$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe",
+    "\${env:ProgramFiles(x86)}\\Google\\Chrome\\Application\\chrome.exe",
+    "$env:LOCALAPPDATA\\Google\\Chrome\\Application\\chrome.exe"
+  )
+  $chrome = $chromeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+  if ($chrome) { Start-Process $chrome -ArgumentList $url } else { Start-Process $url }
+}
+
+try {
+  while ($true) {
+    $client = $listener.AcceptTcpClient()
+    try {
+      $stream = $client.GetStream()
+      $reader = [System.IO.StreamReader]::new($stream, [System.Text.Encoding]::ASCII, $false, 1024, $true)
+      $requestLine = $reader.ReadLine()
+      while (-not [string]::IsNullOrEmpty($reader.ReadLine())) {}
+
+      $requestTarget = if ($requestLine) { $requestLine.Split(" ")[1] } else { "/" }
+      $requestUri = [System.Uri]::new("http://127.0.0.1$requestTarget")
+      $relativePath = [System.Uri]::UnescapeDataString($requestUri.AbsolutePath.TrimStart("/"))
+      if ([string]::IsNullOrWhiteSpace($relativePath)) { $relativePath = "index.html" }
+      $candidatePath = [System.IO.Path]::GetFullPath((Join-Path $root $relativePath.Replace("/", "\\")))
+
+      $status = "200 OK"
+      $mimeType = "application/octet-stream"
+      if (-not $candidatePath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $status = "403 Forbidden"
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes("Forbidden")
+        $mimeType = "text/plain; charset=utf-8"
+      } else {
+        if ([System.IO.Directory]::Exists($candidatePath)) { $candidatePath = Join-Path $candidatePath "index.html" }
+        if (-not [System.IO.File]::Exists($candidatePath)) {
+          $status = "404 Not Found"
+          $bytes = [System.Text.Encoding]::UTF8.GetBytes("Not found")
+          $mimeType = "text/plain; charset=utf-8"
+        } else {
+          $extension = [System.IO.Path]::GetExtension($candidatePath).ToLowerInvariant()
+          if ($contentTypes.ContainsKey($extension)) { $mimeType = $contentTypes[$extension] }
+          $bytes = [System.IO.File]::ReadAllBytes($candidatePath)
+        }
+      }
+
+      $header = "HTTP/1.1 $status\`r\`nContent-Type: $mimeType\`r\`nContent-Length: $($bytes.Length)\`r\`nConnection: close\`r\`n\`r\`n"
+      $headerBytes = [System.Text.Encoding]::ASCII.GetBytes($header)
+      $stream.Write($headerBytes, 0, $headerBytes.Length)
+      $stream.Write($bytes, 0, $bytes.Length)
+      $stream.Flush()
+    } finally {
+      $client.Close()
+    }
+  }
+} finally {
+  $listener.Stop()
+}
+`;
+
+const localReadme = `360Tours Studio - Como abrir este tour
+
+Este paquete es un minisitio web. Los navegadores bloquean la carga de tour.json
+y el procesamiento de panoramas cuando index.html se abre directamente como file://.
+
+EN WINDOWS
+1. Extrae todo el contenido del ZIP. No ejecutes archivos dentro del ZIP.
+2. Haz doble clic en ABRIR_TOUR.cmd.
+3. Se abrira el tour en tu navegador.
+4. Deja abierta la ventana del servidor mientras revisas el tour.
+5. Presiona Ctrl+C en esa ventana para detenerlo.
+
+PARA PUBLICAR
+Sube todos los archivos y carpetas del paquete al mismo directorio de un servidor web.
+El archivo de entrada es index.html.
 `;
 
 function mimeToExtension(mimeType: string): string {
