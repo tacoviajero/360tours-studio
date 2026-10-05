@@ -52,8 +52,18 @@ export class Tours360StudioApp {
   private finalPreview: FinalTourPreview | null = null;
 
   mount(root: HTMLElement): void {
+    const compactView = window.matchMedia("(max-width: 980px)");
+    if (compactView.matches) {
+      this.leftPanelCollapsed = true;
+      this.rightPanelCollapsed = true;
+    }
     root.innerHTML = this.renderShell();
     this.bindActions(root);
+    compactView.addEventListener("change", (event) => {
+      this.leftPanelCollapsed = event.matches;
+      this.rightPanelCollapsed = event.matches;
+      this.syncShellLayout(root);
+    });
     void this.initialize(root);
   }
 
@@ -62,8 +72,11 @@ export class Tours360StudioApp {
       <main class="studio-shell">
         <div class="compatibility-banner" data-compatibility-banner role="status"></div>
         <aside class="project-panel" aria-label="Proyecto">
+          <div class="mobile-panel-header">
+            <strong>Proyecto y escenas</strong>
+            <button data-action="toggle-left-panel" aria-label="Cerrar panel de escenas">Cerrar</button>
+          </div>
           <div class="brand-block">
-            <p class="eyebrow">Local-first</p>
             <h1>360Tours Studio</h1>
             <p class="muted">Produccion de recorridos 360 estaticos para TacoViajero.</p>
           </div>
@@ -111,17 +124,10 @@ export class Tours360StudioApp {
 
         <section class="viewer-panel" aria-label="Preview del tour">
           <header class="topbar">
-            <div>
-              <p class="eyebrow">Editor de tour</p>
-              <label class="title-field">
-                <span>Nombre del proyecto</span>
-                <input value="${escapeHtml(this.project.title)}" data-field="project-title" />
-              </label>
-              <label class="slug-field">
-                <span>Slug publico</span>
-                <input value="${escapeHtml(this.project.publish?.slug ?? this.project.id)}" data-field="publish-slug" />
-              </label>
-          </div>
+            <div class="workspace-context">
+              <strong data-workspace-project>${escapeHtml(this.project.title)}</strong>
+              <span data-workspace-scene>Sin escenas</span>
+            </div>
           <div class="topbar-actions">
             <button data-action="toggle-left-panel">Escenas</button>
             <button data-action="toggle-right-panel">Herramientas</button>
@@ -130,6 +136,19 @@ export class Tours360StudioApp {
             <button data-action="quick-tour">Preparar rapido</button>
             <button data-action="final-preview">Vista final</button>
             <button class="primary-action" data-action="export">Exportar tour</button>
+            <details class="project-settings">
+              <summary>Proyecto</summary>
+              <div>
+                <label class="title-field">
+                  <span>Nombre del proyecto</span>
+                  <input value="${escapeHtml(this.project.title)}" data-field="project-title" />
+                </label>
+                <label class="slug-field">
+                  <span>Direccion web</span>
+                  <input value="${escapeHtml(this.project.publish?.slug ?? this.project.id)}" data-field="publish-slug" />
+                </label>
+              </div>
+            </details>
             <details class="action-menu">
               <summary>Mas acciones</summary>
               <div>
@@ -153,6 +172,10 @@ export class Tours360StudioApp {
         </section>
 
         <aside class="properties-panel" aria-label="Propiedades">
+          <div class="mobile-panel-header">
+            <strong>Herramientas de escena</strong>
+            <button data-action="toggle-right-panel" aria-label="Cerrar herramientas">Cerrar</button>
+          </div>
           <details class="property-section" open>
             <summary><h2>Siguiente paso</h2></summary>
             <div data-next-steps></div>
@@ -161,7 +184,7 @@ export class Tours360StudioApp {
             <summary><h2>Escena activa</h2></summary>
             <div data-scene-properties></div>
           </details>
-          <details class="property-section" open>
+          <details class="property-section">
             <summary><h2>Recorrido</h2></summary>
             <div data-route-map></div>
           </details>
@@ -173,7 +196,7 @@ export class Tours360StudioApp {
             <summary><h2>Galeria</h2></summary>
             <div data-gallery-panel></div>
           </details>
-          <details class="property-section" open>
+          <details class="property-section">
             <summary><h2>Validacion</h2></summary>
             <div data-validation></div>
           </details>
@@ -183,7 +206,7 @@ export class Tours360StudioApp {
               <p class="muted">Guarda snapshots antes de cambios importantes.</p>
             </div>
           </details>
-          <details class="property-section" open>
+          <details class="property-section">
             <summary><h2>Exportacion</h2></summary>
             <div data-export-status>
               <p class="muted">El paquete estatico se generara desde el modelo guardado.</p>
@@ -230,6 +253,15 @@ export class Tours360StudioApp {
 
     shell.classList.toggle("is-left-collapsed", this.leftPanelCollapsed);
     shell.classList.toggle("is-right-collapsed", this.rightPanelCollapsed);
+    const compactView = window.matchMedia("(max-width: 980px)").matches;
+    shell.classList.toggle("is-mobile-left-open", compactView && !this.leftPanelCollapsed);
+    shell.classList.toggle("is-mobile-right-open", compactView && !this.rightPanelCollapsed);
+    root.querySelectorAll<HTMLElement>("[data-action='toggle-left-panel']").forEach((control) => {
+      control.setAttribute("aria-expanded", String(!this.leftPanelCollapsed));
+    });
+    root.querySelectorAll<HTMLElement>("[data-action='toggle-right-panel']").forEach((control) => {
+      control.setAttribute("aria-expanded", String(!this.rightPanelCollapsed));
+    });
   }
 
   private renderBrowserCompatibility(root: HTMLElement): void {
@@ -359,13 +391,23 @@ export class Tours360StudioApp {
       }
 
       if (action === "toggle-left-panel") {
-        this.leftPanelCollapsed = !this.leftPanelCollapsed;
+        const compactView = window.matchMedia("(max-width: 980px)").matches;
+        const shell = root.querySelector<HTMLElement>(".studio-shell");
+        this.leftPanelCollapsed = compactView ? shell?.classList.contains("is-mobile-left-open") ?? true : !this.leftPanelCollapsed;
+        if (!this.leftPanelCollapsed && compactView) {
+          this.rightPanelCollapsed = true;
+        }
         this.syncShellLayout(root);
         return;
       }
 
       if (action === "toggle-right-panel") {
-        this.rightPanelCollapsed = !this.rightPanelCollapsed;
+        const compactView = window.matchMedia("(max-width: 980px)").matches;
+        const shell = root.querySelector<HTMLElement>(".studio-shell");
+        this.rightPanelCollapsed = compactView ? shell?.classList.contains("is-mobile-right-open") ?? true : !this.rightPanelCollapsed;
+        if (!this.rightPanelCollapsed && compactView) {
+          this.leftPanelCollapsed = true;
+        }
         this.syncShellLayout(root);
         return;
       }
@@ -565,6 +607,7 @@ export class Tours360StudioApp {
 
       if (target.dataset.field === "project-title") {
         this.project = { ...this.project, title: target.value };
+        this.renderWorkspaceContext(root);
         await this.saveProject(root);
       }
 
@@ -689,6 +732,19 @@ export class Tours360StudioApp {
           actionMenu.open = false;
           actionMenu.querySelector<HTMLElement>("summary")?.focus();
           return;
+        }
+        const projectSettings = root.querySelector<HTMLDetailsElement>(".project-settings[open]");
+        if (projectSettings) {
+          event.preventDefault();
+          projectSettings.open = false;
+          projectSettings.querySelector<HTMLElement>("summary")?.focus();
+          return;
+        }
+        if (window.matchMedia("(max-width: 980px)").matches && (!this.leftPanelCollapsed || !this.rightPanelCollapsed)) {
+          event.preventDefault();
+          this.leftPanelCollapsed = true;
+          this.rightPanelCollapsed = true;
+          this.syncShellLayout(root);
         }
       }
       if (!(event.ctrlKey || event.metaKey)) return;
@@ -1103,6 +1159,7 @@ export class Tours360StudioApp {
       this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
     }
     this.ensureActiveFloorplan();
+    this.renderWorkspaceContext(root);
 
     await this.renderSceneList(root);
     this.assetIssues = await this.validateAssets();
@@ -1407,7 +1464,7 @@ export class Tours360StudioApp {
       </div>
 
       <div class="tool-group">
-        <h3>Hotspots</h3>
+        <h3>Puntos interactivos</h3>
         <p class="metric">${scene.hotspots.length} punto${scene.hotspots.length === 1 ? "" : "s"}</p>
         <select data-field="hotspot-target" aria-label="Escena destino" ${targetOptions ? "" : "disabled"}>
           ${targetOptions || "<option>No hay destino disponible</option>"}
@@ -1423,7 +1480,7 @@ export class Tours360StudioApp {
         </div>
         <p class="placement-hint" data-placement-hint></p>
         <div class="hotspot-editor-list">
-          ${scene.hotspots.map((hotspot, index) => this.renderHotspotEditor(hotspot, index, scene.id)).join("") || `<p class="empty-list">Aun no hay hotspots en esta escena.</p>`}
+          ${scene.hotspots.map((hotspot, index) => this.renderHotspotEditor(hotspot, index, scene.id)).join("") || `<p class="empty-list">Aun no hay puntos interactivos en esta escena.</p>`}
         </div>
       </div>
     `;
@@ -1852,7 +1909,7 @@ export class Tours360StudioApp {
     const items = [
       { label: "Panoramas", value: this.project.scenes.length, ok: this.project.scenes.length > 0 },
       { label: "Originales", value: `${originalCount}/${this.project.scenes.length}`, ok: originalCount === this.project.scenes.length && originalCount > 0 },
-      { label: "Mosaicos WebGL", value: `${tiledCount}/${this.project.scenes.length}`, ok: tiledCount === this.project.scenes.length && tiledCount > 0 },
+      { label: "Imagenes optimizadas", value: `${tiledCount}/${this.project.scenes.length}`, ok: tiledCount === this.project.scenes.length && tiledCount > 0 },
       {
         label: "Resolucion minima",
         value: Number.isFinite(minimumWidth) ? `${minimumWidth}x${minimumHeight}` : "sin datos",
@@ -1862,13 +1919,13 @@ export class Tours360StudioApp {
       { label: "Escena inicial", value: hasStartScene ? "lista" : "pendiente", ok: hasStartScene },
       { label: "Conexiones", value: connections, ok: connections > 0 || this.project.scenes.length <= 1 },
       {
-        label: "Planos",
+        label: "Planos opcionales",
         value: this.project.floorplans.length
           ? `${this.project.floorplans.length} planta${this.project.floorplans.length === 1 ? "" : "s"}`
           : "pendiente",
         ok: hasFloorplanMarkers
       },
-      { label: "Galeria", value: this.project.gallery.length, ok: this.project.gallery.length > 0 },
+      { label: "Galeria opcional", value: this.project.gallery.length, ok: true },
       { label: "Validacion", value: errors ? `${errors} error${errors === 1 ? "" : "es"}` : warnings ? `${warnings} aviso${warnings === 1 ? "" : "s"}` : "sin errores", ok: errors === 0 }
     ];
 
@@ -2508,11 +2565,13 @@ export class Tours360StudioApp {
       await this.finalPreview.open();
       this.flashButton(target, "Vista abierta");
     } catch (error) {
+      console.error("No se pudo preparar la vista final.", error);
       this.finalPreview = null;
-      host.innerHTML = `<div class="final-preview-error" role="alert"><strong>No se pudo abrir la vista WebGL.</strong><span>${escapeHtml(getErrorMessage(error))}</span><button type="button" data-action="dismiss-preview-error">Cerrar</button></div>`;
+      host.innerHTML = `<div class="final-preview-error" role="alert"><strong>No pudimos preparar la vista final.</strong><span>Revisa los archivos marcados en Validacion y vuelve a intentarlo.</span><button type="button" data-action="dismiss-preview-error">Volver al editor</button></div>`;
       host.querySelector("button")?.addEventListener("click", () => {
         host.hidden = true;
         host.innerHTML = "";
+        target.focus();
       });
     }
   }
@@ -2521,12 +2580,14 @@ export class Tours360StudioApp {
     const status = root.querySelector<HTMLElement>("[data-export-status]");
     const button = target as HTMLButtonElement;
     button.disabled = true;
+    this.renderPersistenceStatus(root, "Preparando el ZIP del tour...");
     this.assetIssues = await this.validateAssets();
     const assetErrors = this.assetIssues.filter((issue) => issue.severity === "error");
     if (assetErrors.length > 0) {
       this.renderValidation(root);
       this.renderExportReadiness(root);
       status!.innerHTML = `<ul class="issue-list">${assetErrors.map((issue) => `<li class="issue issue--error">${escapeHtml(issue.message)}</li>`).join("")}</ul>`;
+      this.renderPersistenceStatus(root, "No se pudo exportar: faltan archivos del tour.", true);
       button.disabled = false;
       return;
     }
@@ -2539,6 +2600,7 @@ export class Tours360StudioApp {
 
     if (!result.ok) {
       status!.innerHTML = `<ul class="issue-list">${result.messages.map((message) => `<li class="issue issue--error">${escapeHtml(message)}</li>`).join("")}</ul>`;
+      this.renderPersistenceStatus(root, "No se pudo exportar el tour.", true);
       button.disabled = false;
       return;
     }
@@ -2550,11 +2612,13 @@ export class Tours360StudioApp {
       this.downloadBlob(archive, `${this.getExportSlug()}.zip`);
     } catch {
       status!.innerHTML = `<p class="issue issue--warning">No se pudo generar el ZIP del tour.</p>`;
+      this.renderPersistenceStatus(root, "No se pudo generar el ZIP del tour.", true);
       button.disabled = false;
       return;
     }
 
     status!.innerHTML = `<p class="status-ok">${escapeHtml(result.messages[0])} ZIP descargado. Extraelo completo y ejecuta ABRIR_TOUR.cmd para revisarlo en Windows.</p>`;
+    this.renderPersistenceStatus(root, "ZIP descargado.");
     button.disabled = false;
     this.flashButton(target, "Exportado");
   }
@@ -2662,6 +2726,15 @@ export class Tours360StudioApp {
     }
 
     this.syncPublishUrl(root);
+    this.renderWorkspaceContext(root);
+  }
+
+  private renderWorkspaceContext(root: HTMLElement): void {
+    const project = root.querySelector<HTMLElement>("[data-workspace-project]");
+    const scene = root.querySelector<HTMLElement>("[data-workspace-scene]");
+    const activeScene = this.project.scenes.find((item) => item.id === this.activeSceneId);
+    if (project) project.textContent = this.project.title || "Tour sin nombre";
+    if (scene) scene.textContent = activeScene ? `Editando: ${activeScene.name}` : "Importa panoramas para comenzar";
   }
 
   private renderPlacementHint(root: HTMLElement, message: string): void {

@@ -15,6 +15,7 @@ export class FinalTourPreview {
   private readonly status: HTMLDivElement;
   private readonly dialog: HTMLElement;
   private readonly previouslyFocused: HTMLElement | null;
+  private readonly useTiledPanoramas: boolean;
   private keyHandler: (event: KeyboardEvent) => void;
 
   constructor(
@@ -25,6 +26,7 @@ export class FinalTourPreview {
   ) {
     this.previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.currentSceneId = project.startScene ?? project.scenes[0]?.id ?? "";
+    this.useTiledPanoramas = project.scenes.length > 0 && project.scenes.every(hasUsableTiles);
     this.host.innerHTML = `
       <section class="final-preview" role="dialog" aria-modal="true" aria-label="Vista final del tour">
         <header>
@@ -75,9 +77,8 @@ export class FinalTourPreview {
     if (!scene) throw new Error("El tour no contiene una escena para previsualizar.");
     const panorama = await this.preparePanorama(scene);
     const viewerElement = this.requiredElement("[data-final-viewer]");
-    this.viewer = new Viewer({
+    const viewerOptions = {
       container: viewerElement,
-      adapter: EquirectangularTilesAdapter,
       panorama,
       navbar: ["zoom", "move", "fullscreen"],
       mousewheelCtrlKey: false,
@@ -86,7 +87,10 @@ export class FinalTourPreview {
       defaultYaw: scene.initialView.yaw,
       defaultPitch: scene.initialView.pitch,
       defaultZoomLvl: fovToZoom(scene.initialView.fov)
-    });
+    };
+    this.viewer = this.useTiledPanoramas
+      ? new Viewer({ ...viewerOptions, adapter: EquirectangularTilesAdapter })
+      : new Viewer(viewerOptions);
     this.viewer.addEventListener("ready", () => {
       this.status.hidden = true;
       this.renderHotspots(scene.hotspots);
@@ -96,9 +100,8 @@ export class FinalTourPreview {
       this.status.textContent = `Cargando vista final... ${Math.round(event.progress)}%`;
     });
     this.viewer.addEventListener("panorama-error", (event) => {
-      this.status.hidden = false;
-      this.status.innerHTML = `<strong>No se pudo cargar ${escapeHtml(this.getScene(this.currentSceneId)?.name ?? "la escena")}.</strong><span>${escapeHtml(event.error.message)}</span><button type="button">Reintentar</button>`;
-      this.status.querySelector("button")?.addEventListener("click", () => void this.goToScene(this.currentSceneId));
+      console.error("No se pudo cargar el panorama de la vista final.", event.error);
+      this.showSceneError(this.currentSceneId);
     });
     this.viewer.addEventListener("render", () => this.positionHotspots());
   }
@@ -120,9 +123,8 @@ export class FinalTourPreview {
       this.renderHotspots(scene.hotspots);
       this.status.hidden = true;
     } catch (error) {
-      this.status.hidden = false;
-      this.status.innerHTML = `<strong>No se pudo cargar ${escapeHtml(scene.name)}.</strong><span>${escapeHtml(error instanceof Error ? error.message : String(error))}</span><button type="button">Reintentar</button>`;
-      this.status.querySelector("button")?.addEventListener("click", () => void this.goToScene(sceneId));
+      console.error("No se pudo cambiar la escena de la vista final.", error);
+      this.showSceneError(sceneId);
     }
   }
 
@@ -134,8 +136,8 @@ export class FinalTourPreview {
 
   private async preparePanorama(scene: Scene): Promise<unknown> {
     const assets = getPanoramaAssets(scene);
-    if (!assets.tiles) {
-      return this.resolveObjectUrl(assets.preview?.path ?? scene.panorama);
+    if (!this.useTiledPanoramas || !assets.tiles) {
+      return this.resolveObjectUrl(assets.original?.path ?? assets.preview?.path ?? scene.panorama);
     }
     const baseUrl = await this.resolveObjectUrl(assets.preview?.path ?? scene.panorama);
     const tileUrls = new Map<string, string>();
@@ -152,6 +154,21 @@ export class FinalTourPreview {
       baseUrl,
       tileUrl: (col: number, row: number) => tileUrls.get(`${col}:${row}`) ?? null
     };
+  }
+
+  private showSceneError(sceneId: string): void {
+    const scene = this.getScene(sceneId);
+    this.status.hidden = false;
+    this.status.innerHTML = `
+      <strong>No pudimos mostrar ${escapeHtml(scene?.name ?? "esta escena")}.</strong>
+      <span>Revisa sus archivos en el editor o intenta cargarla de nuevo.</span>
+      <div class="final-preview-error-actions">
+        <button type="button" data-preview-retry>Reintentar</button>
+        <button type="button" data-preview-back>Volver al editor</button>
+      </div>
+    `;
+    this.status.querySelector("[data-preview-retry]")?.addEventListener("click", () => void this.goToScene(sceneId));
+    this.status.querySelector("[data-preview-back]")?.addEventListener("click", () => this.close());
   }
 
   private async resolveObjectUrl(path: string): Promise<string> {
@@ -246,6 +263,23 @@ export class FinalTourPreview {
 
 function fovToZoom(fov: number): number {
   return Math.max(0, Math.min(100, 100 - ((fov - 0.55) / 1) * 100));
+}
+
+function hasUsableTiles(scene: Scene): boolean {
+  const tiles = getPanoramaAssets(scene).tiles;
+  return Boolean(
+    tiles &&
+    tiles.width > 0 &&
+    tiles.height > 0 &&
+    tiles.cols > 0 &&
+    tiles.rows > 0 &&
+    Number.isInteger(tiles.cols) &&
+    Number.isInteger(tiles.rows) &&
+    (tiles.cols & (tiles.cols - 1)) === 0 &&
+    (tiles.rows & (tiles.rows - 1)) === 0 &&
+    tiles.pathTemplate.includes("{col}") &&
+    tiles.pathTemplate.includes("{row}")
+  );
 }
 
 function escapeHtml(value: string): string {

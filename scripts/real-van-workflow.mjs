@@ -68,6 +68,7 @@ async function runRealWorkflow() {
     await page.getByLabel("Proyecto").getByRole("button", { name: /2\. 20260917 094704 585/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: /3\. 20260917 095036 680/ }).waitFor({ state: "visible" });
     await page.getByText("3 panoramas cargados.").waitFor({ state: "visible" });
+    await page.locator(".properties-panel .property-section > summary").filter({ hasText: /^Recorrido/ }).click();
     await page.getByLabel("Propiedades").getByText("Recorrido lineal completo", { exact: true }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Preparar rapido" }).click();
     await page.getByText("Tour rapido preparado: inicio y recorrido lineal listos.").waitFor({ state: "visible" });
@@ -168,6 +169,13 @@ async function verifyOriginalRecovery(page) {
     localStorage.setItem(key, JSON.stringify(project));
   });
   await page.reload();
+  const validationSummary = page
+    .locator(".properties-panel .property-section > summary")
+    .filter({ hasText: /^Validacion/ });
+  const validationOpen = await validationSummary.evaluate((summary) => summary.parentElement?.open ?? false);
+  if (!validationOpen) {
+    await validationSummary.click();
+  }
   await page.getByText(/Falta el panorama original de/).first().waitFor({ state: "visible" });
   await page.locator("#originals-recovery").setInputFiles(realPhotoPaths);
   await page.getByText("3 de 3 originales recuperados.", { exact: false }).waitFor({ state: "visible", timeout: 120_000 });

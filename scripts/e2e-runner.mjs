@@ -80,7 +80,13 @@ async function runChecks() {
     await focusByKeyboard(page, "[data-action='final-preview']", "Vista final", "Shift+Tab");
     await page.keyboard.press("Enter");
     const demoDialog = page.getByRole("dialog", { name: "Vista final del tour" });
-    await demoDialog.waitFor({ state: "visible" });
+    const previewError = page.locator(".final-preview-error");
+    await Promise.race([
+      demoDialog.waitFor({ state: "visible" }),
+      previewError.waitFor({ state: "visible" }).then(async () => {
+        throw new Error(`La vista final optimizada fallo: ${await previewError.innerText()}`);
+      })
+    ]);
     await page.locator(".final-preview-viewer canvas").waitFor({ state: "visible" });
     await page.locator("[data-preview-status]").waitFor({ state: "hidden" });
     if (externalDemoRequests.length > 0) throw new Error(`La demo intento cargar recursos externos: ${externalDemoRequests.join(", ")}`);
@@ -91,6 +97,28 @@ async function runChecks() {
     if ((await page.evaluate(() => document.activeElement instanceof HTMLElement ? document.activeElement.dataset.action : undefined)) !== "final-preview") {
       throw new Error("La vista final no devolvio el foco al control que la abrio.");
     }
+    await page.evaluate(() => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      const key = projectId ? `360tours-project:${projectId}` : "";
+      const project = key ? JSON.parse(localStorage.getItem(key) ?? "null") : null;
+      if (!project) throw new Error("No hay proyecto para probar la vista sin mosaicos.");
+      project.scenes = project.scenes.map((scene) => ({
+        ...scene,
+        metadata: {
+          ...scene.metadata,
+          panoramaAssets: {
+            ...scene.metadata?.panoramaAssets,
+            tiles: undefined
+          }
+        }
+      }));
+      localStorage.setItem(key, JSON.stringify(project));
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "Vista final" }).click();
+    await demoDialog.waitFor({ state: "visible" });
+    await page.locator("[data-preview-status]").waitFor({ state: "hidden" });
+    await page.getByRole("button", { name: "Cerrar" }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "Vista final" }).click();
     await demoDialog.waitFor({ state: "visible" });
@@ -144,6 +172,7 @@ async function runChecks() {
         return originalSetItem.call(this, key, value);
       };
     });
+    await page.locator(".project-settings > summary").click();
     await page.locator("[data-field='project-title']").fill("Cambio sin guardar");
     await page.getByText(/No hay espacio local suficiente/).waitFor({ state: "visible" });
     await page.evaluate(() => {
@@ -151,6 +180,7 @@ async function runChecks() {
     });
     await page.locator("[data-field='project-title']").fill("Nuevo tour 360");
     await page.getByText("Guardado local.", { exact: true }).waitFor({ state: "visible" });
+    await page.keyboard.press("Escape");
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar tour" }).click();
     const download = await downloadPromise;
@@ -170,7 +200,7 @@ async function runChecks() {
       exportedScene.metadata.panoramaAssets.tiles.pathTemplate.replace("{col}", "0").replace("{row}", "0")
     ]);
     await verifyExportedViewer(context, archive);
-    await page.getByText("ZIP descargado.").waitFor({ state: "visible" });
+    await page.locator(".persistence-status").getByText("ZIP descargado.", { exact: true }).waitFor({ state: "visible" });
     await page.locator(".action-menu > summary").click();
     const backupDownloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Descargar respaldo" }).click();
@@ -256,6 +286,7 @@ async function runChecks() {
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Entrada/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: "2. Sala" }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").getByRole("button", { name: "3. Cocina" }).waitFor({ state: "visible" });
+    await page.locator(".properties-panel .property-section > summary").filter({ hasText: /^Validacion/ }).click();
     await page.getByLabel("Propiedades").getByRole("list").getByText("Aun no hay plano de planta.").waitFor({ state: "visible" });
     await page.getByLabel("Propiedades").getByRole("list").getByText("Aun no hay fotos de galeria.").waitFor({ state: "visible" });
     page.once("dialog", (dialog) => dialog.accept());
