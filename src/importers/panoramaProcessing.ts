@@ -11,18 +11,22 @@ export interface ProcessedPanorama {
   usedWorker: boolean;
 }
 
-export async function processPanorama(file: File): Promise<ProcessedPanorama> {
+export async function processPanorama(file: File, signal?: AbortSignal): Promise<ProcessedPanorama> {
+  throwIfAborted(signal);
   if (typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined") {
     try {
-      return await processWithWorker(file);
+      return await processWithWorker(file, signal);
     } catch {
+      throwIfAborted(signal);
       // Older privacy-focused browsers can expose Worker APIs while blocking image decoding in workers.
     }
   }
 
   const sha256Promise = calculateSha256(file);
   const preview = await createOptimizedPanorama(file);
+  throwIfAborted(signal);
   const tiles = await createPanoramaTiles(file, 0.96);
+  throwIfAborted(signal);
   let thumbnail: Blob | null = null;
   try {
     thumbnail = await createImageThumbnail(file);
@@ -49,16 +53,27 @@ export async function processPanorama(file: File): Promise<ProcessedPanorama> {
   };
 }
 
-function processWithWorker(file: File): Promise<ProcessedPanorama> {
+function processWithWorker(file: File, signal?: AbortSignal): Promise<ProcessedPanorama> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL("./panoramaWorker.ts", import.meta.url), { type: "module" });
+    const abort = () => {
+      worker.terminate();
+      reject(new DOMException("Importacion cancelada.", "AbortError"));
+    };
+    if (signal?.aborted) {
+      abort();
+      return;
+    }
+    signal?.addEventListener("abort", abort, { once: true });
     const timeout = window.setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
       worker.terminate();
       reject(new Error("El procesamiento en segundo plano excedio el tiempo permitido."));
     }, 180_000);
 
     worker.addEventListener("message", (event) => {
       window.clearTimeout(timeout);
+      signal?.removeEventListener("abort", abort);
       worker.terminate();
       if (!event.data?.ok) {
         reject(new Error(event.data?.error ?? "No se pudo procesar el panorama."));
@@ -68,6 +83,7 @@ function processWithWorker(file: File): Promise<ProcessedPanorama> {
     });
     worker.addEventListener("error", (event) => {
       window.clearTimeout(timeout);
+      signal?.removeEventListener("abort", abort);
       worker.terminate();
       reject(new Error(event.message || "Fallo el procesamiento en segundo plano."));
     });
@@ -80,4 +96,8 @@ function processWithWorker(file: File): Promise<ProcessedPanorama> {
       tileQuality: 0.96
     });
   });
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException("Importacion cancelada.", "AbortError");
 }

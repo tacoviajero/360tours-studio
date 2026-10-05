@@ -74,6 +74,12 @@ async function runRealWorkflow() {
     await page.getByLabel("Propiedades").getByRole("heading", { name: "Recorrido" }).waitFor({ state: "visible" });
     await page.getByLabel("Propiedades").getByText("Linea completa").first().waitFor({ state: "visible" });
     await assertCanvasHasPanoramaDetail(page, ".tour-canvas", "editor");
+    await page.getByRole("button", { name: "Vista final" }).click();
+    await page.getByRole("dialog", { name: "Vista final del tour" }).waitFor({ state: "visible" });
+    await assertCanvasHasPanoramaDetail(page, ".final-preview-viewer canvas", "vista final WebGL");
+    await page.keyboard.press("ArrowRight");
+    await page.locator("[data-preview-scene].is-active").filter({ hasText: "20260917 094704 585" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Cerrar" }).click();
 
     await page.reload();
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. 20260917 094621 759/ }).waitFor({ state: "visible" });

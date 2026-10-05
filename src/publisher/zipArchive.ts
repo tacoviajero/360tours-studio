@@ -2,42 +2,48 @@ import type { StaticTourFile } from "./exporter";
 
 interface ZipEntry {
   path: string;
-  content: Uint8Array;
+  size: number;
   crc: number;
   offset: number;
 }
 
 const encoder = new TextEncoder();
 
-export async function createZipArchive(files: StaticTourFile[]): Promise<Blob> {
+export async function createZipArchive(
+  files: StaticTourFile[],
+  onProgress?: (completed: number, total: number, path: string) => void,
+  signal?: AbortSignal
+): Promise<Blob> {
   const entries: ZipEntry[] = [];
-  const chunks: Uint8Array[] = [];
+  const chunks: BlobPart[] = [];
   let offset = 0;
 
-  for (const file of files) {
+  for (const [index, file] of files.entries()) {
+    if (signal?.aborted) throw new DOMException("Exportacion cancelada.", "AbortError");
     const path = normalizeZipPath(file.path);
     const content = await readFileContent(file.content);
     const entry: ZipEntry = {
       path,
-      content,
+      size: content.byteLength,
       crc: crc32(content),
       offset
     };
     const localHeader = createLocalHeader(entry);
-    chunks.push(localHeader, content);
+    chunks.push(copyToArrayBuffer(localHeader), file.content instanceof Blob ? file.content : copyToArrayBuffer(content));
     offset += localHeader.byteLength + content.byteLength;
     entries.push(entry);
+    onProgress?.(index + 1, files.length, path);
   }
 
   const centralDirectoryOffset = offset;
   for (const entry of entries) {
     const centralHeader = createCentralDirectoryHeader(entry);
-    chunks.push(centralHeader);
+    chunks.push(copyToArrayBuffer(centralHeader));
     offset += centralHeader.byteLength;
   }
 
-  chunks.push(createEndOfCentralDirectory(entries.length, offset - centralDirectoryOffset, centralDirectoryOffset));
-  return new Blob(chunks.map((chunk) => copyToArrayBuffer(chunk)), { type: "application/zip" });
+  chunks.push(copyToArrayBuffer(createEndOfCentralDirectory(entries.length, offset - centralDirectoryOffset, centralDirectoryOffset)));
+  return new Blob(chunks, { type: "application/zip" });
 }
 
 async function readFileContent(content: string | Blob): Promise<Uint8Array> {
@@ -59,8 +65,8 @@ function createLocalHeader(entry: ZipEntry): Uint8Array {
   view.setUint16(10, 0, true);
   view.setUint16(12, 0, true);
   view.setUint32(14, entry.crc, true);
-  view.setUint32(18, entry.content.byteLength, true);
-  view.setUint32(22, entry.content.byteLength, true);
+  view.setUint32(18, entry.size, true);
+  view.setUint32(22, entry.size, true);
   view.setUint16(26, path.byteLength, true);
   header.set(path, 30);
   return header;
@@ -78,8 +84,8 @@ function createCentralDirectoryHeader(entry: ZipEntry): Uint8Array {
   view.setUint16(12, 0, true);
   view.setUint16(14, 0, true);
   view.setUint32(16, entry.crc, true);
-  view.setUint32(20, entry.content.byteLength, true);
-  view.setUint32(24, entry.content.byteLength, true);
+  view.setUint32(20, entry.size, true);
+  view.setUint32(24, entry.size, true);
   view.setUint16(28, path.byteLength, true);
   view.setUint32(42, entry.offset, true);
   header.set(path, 46);

@@ -61,6 +61,12 @@ async function runChecks() {
     await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Entrada Real/ }).waitFor({ state: "visible" });
     await page.getByLabel("Proyecto").locator(".scene-item img").first().waitFor({ state: "visible" });
     await assertEditorCanvasHasPixels(page);
+    await page.getByRole("button", { name: "Vista final" }).click();
+    await page.getByRole("dialog", { name: "Vista final del tour" }).waitFor({ state: "visible" });
+    await page.locator(".final-preview-viewer canvas").waitFor({ state: "visible" });
+    await page.locator("[data-preview-status]").waitFor({ state: "hidden" });
+    await page.getByRole("button", { name: "Cerrar" }).click();
+    await page.getByRole("dialog", { name: "Vista final del tour" }).waitFor({ state: "hidden" });
     await page.getByLabel("Progreso para crear el tour").getByText("2 de 4", { exact: true }).first().waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Confirmar escena actual" }).click();
     await page.getByLabel("Progreso para crear el tour").getByText("4 de 4", { exact: true }).first().waitFor({ state: "visible" });

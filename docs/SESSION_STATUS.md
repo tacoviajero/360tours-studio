@@ -26,6 +26,9 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Generar por separado preview 2048px, thumbnail y mosaicos de alta resolucion para cada escena.
 - Recuperar originales de proyectos anteriores mediante seleccion multiple, sin reconstruir el tour.
 - Preview 360 con visor canvas interactivo.
+- Vista final WebGL dentro de Studio con los mosaicos reales, selector de escenas, hotspots, fullscreen y flechas de teclado.
+- Preflight de calidad con resolucion por escena, originales, mosaicos y peso estimado del ZIP.
+- Progreso visible durante importacion y exportacion; la importacion puede cancelarse entre escenas.
 - Renderer ligero del editor con cache de pixeles por escena para reducir trabajo al mover la vista.
 - Editor con carga bajo demanda, precarga de escenas cercanas y cache LRU limitada a 4 panoramas.
 - Mensaje visible mientras una escena carga y error explicito si el panorama no puede abrirse.
@@ -65,6 +68,8 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Incluir `deploy-manifest.json` dentro del ZIP exportado para publicar con lista exacta de archivos.
 - Incluir metadata de panoramas dentro de `deploy-manifest.json`.
 - Viewer exportado con Photo Sphere Viewer, WebGL, mosaicos de alta resolucion, escenas, hotspots, planos, galeria y fullscreen.
+- Viewer exportado con estado de carga, reintento, navegacion por teclado y menu movil tipo drawer.
+- Exportacion secuencial por escena y ZIP compuesto con blobs para evitar mantener una segunda copia completa de cada panorama en memoria.
 - Menu del viewer exportado scrollable para tours grandes.
 - Viewer exportado con carga bajo demanda por escena y por mosaico; no descarga escenas lejanas antes de abrirlas.
 - Preflight de publicacion con plan de rutas y checklist seguro de despliegue.
@@ -85,7 +90,7 @@ pnpm test:local
 
 Resultados:
 
-- Unitarias: 8 archivos, 20 pruebas pasan.
+- Unitarias: 9 archivos, 21 pruebas pasan.
 - Build web: correcto.
 - E2E con Edge: correcto; cubre flujo guiado, confirmacion de escena, arrastre de hotspot, respaldo editable, recuperacion, almacenamiento lleno, export ZIP, viewer y tablero.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
@@ -96,6 +101,7 @@ Resultados:
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda y navegacion hasta la escena 050, limita a 4 panoramas la cache del editor, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
 - El flujo basico confirma seleccion visual, deshacer un hotspot y recuperacion despues de una importacion interrumpida.
 - La prueba con fotos reales confirma que las tres imagenes 8K se procesan mediante Web Worker.
+- La prueba real abre la Vista final WebGL dentro de Studio, verifica detalle visual y cambia de escena con el teclado antes de exportar.
 - Renderer WebGL verificado con `pnpm test:real`; carga diferida verificada con `pnpm test:large`.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
 - Prueba automatizada `pnpm test:local`: correcto; ejecuta build, unitarias, flujo basico en navegador, 3 fotos reales, 50 escenas, diagnosticos y viewer exportado.

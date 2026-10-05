@@ -105,6 +105,8 @@ cmd.exe /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Buil
 
 - **Guardar carpeta** crea una copia editable del proyecto con `project.json`, assets y `.history/`.
 - **Exportar tour** descarga un ZIP con el minisitio estatico que se puede subir a `/tours/[slug]/`.
+- **Vista final** abre dentro de Studio el mismo motor WebGL y los mismos mosaicos que usa el minisitio exportado.
+- El panel de exportacion muestra resolucion, originales disponibles, mosaicos y peso estimado antes de generar el ZIP.
 - Cada escena conserva cuatro niveles separados: JPG original intacto, preview de trabajo, thumbnail y mosaicos de alta resolucion para el viewer WebGL.
 - La exportacion comprueba el SHA-256 y copia el JPG original byte por byte; no reutiliza el preview reducido como imagen final.
 - Los proyectos creados antes de esta correccion pueden repararse con **Recuperar originales**, seleccionando otra vez sus JPG fuente.

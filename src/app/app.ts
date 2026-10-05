@@ -1,7 +1,7 @@
 import { CURRENT_SCHEMA_VERSION, type Floorplan, type GalleryItem, type Hotspot, type Scene, type TourProject, type ValidationIssue } from "../domain/tour";
 import { validateProjectAssets } from "../domain/assetValidation";
 import { demoProject } from "../domain/demoProject";
-import { getOriginalPanoramaPath, setPanoramaAssets } from "../domain/panoramaAssets";
+import { getOriginalPanoramaPath, getPanoramaAssets, setPanoramaAssets } from "../domain/panoramaAssets";
 import { validateProject } from "../domain/validation";
 import { JPEG360Importer } from "../importers/jpeg360Importer";
 import { isTauriRuntime, loadProjectFolderNative, saveProjectFolderNative } from "../platform/desktopBridge";
@@ -15,6 +15,7 @@ import { CanvasTourRenderer } from "../renderer/canvasTourRenderer";
 import { detectBrowserCompatibility } from "./browserCompatibility";
 import { formatBytes, planImportCapacity } from "../importers/importPlanning";
 import { processPanorama } from "../importers/panoramaProcessing";
+import type { FinalTourPreview } from "../preview/finalTourPreview";
 
 interface ActiveImportSession {
   projectId: string;
@@ -47,6 +48,8 @@ export class Tours360StudioApp {
   private undoStack: TourProject[] = [];
   private redoStack: TourProject[] = [];
   private readonly importSessionKey = "360tours-import:active";
+  private importController: AbortController | null = null;
+  private finalPreview: FinalTourPreview | null = null;
 
   mount(root: HTMLElement): void {
     root.innerHTML = this.renderShell();
@@ -125,6 +128,7 @@ export class Tours360StudioApp {
             <button data-action="undo" disabled>Deshacer</button>
             <button data-action="redo" disabled>Rehacer</button>
             <button data-action="quick-tour">Preparar rapido</button>
+            <button data-action="final-preview">Vista final</button>
             <button class="primary-action" data-action="export">Exportar tour</button>
             <details class="action-menu">
               <summary>Mas acciones</summary>
@@ -194,6 +198,7 @@ export class Tours360StudioApp {
           </details>
         </aside>
       </main>
+      <div class="final-preview-host" data-final-preview-host hidden></div>
     `;
   }
 
@@ -328,6 +333,11 @@ export class Tours360StudioApp {
         return;
       }
 
+      if (action === "final-preview") {
+        await this.openFinalPreview(root, target);
+        return;
+      }
+
       if (action === "undo") {
         await this.undo(root);
         return;
@@ -340,6 +350,11 @@ export class Tours360StudioApp {
 
       if (action === "select-hotspot" && target.dataset.hotspotId) {
         this.selectHotspot(root, target.dataset.hotspotId);
+        return;
+      }
+
+      if (action === "cancel-import") {
+        this.importController?.abort();
         return;
       }
 
@@ -707,19 +722,27 @@ export class Tours360StudioApp {
 
     const candidates = this.dedupeSceneIds(importedScenes);
     this.startImportSession(candidates, files);
+    this.importController?.abort();
+    this.importController = new AbortController();
+    const importSignal = this.importController.signal;
     const newScenes: Scene[] = [];
+    let cancelled = false;
     const importIssues = [
       ...result.issues,
       ...(capacity.warning ? [{ severity: "warning" as const, message: capacity.warning }] : [])
     ];
     for (const [index, scene] of candidates.entries()) {
-      this.renderImportStatus(root, `Procesando ${index + 1} de ${candidates.length}: ${scene.name}`);
+      this.renderImportProgress(root, `Procesando ${index + 1} de ${candidates.length}: ${scene.name}`, index, candidates.length);
       try {
-        await this.prepareImportedScene(scene, importedScenes[index], files);
+        await this.prepareImportedScene(scene, importedScenes[index], files, importSignal);
         newScenes.push(scene);
         this.markImportSceneCompleted(scene.id);
       } catch (error) {
         await this.assets.removeSceneAssets(this.project.id, scene.id);
+        if (importSignal.aborted) {
+          cancelled = true;
+          break;
+        }
         importIssues.push({
           severity: "error",
           message: `No se pudo conservar el original de ${scene.name}: ${getErrorMessage(error)}`
@@ -729,7 +752,8 @@ export class Tours360StudioApp {
 
     if (newScenes.length === 0) {
       this.clearImportSession();
-      this.renderImportStatus(root, "No se importaron escenas porque no fue posible preservar sus originales.", importIssues, {
+      this.importController = null;
+      this.renderImportStatus(root, cancelled ? "Importacion cancelada. No se agregaron escenas." : "No se importaron escenas porque no fue posible preservar sus originales.", importIssues, {
         files: files.length,
         imported: 0,
         warnings: importIssues.filter((issue) => issue.severity !== "error").length,
@@ -746,9 +770,10 @@ export class Tours360StudioApp {
     this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
     await this.persistAndRender(root, true);
     this.clearImportSession();
+    this.importController = null;
     this.renderImportStatus(
       root,
-      `${newScenes.length} escena${newScenes.length === 1 ? "" : "s"} importada${newScenes.length === 1 ? "" : "s"}. ${
+      `${cancelled ? "Importacion cancelada. " : ""}${newScenes.length} escena${newScenes.length === 1 ? "" : "s"} importada${newScenes.length === 1 ? "" : "s"}. ${
         newScenes.length > 1 ? "Se conectaron en linea automaticamente." : ""
       }`,
       importIssues,
@@ -761,19 +786,19 @@ export class Tours360StudioApp {
     );
   }
 
-  private async prepareImportedScene(scene: Scene, originalScene: Scene, files: File[]): Promise<void> {
+  private async prepareImportedScene(scene: Scene, originalScene: Scene, files: File[], signal?: AbortSignal): Promise<void> {
     const sourceFile = files.find((file) => originalScene.panorama.endsWith(file.name));
     if (!sourceFile) return;
-    await this.storePanoramaAssets(scene, sourceFile);
+    await this.storePanoramaAssets(scene, sourceFile, signal);
   }
 
-  private async storePanoramaAssets(scene: Scene, sourceFile: File): Promise<void> {
+  private async storePanoramaAssets(scene: Scene, sourceFile: File, signal?: AbortSignal): Promise<void> {
     const previewPath = `previews/${scene.id}.jpg`;
     const originalPath = `source/panoramas/${scene.id}.jpg`;
     const tilePathTemplate = `tiles/${scene.id}/{col}-{row}.jpg`;
     scene.panorama = previewPath;
 
-    const processed = await processPanorama(sourceFile);
+    const processed = await processPanorama(sourceFile, signal);
     const previewFile = new File([processed.preview.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
     const originalFile = new File([sourceFile], sourceFile.name, { type: sourceFile.type || "image/jpeg" });
 
@@ -1124,6 +1149,19 @@ export class Tours360StudioApp {
         }
       `;
     }
+  }
+
+  private renderImportProgress(root: HTMLElement, message: string, value: number, max: number): void {
+    const status = root.querySelector<HTMLElement>("[data-import-status]");
+    if (!status) return;
+    const percent = max > 0 ? Math.round((value / max) * 100) : 0;
+    status.innerHTML = `
+      <div class="operation-progress" role="status" aria-live="polite">
+        <div><span>${escapeHtml(message)}</span><strong>${percent}%</strong></div>
+        <progress max="${max}" value="${value}"></progress>
+        <button type="button" data-action="cancel-import">Cancelar</button>
+      </div>
+    `;
   }
 
   private async mountPreview(root: HTMLElement): Promise<void> {
@@ -1781,8 +1819,23 @@ export class Tours360StudioApp {
     );
     const hasStartScene = Boolean(this.project.startScene && this.project.scenes.some((scene) => scene.id === this.project.startScene));
     const hasFloorplanMarkers = this.project.floorplans.some((floorplan) => floorplan.markers.length > 0);
+    const sceneAssets = this.project.scenes.map((scene) => ({ scene, assets: getPanoramaAssets(scene) }));
+    const originalCount = sceneAssets.filter(({ assets }) => Boolean(assets.original)).length;
+    const tiledCount = sceneAssets.filter(({ assets }) => Boolean(assets.tiles)).length;
+    const originalBytes = sceneAssets.reduce((total, { assets }) => total + (assets.original?.bytes ?? 0), 0);
+    const estimatedZipBytes = Math.ceil(originalBytes * 2.4);
+    const minimumWidth = Math.min(...sceneAssets.map(({ assets }) => assets.original?.width ?? Number.POSITIVE_INFINITY));
+    const minimumHeight = Math.min(...sceneAssets.map(({ assets }) => assets.original?.height ?? Number.POSITIVE_INFINITY));
     const items = [
       { label: "Panoramas", value: this.project.scenes.length, ok: this.project.scenes.length > 0 },
+      { label: "Originales", value: `${originalCount}/${this.project.scenes.length}`, ok: originalCount === this.project.scenes.length && originalCount > 0 },
+      { label: "Mosaicos WebGL", value: `${tiledCount}/${this.project.scenes.length}`, ok: tiledCount === this.project.scenes.length && tiledCount > 0 },
+      {
+        label: "Resolucion minima",
+        value: Number.isFinite(minimumWidth) ? `${minimumWidth}x${minimumHeight}` : "sin datos",
+        ok: Number.isFinite(minimumWidth) && minimumWidth >= 4096
+      },
+      { label: "ZIP estimado", value: originalBytes ? formatBytes(estimatedZipBytes) : "sin datos", ok: originalBytes > 0 },
       { label: "Escena inicial", value: hasStartScene ? "lista" : "pendiente", ok: hasStartScene },
       { label: "Conexiones", value: connections, ok: connections > 0 || this.project.scenes.length <= 1 },
       {
@@ -1809,6 +1862,14 @@ export class Tours360StudioApp {
           )
           .join("")}
       </div>
+      <details class="quality-details">
+        <summary>Calidad por escena</summary>
+        <div>
+          ${sceneAssets
+            .map(({ scene, assets }, index) => `<p><strong>${index + 1}. ${escapeHtml(scene.name)}</strong><span>${assets.original ? `${assets.original.width}x${assets.original.height} · ${formatBytes(assets.original.bytes)}` : "original pendiente"}</span></p>`)
+            .join("") || `<p class="muted">No hay escenas.</p>`}
+        </div>
+      </details>
       <div class="local-test-card">
         <strong>${errors === 0 ? "Flujo local listo para probar" : "Falta corregir errores criticos"}</strong>
         <span>${
@@ -2392,34 +2453,96 @@ export class Tours360StudioApp {
     await this.persistAndRender(root, true);
   }
 
+  private async openFinalPreview(root: HTMLElement, target: HTMLElement): Promise<void> {
+    if (this.project.scenes.length === 0) {
+      this.renderImportStatus(root, "Importa al menos un panorama antes de abrir la vista final.");
+      return;
+    }
+    this.assetIssues = await this.validateAssets();
+    const errors = this.assetIssues.filter((issue) => issue.severity === "error");
+    if (errors.length > 0) {
+      this.renderValidation(root);
+      this.renderExportReadiness(root);
+      this.renderPersistenceStatus(root, "La vista final esta bloqueada por archivos faltantes.", true);
+      return;
+    }
+
+    this.finalPreview?.close();
+    const { FinalTourPreview } = await import("../preview/finalTourPreview");
+    const host = root.querySelector<HTMLElement>("[data-final-preview-host]");
+    if (!host) return;
+    host.hidden = false;
+    this.finalPreview = new FinalTourPreview(
+      host,
+      this.project,
+      async (path) => this.resolveProjectAsset(this.project, path),
+      () => {
+        this.finalPreview = null;
+      }
+    );
+    try {
+      await this.finalPreview.open();
+      this.flashButton(target, "Vista abierta");
+    } catch (error) {
+      this.finalPreview = null;
+      host.innerHTML = `<div class="final-preview-error" role="alert"><strong>No se pudo abrir la vista WebGL.</strong><span>${escapeHtml(getErrorMessage(error))}</span><button type="button" data-action="dismiss-preview-error">Cerrar</button></div>`;
+      host.querySelector("button")?.addEventListener("click", () => {
+        host.hidden = true;
+        host.innerHTML = "";
+      });
+    }
+  }
+
   private async downloadStaticTour(root: HTMLElement, target: HTMLElement): Promise<void> {
     const status = root.querySelector<HTMLElement>("[data-export-status]");
+    const button = target as HTMLButtonElement;
+    button.disabled = true;
     this.assetIssues = await this.validateAssets();
     const assetErrors = this.assetIssues.filter((issue) => issue.severity === "error");
     if (assetErrors.length > 0) {
       this.renderValidation(root);
       this.renderExportReadiness(root);
       status!.innerHTML = `<ul class="issue-list">${assetErrors.map((issue) => `<li class="issue issue--error">${escapeHtml(issue.message)}</li>`).join("")}</ul>`;
+      button.disabled = false;
       return;
     }
 
-    const result = await exportStaticTour(this.project, async (project, assetPath) => this.resolveProjectAsset(project, assetPath));
+    const result = await exportStaticTour(
+      this.project,
+      async (project, assetPath) => this.resolveProjectAsset(project, assetPath),
+      (completed, total, label) => this.renderExportProgress(status!, label, completed, total, "Preparando escenas")
+    );
 
     if (!result.ok) {
       status!.innerHTML = `<ul class="issue-list">${result.messages.map((message) => `<li class="issue issue--error">${escapeHtml(message)}</li>`).join("")}</ul>`;
+      button.disabled = false;
       return;
     }
 
     try {
-      const archive = await createZipArchive(result.files);
+      const archive = await createZipArchive(result.files, (completed, total, path) => {
+        this.renderExportProgress(status!, path, completed, total, "Construyendo ZIP");
+      });
       this.downloadBlob(archive, `${this.getExportSlug()}.zip`);
     } catch {
       status!.innerHTML = `<p class="issue issue--warning">No se pudo generar el ZIP del tour.</p>`;
+      button.disabled = false;
       return;
     }
 
     status!.innerHTML = `<p class="status-ok">${escapeHtml(result.messages[0])} ZIP descargado. Extraelo completo y ejecuta ABRIR_TOUR.cmd para revisarlo en Windows.</p>`;
+    button.disabled = false;
     this.flashButton(target, "Exportado");
+  }
+
+  private renderExportProgress(status: HTMLElement, label: string, completed: number, total: number, stage: string): void {
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    status.innerHTML = `
+      <div class="operation-progress" role="status" aria-live="polite">
+        <div><span>${escapeHtml(stage)}: ${escapeHtml(label)}</span><strong>${percent}%</strong></div>
+        <progress max="${Math.max(1, total)}" value="${completed}"></progress>
+      </div>
+    `;
   }
 
   private async resolveProjectAsset(project: TourProject, assetPath: string): Promise<Blob | null> {

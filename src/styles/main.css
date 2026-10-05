@@ -666,6 +666,32 @@ h2 {
   padding: 0 12px 12px;
 }
 
+.operation-progress {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(240, 138, 75, 0.35);
+  border-radius: 8px;
+  background: rgba(240, 138, 75, 0.08);
+}
+
+.operation-progress > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #ffd8bc;
+  font-size: 0.78rem;
+}
+
+.operation-progress progress {
+  width: 100%;
+  accent-color: #f08a4b;
+}
+
+.operation-progress button {
+  min-height: 32px;
+}
+
 .import-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1227,6 +1253,191 @@ h2 {
   white-space: nowrap;
 }
 
+.quality-details {
+  margin-top: 10px;
+  border: 1px solid rgba(245, 240, 232, 0.1);
+  border-radius: 8px;
+}
+
+.quality-details > summary {
+  padding: 10px;
+  cursor: pointer;
+  color: #d7cec4;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.quality-details > div {
+  display: grid;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 0 10px 10px;
+}
+
+.quality-details p {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  color: #b9b0a6;
+  font-size: 0.76rem;
+}
+
+.quality-details p strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f5f0e8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.final-preview-host {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #050507;
+}
+
+.final-preview {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+}
+
+.final-preview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 62px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(245, 240, 232, 0.12);
+  background: #17171d;
+}
+
+.final-preview > header > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.final-preview > header span {
+  color: #f08a4b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.final-preview > header button {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.final-preview-body {
+  display: grid;
+  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.final-preview-body > nav {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  border-right: 1px solid rgba(245, 240, 232, 0.12);
+  background: #17171d;
+}
+
+.final-preview-body > nav > div {
+  display: grid;
+  gap: 6px;
+}
+
+.final-preview-body nav button {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 8px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.final-preview-body nav button span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(245, 240, 232, 0.1);
+}
+
+.final-preview-body nav button.is-active {
+  border-color: #f08a4b;
+  background: #c74d2c;
+}
+
+.final-preview-viewer {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #050507;
+}
+
+.final-preview-viewer > .psv-container {
+  position: absolute;
+  inset: 0;
+}
+
+.final-preview-hotspots {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.final-preview-hotspots .hotspot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.final-preview-status,
+.final-preview-error {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  gap: 8px;
+  max-width: min(430px, calc(100% - 32px));
+  padding: 14px;
+  border: 1px solid rgba(240, 138, 75, 0.5);
+  border-radius: 8px;
+  background: rgba(23, 23, 29, 0.94);
+  color: #f5f0e8;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.final-preview-status[hidden] {
+  display: none;
+}
+
+.final-preview-error {
+  position: fixed;
+}
+
+.final-preview-error button,
+.final-preview-status button {
+  min-height: 36px;
+}
+
 .publish-target strong {
   overflow-wrap: anywhere;
   color: #f5f0e8;
@@ -1336,5 +1547,35 @@ h2 {
 
   .action-menu > div {
     width: min(250px, calc(100vw - 44px));
+  }
+
+  .final-preview > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .final-preview > header > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .final-preview-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .final-preview-body > nav {
+    max-height: 116px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(245, 240, 232, 0.12);
+  }
+
+  .final-preview-body > nav > div {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .final-preview-body nav button {
+    flex: 0 0 180px;
   }
 }

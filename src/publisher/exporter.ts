@@ -24,8 +24,13 @@ export interface ExportResult {
 }
 
 export type AssetResolver = (project: TourProject, assetPath: string) => Promise<Blob | null>;
+export type ExportProgressHandler = (completed: number, total: number, label: string) => void;
 
-export async function exportStaticTour(project: TourProject, resolveAsset?: AssetResolver): Promise<ExportResult> {
+export async function exportStaticTour(
+  project: TourProject,
+  resolveAsset?: AssetResolver,
+  onProgress?: ExportProgressHandler
+): Promise<ExportResult> {
   const errors = validateProject(project).filter((issue) => issue.severity === "error");
 
   if (errors.length > 0) {
@@ -38,54 +43,61 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
 
   const files: StaticTourFile[] = [];
   const integrityErrors: string[] = [];
+  const publishedScenes: TourProject["scenes"] = [];
+  for (const [index, scene] of project.scenes.entries()) {
+    onProgress?.(index, project.scenes.length, `Preparando ${scene.name}`);
+    const panoramaAssets = getPanoramaAssets(scene);
+    const originalPath = getOriginalPanoramaPath(scene) ?? scene.panorama;
+    const asset = await resolveAsset?.(project, originalPath);
+    const previewAsset = panoramaAssets.preview ? await resolveAsset?.(project, panoramaAssets.preview.path) : null;
+    const thumbnailAsset = scene.thumbnail ? await resolveAsset?.(project, scene.thumbnail) : null;
+    if (thumbnailAsset && scene.thumbnail) {
+      files.push({ path: scene.thumbnail, content: thumbnailAsset, mimeType: thumbnailAsset.type || "image/jpeg" });
+    }
+
+    if (!asset) {
+      publishedScenes.push(scene);
+      onProgress?.(index + 1, project.scenes.length, `${scene.name} sin original`);
+      continue;
+    }
+
+    if (panoramaAssets.original?.sha256 && (await calculateSha256(asset)) !== panoramaAssets.original.sha256) {
+      integrityErrors.push(`El panorama original de ${scene.name} no coincide con el archivo importado.`);
+      publishedScenes.push(scene);
+      onProgress?.(index + 1, project.scenes.length, `${scene.name} con error de integridad`);
+      continue;
+    }
+
+    const extension = mimeToExtension(asset.type);
+    const path = `panoramas/${scene.id}.${extension}`;
+    files.push({ path, content: asset, mimeType: asset.type || "image/jpeg" });
+    const publishedAssets = structuredClone(panoramaAssets);
+    if (publishedAssets.original) publishedAssets.original.path = path;
+    if (previewAsset && publishedAssets.preview) {
+      const previewPath = `previews/${scene.id}.jpg`;
+      publishedAssets.preview.path = previewPath;
+      files.push({ path: previewPath, content: previewAsset, mimeType: previewAsset.type || "image/jpeg" });
+    }
+    if (publishedAssets.tiles) {
+      for (let row = 0; row < publishedAssets.tiles.rows; row += 1) {
+        for (let col = 0; col < publishedAssets.tiles.cols; col += 1) {
+          const sourcePath = getPanoramaTilePath(panoramaAssets.tiles!, col, row);
+          const tileAsset = await resolveAsset?.(project, sourcePath);
+          if (tileAsset) files.push({ path: sourcePath, content: tileAsset, mimeType: tileAsset.type || "image/jpeg" });
+        }
+      }
+    }
+    publishedScenes.push({
+      ...scene,
+      panorama: path,
+      metadata: { ...scene.metadata, panoramaAssets: publishedAssets }
+    });
+    onProgress?.(index + 1, project.scenes.length, `${scene.name} lista`);
+  }
+
   const publishedProject: TourProject = {
     ...project,
-    scenes: await Promise.all(
-      project.scenes.map(async (scene) => {
-        const panoramaAssets = getPanoramaAssets(scene);
-        const originalPath = getOriginalPanoramaPath(scene) ?? scene.panorama;
-        const asset = await resolveAsset?.(project, originalPath);
-        const previewAsset = panoramaAssets.preview ? await resolveAsset?.(project, panoramaAssets.preview.path) : null;
-        const thumbnailAsset = scene.thumbnail ? await resolveAsset?.(project, scene.thumbnail) : null;
-        if (thumbnailAsset && scene.thumbnail) {
-          files.push({ path: scene.thumbnail, content: thumbnailAsset, mimeType: thumbnailAsset.type || "image/jpeg" });
-        }
-
-        if (!asset) {
-          return scene;
-        }
-
-        if (panoramaAssets.original?.sha256 && (await calculateSha256(asset)) !== panoramaAssets.original.sha256) {
-          integrityErrors.push(`El panorama original de ${scene.name} no coincide con el archivo importado.`);
-          return scene;
-        }
-
-        const extension = mimeToExtension(asset.type);
-        const path = `panoramas/${scene.id}.${extension}`;
-        files.push({ path, content: asset, mimeType: asset.type || "image/jpeg" });
-        const publishedAssets = structuredClone(panoramaAssets);
-        if (publishedAssets.original) publishedAssets.original.path = path;
-        if (previewAsset && publishedAssets.preview) {
-          const previewPath = `previews/${scene.id}.jpg`;
-          publishedAssets.preview.path = previewPath;
-          files.push({ path: previewPath, content: previewAsset, mimeType: previewAsset.type || "image/jpeg" });
-        }
-        if (publishedAssets.tiles) {
-          for (let row = 0; row < publishedAssets.tiles.rows; row += 1) {
-            for (let col = 0; col < publishedAssets.tiles.cols; col += 1) {
-              const sourcePath = getPanoramaTilePath(panoramaAssets.tiles!, col, row);
-              const tileAsset = await resolveAsset?.(project, sourcePath);
-              if (tileAsset) files.push({ path: sourcePath, content: tileAsset, mimeType: tileAsset.type || "image/jpeg" });
-            }
-          }
-        }
-        return {
-          ...scene,
-          panorama: path,
-          metadata: { ...scene.metadata, panoramaAssets: publishedAssets }
-        };
-      })
-    ),
+    scenes: publishedScenes,
     floorplans: await Promise.all(
       project.floorplans.map(async (floorplan) => {
         const asset = await resolveAsset?.(project, floorplan.image);
@@ -314,6 +326,36 @@ body {
   padding: 0 12px;
 }
 
+.menu-toggle {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 11;
+  display: none;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.viewer-loading {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 36px));
+  padding: 14px;
+  border: 1px solid rgba(239, 112, 72, 0.55);
+  border-radius: 8px;
+  background: rgba(15, 15, 18, 0.94);
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.viewer-loading[hidden] {
+  display: none;
+}
+
 .menu-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -442,6 +484,16 @@ body {
     bottom: 14px;
     top: auto;
     max-height: 42vh;
+    transform: translateY(calc(100% + 24px));
+    transition: transform 180ms ease;
+  }
+
+  .tour-menu.is-open {
+    transform: translateY(0);
+  }
+
+  .menu-toggle {
+    display: block;
   }
 
   .media-panel {
@@ -471,12 +523,14 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
   const project = await response.json();
 
   root.className = "tour-viewer";
-  root.innerHTML = '<div class="viewer-canvas" data-viewer></div><nav class="tour-menu" aria-label="Escenas"></nav><aside class="media-panel" data-media-panel></aside><button class="fullscreen-button" type="button">Pantalla completa</button>';
+  root.innerHTML = '<div class="viewer-canvas" data-viewer></div><nav class="tour-menu" aria-label="Escenas"></nav><aside class="media-panel" data-media-panel></aside><div class="viewer-loading" data-viewer-loading hidden></div><button class="menu-toggle" type="button">Escenas</button><button class="fullscreen-button" type="button">Pantalla completa</button>';
 
   const viewerElement = root.querySelector("[data-viewer]");
   const menu = root.querySelector(".tour-menu");
   const mediaPanel = root.querySelector("[data-media-panel]");
   const fullscreen = root.querySelector(".fullscreen-button");
+  const menuToggle = root.querySelector(".menu-toggle");
+  const loading = root.querySelector("[data-viewer-loading]");
   const viewer = new WebGlTourViewer(viewerElement, project, goToScene, (sceneId, panel, data) => renderMediaPanel(sceneId, panel, data));
   await viewer.ready;
 
@@ -490,8 +544,18 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
   }
 
   async function goToScene(sceneId) {
-    if (!(await viewer.goToScene(sceneId))) return;
-    renderMenu(sceneId);
+    const scene = project.scenes.find((item) => item.id === sceneId);
+    loading.hidden = false;
+    loading.textContent = "Cargando " + (scene?.name || "escena") + "...";
+    try {
+      if (!(await viewer.goToScene(sceneId))) return;
+      renderMenu(sceneId);
+      menu.classList.remove("is-open");
+      loading.hidden = true;
+    } catch (error) {
+      loading.innerHTML = '<strong>No se pudo cargar la escena.</strong><span>' + escapeHtml(error instanceof Error ? error.message : String(error)) + '</span><button type="button">Reintentar</button>';
+      loading.querySelector("button")?.addEventListener("click", () => goToScene(sceneId));
+    }
   }
 
   menu.addEventListener("click", (event) => {
@@ -519,6 +583,17 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
       return;
     }
     await root.requestFullscreen();
+  });
+  menuToggle.addEventListener("click", () => menu.classList.toggle("is-open"));
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      menu.classList.remove("is-open");
+      renderMediaPanel(getActiveSceneId(), "");
+      return;
+    }
+    const index = project.scenes.findIndex((scene) => scene.id === getActiveSceneId());
+    if (event.key === "ArrowLeft" && project.scenes[index - 1]) goToScene(project.scenes[index - 1].id);
+    if (event.key === "ArrowRight" && project.scenes[index + 1]) goToScene(project.scenes[index + 1].id);
   });
 
   await goToScene(project.startScene || project.scenes[0]?.id);
@@ -603,10 +678,13 @@ class WebGlTourViewer {
       defaultPitch: initialScene?.initialView?.pitch || 0,
       defaultZoomLvl: this.fovToZoom(initialScene?.initialView?.fov || 1.2)
     });
-    this.ready = new Promise((resolve) => {
+    this.ready = new Promise((resolve, reject) => {
       this.viewer.addEventListener("ready", () => {
         this.renderHotspots(initialScene?.hotspots || []);
         resolve();
+      }, { once: true });
+      this.viewer.addEventListener("panorama-error", (event) => {
+        reject(event.error);
       }, { once: true });
     });
     this.viewer.addEventListener("render", () => this.positionHotspots());

@@ -48,6 +48,7 @@ function createProject(): TourProject {
 
 describe("exportStaticTour", () => {
   it("exports viewer files, assets, and multi-floor viewer controls", async () => {
+    const progress: string[] = [];
     const assets = new Map([
       ["panoramas/entrada.jpg", new Blob(["entrada"], { type: "image/jpeg" })],
       ["thumbnails/entrada.jpg", new Blob(["thumb"], { type: "image/jpeg" })],
@@ -57,7 +58,11 @@ describe("exportStaticTour", () => {
       ["gallery/fachada.jpg", new Blob(["gallery"], { type: "image/jpeg" })]
     ]);
 
-    const result = await exportStaticTour(createProject(), async (_project, assetPath) => assets.get(assetPath) ?? null);
+    const result = await exportStaticTour(
+      createProject(),
+      async (_project, assetPath) => assets.get(assetPath) ?? null,
+      (_completed, _total, label) => progress.push(label)
+    );
     const files = new Map(result.files.map((file) => [file.path, file]));
     const tourJson = JSON.parse(String(files.get("tour.json")?.content)) as TourProject;
     const viewerJs = String(files.get("viewer.js")?.content);
@@ -96,10 +101,14 @@ describe("exportStaticTour", () => {
     expect(viewerJs).toContain("data-floorplan-id");
     expect(viewerJs).toContain("EquirectangularTilesAdapter");
     expect(viewerJs).toContain("WebGlTourViewer");
+    expect(viewerJs).toContain('event.key === "ArrowRight"');
+    expect(viewerJs).toContain("viewer-loading");
+    expect(viewerJs).toContain("Reintentar");
     expect(viewerJs).toContain('window.location.protocol === "file:"');
     expect(viewerJs).toContain("ABRIR_TOUR.cmd");
     expect(String(files.get("servidor-local.ps1")?.content)).toContain("System.Net.Sockets.TcpListener");
     expect(String(files.get("servidor-local.ps1")?.content)).toContain("Google\\Chrome\\Application\\chrome.exe");
+    expect(progress.at(-1)).toBe("Sala lista");
   });
 
   it("exports the byte-identical original instead of the editor preview", async () => {
