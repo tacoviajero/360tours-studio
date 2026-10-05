@@ -1,8 +1,9 @@
 import { CURRENT_SCHEMA_VERSION, type Floorplan, type GalleryItem, type Hotspot, type Scene, type TourProject, type ValidationIssue } from "../domain/tour";
 import { validateProjectAssets } from "../domain/assetValidation";
 import { demoProject } from "../domain/demoProject";
+import { getOriginalPanoramaPath, setPanoramaAssets } from "../domain/panoramaAssets";
 import { validateProject } from "../domain/validation";
-import { createImageThumbnail, createOptimizedPanorama } from "../importers/imageProcessing";
+import { calculateSha256, createImageThumbnail, createOptimizedPanorama, createPanoramaTiles } from "../importers/imageProcessing";
 import { JPEG360Importer } from "../importers/jpeg360Importer";
 import { isTauriRuntime, loadProjectFolderNative, saveProjectFolderNative } from "../platform/desktopBridge";
 import { BrowserProjectAssets } from "../project/browserAssets";
@@ -58,11 +59,13 @@ export class Tours360StudioApp {
             <div class="import-status" data-import-status></div>
           </section>
 
-          <div class="project-actions">
-            <button class="primary-action" data-action="new-project">Nuevo tour</button>
-            <button data-action="open-project-folder">Abrir carpeta</button>
-            <button data-action="load-demo">Cargar demo tecnico</button>
-          </div>
+            <div class="project-actions">
+              <button class="primary-action" data-action="new-project">Nuevo tour</button>
+              <button data-action="open-project-folder">Abrir carpeta</button>
+              <input id="originals-recovery" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple data-action="recover-originals" />
+              <button data-action="choose-originals">Recuperar originales</button>
+              <button data-action="load-demo">Cargar demo tecnico</button>
+            </div>
 
           <section>
             <div class="section-heading">
@@ -271,6 +274,10 @@ export class Tours360StudioApp {
         await this.openProjectFolder(root, target);
       }
 
+      if (action === "choose-originals") {
+        root.querySelector<HTMLInputElement>("#originals-recovery")?.click();
+      }
+
       if (action === "restore-snapshot" && target.dataset.snapshotId) {
         await this.restoreSnapshot(root, target.dataset.snapshotId);
       }
@@ -471,10 +478,15 @@ export class Tours360StudioApp {
     root.addEventListener("change", async (event) => {
       const target = event.target as HTMLInputElement | HTMLSelectElement;
 
-      if (target.dataset.action === "import-files" && target instanceof HTMLInputElement) {
-        await this.importFiles(root, Array.from(target.files ?? []));
-        target.value = "";
-      }
+        if (target.dataset.action === "import-files" && target instanceof HTMLInputElement) {
+          await this.importFiles(root, Array.from(target.files ?? []));
+          target.value = "";
+        }
+
+        if (target.dataset.action === "recover-originals" && target instanceof HTMLInputElement) {
+          await this.recoverOriginalPanoramas(root, Array.from(target.files ?? []));
+          target.value = "";
+        }
 
       if (target.dataset.action === "import-floorplan" && target instanceof HTMLInputElement) {
         await this.importFloorplan(root, target.files?.[0] ?? null);
@@ -566,10 +578,31 @@ export class Tours360StudioApp {
 
     const importedScenes = result.scenes.map((scene) => ({ ...scene }));
 
-    const newScenes = this.dedupeSceneIds(importedScenes);
-    for (const [index, scene] of newScenes.entries()) {
-      this.renderImportStatus(root, `Procesando ${index + 1} de ${newScenes.length}: ${scene.name}`);
-      await this.prepareImportedScene(scene, importedScenes[index], files);
+    const candidates = this.dedupeSceneIds(importedScenes);
+    const newScenes: Scene[] = [];
+    const importIssues = [...result.issues];
+    for (const [index, scene] of candidates.entries()) {
+      this.renderImportStatus(root, `Procesando ${index + 1} de ${candidates.length}: ${scene.name}`);
+      try {
+        await this.prepareImportedScene(scene, importedScenes[index], files);
+        newScenes.push(scene);
+      } catch (error) {
+        await this.assets.removeSceneAssets(this.project.id, scene.id);
+        importIssues.push({
+          severity: "error",
+          message: `No se pudo conservar el original de ${scene.name}: ${getErrorMessage(error)}`
+        });
+      }
+    }
+
+    if (newScenes.length === 0) {
+      this.renderImportStatus(root, "No se importaron escenas porque no fue posible preservar sus originales.", importIssues, {
+        files: files.length,
+        imported: 0,
+        warnings: importIssues.filter((issue) => issue.severity !== "error").length,
+        errors: importIssues.filter((issue) => issue.severity === "error").length
+      });
+      return;
     }
 
     this.project = {
@@ -584,57 +617,81 @@ export class Tours360StudioApp {
       `${newScenes.length} escena${newScenes.length === 1 ? "" : "s"} importada${newScenes.length === 1 ? "" : "s"}. ${
         newScenes.length > 1 ? "Se conectaron en linea automaticamente." : ""
       }`,
-      result.issues,
+      importIssues,
       {
         files: files.length,
         imported: newScenes.length,
-        warnings: result.issues.filter((issue) => issue.severity !== "error").length,
-        errors: result.issues.filter((issue) => issue.severity === "error").length
+        warnings: importIssues.filter((issue) => issue.severity !== "error").length,
+        errors: importIssues.filter((issue) => issue.severity === "error").length
       }
     );
   }
 
   private async prepareImportedScene(scene: Scene, originalScene: Scene, files: File[]): Promise<void> {
     const sourceFile = files.find((file) => originalScene.panorama.endsWith(file.name));
-    scene.panorama = `panoramas/${scene.id}.jpg`;
+    if (!sourceFile) return;
+    await this.storePanoramaAssets(scene, sourceFile);
+  }
 
-    if (!sourceFile) {
-      return;
+  private async storePanoramaAssets(scene: Scene, sourceFile: File): Promise<void> {
+    const previewPath = `previews/${scene.id}.jpg`;
+    const originalPath = `source/panoramas/${scene.id}.jpg`;
+    const tilePathTemplate = `tiles/${scene.id}/{col}-{row}.jpg`;
+    scene.panorama = previewPath;
+
+    const [optimizedPanorama, sha256, tileSet] = await Promise.all([
+      createOptimizedPanorama(sourceFile),
+      calculateSha256(sourceFile),
+      createPanoramaTiles(sourceFile)
+    ]);
+    const previewFile = new File([optimizedPanorama.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
+    const originalFile = new File([sourceFile], sourceFile.name, { type: sourceFile.type || "image/jpeg" });
+
+    scene.metadata = {
+      ...scene.metadata,
+      sourceFileName: sourceFile.name,
+      sourceBytes: optimizedPanorama.sourceBytes,
+      optimizedBytes: optimizedPanorama.outputBytes,
+      sourceSize: `${optimizedPanorama.sourceWidth}x${optimizedPanorama.sourceHeight}`,
+      optimizedSize: `${optimizedPanorama.outputWidth}x${optimizedPanorama.outputHeight}`,
+      optimization: {
+        maxWidth: optimizedPanorama.maxWidth,
+        quality: optimizedPanorama.quality,
+        resized: optimizedPanorama.resized
+      }
+    };
+    setPanoramaAssets(scene, {
+      original: {
+        path: originalPath,
+        width: optimizedPanorama.sourceWidth,
+        height: optimizedPanorama.sourceHeight,
+        bytes: sourceFile.size,
+        sha256
+      },
+      preview: {
+        path: previewPath,
+        width: optimizedPanorama.outputWidth,
+        height: optimizedPanorama.outputHeight,
+        bytes: optimizedPanorama.outputBytes
+      },
+      tiles: {
+        width: tileSet.width,
+        height: tileSet.height,
+        cols: tileSet.cols,
+        rows: tileSet.rows,
+        tileWidth: tileSet.tileWidth,
+        tileHeight: tileSet.tileHeight,
+        pathTemplate: tilePathTemplate
+      }
+    });
+
+    await this.assets.saveScenePanorama(this.project.id, scene.id, previewFile);
+    await this.assets.saveProjectAsset(this.project.id, previewPath, previewFile);
+    await this.assets.saveProjectAsset(this.project.id, originalPath, originalFile);
+    for (const tile of tileSet.tiles) {
+      const path = tilePathTemplate.replace("{col}", String(tile.col)).replace("{row}", String(tile.row));
+      await this.assets.saveProjectAsset(this.project.id, path, new File([tile.blob], `${tile.col}-${tile.row}.jpg`, { type: "image/jpeg" }));
     }
-
-    let panoramaAsset: File = sourceFile;
-
-    try {
-      const optimizedPanorama = await createOptimizedPanorama(sourceFile);
-      panoramaAsset = new File([optimizedPanorama.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
-      scene.metadata = {
-        ...scene.metadata,
-        sourceFileName: sourceFile.name,
-        sourceBytes: optimizedPanorama.sourceBytes,
-        optimizedBytes: optimizedPanorama.outputBytes,
-        sourceSize: `${optimizedPanorama.sourceWidth}x${optimizedPanorama.sourceHeight}`,
-        optimizedSize: `${optimizedPanorama.outputWidth}x${optimizedPanorama.outputHeight}`,
-        optimization: {
-          maxWidth: optimizedPanorama.maxWidth,
-          quality: optimizedPanorama.quality,
-          resized: optimizedPanorama.resized
-        }
-      };
-    } catch {
-      panoramaAsset = sourceFile;
-      scene.metadata = {
-        ...scene.metadata,
-        sourceFileName: sourceFile.name,
-        sourceBytes: sourceFile.size,
-        optimizedBytes: sourceFile.size,
-        optimization: {
-          fallback: true
-        }
-      };
-    }
-
-    await this.assets.saveScenePanorama(this.project.id, scene.id, panoramaAsset);
-    await this.assets.saveProjectAsset(this.project.id, scene.panorama, panoramaAsset);
 
     try {
       const thumbnail = await createImageThumbnail(sourceFile);
@@ -643,6 +700,26 @@ export class Tours360StudioApp {
     } catch {
       scene.thumbnail = undefined;
     }
+  }
+
+  private async recoverOriginalPanoramas(root: HTMLElement, files: File[]): Promise<void> {
+    const status = root.querySelector<HTMLElement>("[data-import-status]");
+    const pendingScenes = this.project.scenes.filter((scene) => !getOriginalPanoramaPath(scene));
+    let recovered = 0;
+
+    for (const scene of pendingScenes) {
+      const expectedName = typeof scene.metadata?.sourceFileName === "string" ? scene.metadata.sourceFileName : "";
+      const sourceFile = files.find((file) => file.name === expectedName) ?? files.find((file) => file.name.toLowerCase().includes(scene.id.toLowerCase()));
+      if (!sourceFile) continue;
+      status!.textContent = `Recuperando original ${recovered + 1} de ${pendingScenes.length}: ${scene.name}`;
+      await this.storePanoramaAssets(scene, sourceFile);
+      recovered += 1;
+    }
+
+    await this.persistAndRender(root, true);
+    status!.innerHTML = `<p class="${recovered === pendingScenes.length ? "status-ok" : "issue issue--warning"}">${recovered} de ${pendingScenes.length} originales recuperados. ${
+      recovered < pendingScenes.length ? "Selecciona los JPG faltantes para completar la calidad final." : "El proyecto ya puede exportarse en alta resolucion."
+    }</p>`;
   }
 
   private dedupeSceneIds(scenes: Scene[]): Scene[] {

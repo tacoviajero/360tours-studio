@@ -1,6 +1,15 @@
 import type { TourProject } from "../domain/tour";
+import { getOriginalPanoramaPath, getPanoramaAssets, getPanoramaTilePath } from "../domain/panoramaAssets";
 import { validateProject } from "../domain/validation";
 import { createPublishManifest } from "./sftpPublisher";
+import photoSphereViewerSource from "../../node_modules/@photo-sphere-viewer/core/index.module.js?raw";
+import photoSphereViewerCss from "../../node_modules/@photo-sphere-viewer/core/index.css?raw";
+import photoSphereTilesSource from "../../node_modules/@photo-sphere-viewer/equirectangular-tiles-adapter/index.module.js?raw";
+import threeSource from "../../node_modules/three/build/three.module.js?raw";
+import threeCoreSource from "../../node_modules/three/build/three.core.js?raw";
+import photoSphereViewerLicense from "../../node_modules/@photo-sphere-viewer/core/LICENSE?raw";
+import threeLicense from "../../node_modules/three/LICENSE?raw";
+import { calculateSha256 } from "../importers/imageProcessing";
 
 export interface StaticTourFile {
   path: string;
@@ -28,11 +37,15 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
   }
 
   const files: StaticTourFile[] = [];
+  const integrityErrors: string[] = [];
   const publishedProject: TourProject = {
     ...project,
     scenes: await Promise.all(
       project.scenes.map(async (scene) => {
-        const asset = await resolveAsset?.(project, scene.panorama);
+        const panoramaAssets = getPanoramaAssets(scene);
+        const originalPath = getOriginalPanoramaPath(scene) ?? scene.panorama;
+        const asset = await resolveAsset?.(project, originalPath);
+        const previewAsset = panoramaAssets.preview ? await resolveAsset?.(project, panoramaAssets.preview.path) : null;
         const thumbnailAsset = scene.thumbnail ? await resolveAsset?.(project, scene.thumbnail) : null;
         if (thumbnailAsset && scene.thumbnail) {
           files.push({ path: scene.thumbnail, content: thumbnailAsset, mimeType: thumbnailAsset.type || "image/jpeg" });
@@ -42,10 +55,35 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
           return scene;
         }
 
+        if (panoramaAssets.original?.sha256 && (await calculateSha256(asset)) !== panoramaAssets.original.sha256) {
+          integrityErrors.push(`El panorama original de ${scene.name} no coincide con el archivo importado.`);
+          return scene;
+        }
+
         const extension = mimeToExtension(asset.type);
         const path = `panoramas/${scene.id}.${extension}`;
         files.push({ path, content: asset, mimeType: asset.type || "image/jpeg" });
-        return { ...scene, panorama: path };
+        const publishedAssets = structuredClone(panoramaAssets);
+        if (publishedAssets.original) publishedAssets.original.path = path;
+        if (previewAsset && publishedAssets.preview) {
+          const previewPath = `previews/${scene.id}.jpg`;
+          publishedAssets.preview.path = previewPath;
+          files.push({ path: previewPath, content: previewAsset, mimeType: previewAsset.type || "image/jpeg" });
+        }
+        if (publishedAssets.tiles) {
+          for (let row = 0; row < publishedAssets.tiles.rows; row += 1) {
+            for (let col = 0; col < publishedAssets.tiles.cols; col += 1) {
+              const sourcePath = getPanoramaTilePath(panoramaAssets.tiles!, col, row);
+              const tileAsset = await resolveAsset?.(project, sourcePath);
+              if (tileAsset) files.push({ path: sourcePath, content: tileAsset, mimeType: tileAsset.type || "image/jpeg" });
+            }
+          }
+        }
+        return {
+          ...scene,
+          panorama: path,
+          metadata: { ...scene.metadata, panoramaAssets: publishedAssets }
+        };
       })
     ),
     floorplans: await Promise.all(
@@ -68,10 +106,21 @@ export async function exportStaticTour(project: TourProject, resolveAsset?: Asse
     )
   };
 
+  if (integrityErrors.length > 0) {
+    return { ok: false, messages: integrityErrors, files: [] };
+  }
+
   const localSupportFiles: StaticTourFile[] = [
     { path: "ABRIR_TOUR.cmd", content: localLauncherCmd, mimeType: "text/plain" },
     { path: "servidor-local.ps1", content: localServerPowerShell, mimeType: "text/plain" },
-    { path: "LEEME.txt", content: localReadme, mimeType: "text/plain" }
+    { path: "LEEME.txt", content: localReadme, mimeType: "text/plain" },
+    { path: "vendor/three.module.js", content: threeSource, mimeType: "text/javascript" },
+    { path: "vendor/three.core.js", content: threeCoreSource, mimeType: "text/javascript" },
+    { path: "vendor/photo-sphere-viewer.module.js", content: photoSphereViewerSource, mimeType: "text/javascript" },
+    { path: "vendor/equirectangular-tiles-adapter.module.js", content: photoSphereTilesSource, mimeType: "text/javascript" },
+    { path: "vendor/photo-sphere-viewer.css", content: photoSphereViewerCss, mimeType: "text/css" },
+    { path: "vendor/LICENSE-photo-sphere-viewer.txt", content: photoSphereViewerLicense, mimeType: "text/plain" },
+    { path: "vendor/LICENSE-three.txt", content: threeLicense, mimeType: "text/plain" }
   ];
   const manifest = createPublishManifest(publishedProject, [
     "index.html",
@@ -105,11 +154,21 @@ function renderIndexHtml(title: string): string {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(title)}</title>
+    <link rel="stylesheet" href="./vendor/photo-sphere-viewer.css" />
     <link rel="stylesheet" href="./viewer.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js",
+          "@photo-sphere-viewer/core": "./vendor/photo-sphere-viewer.module.js",
+          "@photo-sphere-viewer/equirectangular-tiles-adapter": "./vendor/equirectangular-tiles-adapter.module.js"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="tour"></div>
-    <script src="./viewer.js"></script>
+    <script type="module" src="./viewer.js"></script>
   </body>
 </html>
 `;
@@ -143,6 +202,11 @@ body {
   position: absolute;
   inset: 0;
   background: #050507;
+}
+
+.viewer-canvas > .psv-container {
+  width: 100%;
+  height: 100%;
 }
 
 .viewer-canvas canvas {
@@ -389,7 +453,10 @@ body {
 }
 `;
 
-const viewerJs = `(async function () {
+const viewerJs = `import { Viewer } from "@photo-sphere-viewer/core";
+import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangular-tiles-adapter";
+
+(async function () {
   const root = document.getElementById("tour");
   if (window.location.protocol === "file:") {
     root.innerHTML = '<main class="local-open-help"><h1>Este tour necesita un servidor local</h1><p>No abras index.html directamente. Regresa a la carpeta del tour y ejecuta <strong>ABRIR_TOUR.cmd</strong>.</p></main>';
@@ -405,7 +472,7 @@ const viewerJs = `(async function () {
   const menu = root.querySelector(".tour-menu");
   const mediaPanel = root.querySelector("[data-media-panel]");
   const fullscreen = root.querySelector(".fullscreen-button");
-  const viewer = new CanvasTourViewer(viewerElement, project, goToScene, (sceneId, panel, data) => renderMediaPanel(sceneId, panel, data));
+  const viewer = new WebGlTourViewer(viewerElement, project, goToScene, (sceneId, panel, data) => renderMediaPanel(sceneId, panel, data));
   await viewer.ready;
 
   function renderMenu(activeSceneId) {
@@ -417,8 +484,8 @@ const viewerJs = `(async function () {
     renderMediaPanel(activeSceneId, "");
   }
 
-  function goToScene(sceneId) {
-    if (!viewer.goToScene(sceneId)) return;
+  async function goToScene(sceneId) {
+    if (!(await viewer.goToScene(sceneId))) return;
     renderMenu(sceneId);
   }
 
@@ -449,7 +516,7 @@ const viewerJs = `(async function () {
     await root.requestFullscreen();
   });
 
-  goToScene(project.startScene || project.scenes[0]?.id);
+  await goToScene(project.startScene || project.scenes[0]?.id);
 
   function getActiveSceneId() {
     const activeButton = menu.querySelector("[data-scene-id].is-active");
@@ -502,6 +569,111 @@ const viewerJs = `(async function () {
     }
   }
 })();
+
+class WebGlTourViewer {
+  constructor(container, project, onSceneLink, onMediaPanel) {
+    this.container = container;
+    this.project = project;
+    this.onSceneLink = onSceneLink;
+    this.onMediaPanel = onMediaPanel;
+    this.currentSceneId = project.startScene || project.scenes[0]?.id || "";
+    this.hotspotLayer = document.createElement("div");
+    this.hotspotLayer.className = "viewer-hotspot-layer";
+    this.container.append(this.hotspotLayer);
+    const initialScene = this.getScene(this.currentSceneId);
+    const usesTiles = Boolean(initialScene?.metadata?.panoramaAssets?.tiles);
+    this.viewer = new Viewer({
+      container,
+      adapter: usesTiles ? EquirectangularTilesAdapter : undefined,
+      panorama: this.getPanorama(initialScene),
+      navbar: false,
+      mousewheelCtrlKey: false,
+      touchmoveTwoFingers: false,
+      rendererParameters: { antialias: true, preserveDrawingBuffer: true },
+      defaultYaw: initialScene?.initialView?.yaw || 0,
+      defaultPitch: initialScene?.initialView?.pitch || 0,
+      defaultZoomLvl: this.fovToZoom(initialScene?.initialView?.fov || 1.2)
+    });
+    this.ready = new Promise((resolve) => {
+      this.viewer.addEventListener("ready", () => {
+        this.renderHotspots(initialScene?.hotspots || []);
+        resolve();
+      }, { once: true });
+    });
+    this.viewer.addEventListener("render", () => this.positionHotspots());
+  }
+
+  async goToScene(sceneId) {
+    const scene = this.getScene(sceneId);
+    if (!scene) return false;
+    if (sceneId !== this.currentSceneId) {
+      await this.viewer.setPanorama(this.getPanorama(scene), {
+        position: { yaw: scene.initialView?.yaw || 0, pitch: scene.initialView?.pitch || 0 },
+        zoom: this.fovToZoom(scene.initialView?.fov || 1.2),
+        transition: false
+      });
+      this.currentSceneId = sceneId;
+    }
+    this.renderHotspots(scene.hotspots || []);
+    this.positionHotspots();
+    return true;
+  }
+
+  getScene(sceneId) {
+    return this.project.scenes.find((scene) => scene.id === sceneId);
+  }
+
+  getPanorama(scene) {
+    if (!scene) return "";
+    const assets = scene.metadata?.panoramaAssets;
+    const tiles = assets?.tiles;
+    if (!tiles) return scene.panorama;
+    return {
+      width: tiles.width,
+      cols: tiles.cols,
+      rows: tiles.rows,
+      baseUrl: assets.preview?.path || scene.panorama,
+      tileUrl: (col, row) => tiles.pathTemplate.replace("{col}", String(col)).replace("{row}", String(row))
+    };
+  }
+
+  fovToZoom(fov) {
+    return Math.max(0, Math.min(100, 100 - ((fov - 0.55) / 1) * 100));
+  }
+
+  renderHotspots(hotspots) {
+    this.hotspotLayer.innerHTML = "";
+    for (const hotspot of hotspots) {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = "hotspot hotspot--" + hotspot.type;
+      element.dataset.yaw = String(hotspot.yaw);
+      element.dataset.pitch = String(hotspot.pitch);
+      element.textContent = hotspot.label || (hotspot.type === "scene" ? "Ir" : hotspot.type === "info" ? "Info" : "Abrir");
+      element.addEventListener("click", () => {
+        if (hotspot.type === "scene") this.onSceneLink(hotspot.targetScene);
+        else if (hotspot.type === "link") window.open(hotspot.url, "_blank", "noopener");
+        else this.onMediaPanel(this.currentSceneId, hotspot.type, hotspot);
+      });
+      this.hotspotLayer.append(element);
+    }
+    this.positionHotspots();
+  }
+
+  positionHotspots() {
+    const bounds = this.container.getBoundingClientRect();
+    for (const element of this.hotspotLayer.querySelectorAll(".hotspot")) {
+      const point = this.viewer.dataHelper.sphericalCoordsToViewerCoords({
+        yaw: Number(element.dataset.yaw),
+        pitch: Number(element.dataset.pitch)
+      });
+      const visible = point.x >= -120 && point.x <= bounds.width + 120 && point.y >= -80 && point.y <= bounds.height + 80;
+      element.style.display = visible ? "" : "none";
+      element.style.left = point.x + "px";
+      element.style.top = point.y + "px";
+    }
+  }
+}
 
 class CanvasTourViewer {
   constructor(container, project, onSceneLink, onMediaPanel) {

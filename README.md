@@ -41,7 +41,8 @@ https://tacoviajero.com/tours/[slug]/
 
 - TypeScript
 - Vite
-- Visor canvas 360 propio
+- Preview canvas ligero en el editor
+- Photo Sphere Viewer + WebGL para el tour final
 - pnpm
 - Git
 - Filesystem + JSON como direccion de persistencia
@@ -103,6 +104,9 @@ cmd.exe /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Buil
 
 - **Guardar carpeta** crea una copia editable del proyecto con `project.json`, assets y `.history/`.
 - **Exportar tour** descarga un ZIP con el minisitio estatico que se puede subir a `/tours/[slug]/`.
+- Cada escena conserva cuatro niveles separados: JPG original intacto, preview de trabajo, thumbnail y mosaicos de alta resolucion para el viewer WebGL.
+- La exportacion comprueba el SHA-256 y copia el JPG original byte por byte; no reutiliza el preview reducido como imagen final.
+- Los proyectos creados antes de esta correccion pueden repararse con **Recuperar originales**, seleccionando otra vez sus JPG fuente.
 - Para revisarlo localmente en Windows, extrae el ZIP completo y ejecuta `ABRIR_TOUR.cmd`; el iniciador abre Chrome cuando esta disponible. Abrir `index.html` directamente como `file://` esta bloqueado por la seguridad del navegador.
 
 ## Escritorio Windows

@@ -5,7 +5,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 ## Estado general
 
 - Producto: `360Tours Studio`.
-- Avance visual: `progress.html` muestra 76% global del plan maestro.
+- Avance visual: `progress.html` calcula automaticamente el porcentaje global de los 50 puntos del plan maestro.
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
@@ -19,10 +19,11 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Mantener visibles los avisos/errores de importacion aunque parte del lote haya sido valido.
 - Avisar dimensiones exactas cuando un JPG no parece panorama 360 completo 2:1.
 - Generar thumbnails de escenas al importar.
-- Optimizar panoramas importados a 2048px de ancho para preview/export inicial.
-- Guardar metadata de optimizacion por escena: dimensiones, bytes, calidad y si hubo resize.
+- Conservar cada JPG original byte por byte y registrar dimensiones, peso y SHA-256.
+- Generar por separado preview 2048px, thumbnail y mosaicos de alta resolucion para cada escena.
+- Recuperar originales de proyectos anteriores mediante seleccion multiple, sin reconstruir el tour.
 - Preview 360 con visor canvas interactivo.
-- Renderer del editor y viewer exportado con cache de pixeles por escena para reducir trabajo al mover la vista.
+- Renderer ligero del editor con cache de pixeles por escena para reducir trabajo al mover la vista.
 - Editor con carga bajo demanda, precarga de escenas cercanas y cache LRU limitada a 4 panoramas.
 - Mensaje visible mientras una escena carga y error explicito si el panorama no puede abrirse.
 - Paneles laterales colapsables para dar mas espacio al panorama.
@@ -56,9 +57,9 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Mostrar una instruccion util en vez de pantalla negra cuando `index.html` se abre directamente como `file://`.
 - Incluir `deploy-manifest.json` dentro del ZIP exportado para publicar con lista exacta de archivos.
 - Incluir metadata de panoramas dentro de `deploy-manifest.json`.
-- Viewer exportado con visor canvas, escenas, hotspots, planos, galeria y fullscreen.
+- Viewer exportado con Photo Sphere Viewer, WebGL, mosaicos de alta resolucion, escenas, hotspots, planos, galeria y fullscreen.
 - Menu del viewer exportado scrollable para tours grandes.
-- Viewer exportado con carga bajo demanda de panoramas y precarga ligera de escenas cercanas/conectadas.
+- Viewer exportado con carga bajo demanda por escena y por mosaico; no descarga escenas lejanas antes de abrirlas.
 - Preflight de publicacion con plan de rutas y checklist seguro de despliegue.
 - Validacion de schema, escena inicial, hotspots, URLs, slug, accesibilidad, plano, galeria y assets locales faltantes.
 - Bloqueo de exportar/publicar cuando faltan assets locales.
@@ -77,16 +78,16 @@ pnpm test:local
 
 Resultados:
 
-- Unitarias: 7 archivos, 16 pruebas pasan.
+- Unitarias: 7 archivos, 18 pruebas pasan.
 - Build web: correcto.
 - E2E con Edge: correcto; cubre flujo guiado, confirmacion de escena, arrastre de hotspot, respaldo editable, recuperacion, almacenamiento lleno, export ZIP, viewer y tablero.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
-- Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales, recarga autosave, verifica conexiones lineales, valida metadata de optimizacion, exporta ZIP y abre el viewer exportado.
+- Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales 8000x4000, verifica que los JPG exportados sean identicos byte por byte, valida mosaicos 8x4, abre el viewer WebGL y repara un proyecto sin metadata de originales.
 - La prueba real ahora rechaza lienzos negros, sin variedad de color o sin detalle horizontal/vertical; guarda captura diagnostica solo cuando falla.
 - La prueba real confirma que el ZIP contiene el iniciador local, su servidor PowerShell y las instrucciones de apertura.
 - Vite ignora las carpetas locales de panoramas 8K para evitar que el watcher de Windows caiga con `EBUSY`.
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda y navegacion hasta la escena 050, limita a 4 panoramas la cache del editor, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
-- Renderer verificado despues del cache de pixeles con `pnpm test:real` y `pnpm test:large`.
+- Renderer WebGL verificado con `pnpm test:real`; carga diferida verificada con `pnpm test:large`.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
 - Prueba automatizada `pnpm test:local`: correcto; ejecuta build, unitarias, flujo basico en navegador, 3 fotos reales, 50 escenas, diagnosticos y viewer exportado.
 - Build Windows NSIS actualizado: correcto.
@@ -126,8 +127,8 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 
 ## Siguientes pasos recomendados
 
-1. Ejecutar una prueba manual de aceptacion con las tres fotos reales usando solo la interfaz.
-2. Probar recarga o cierre durante una importacion activa y limpiar assets parciales.
-3. Agregar seleccion visual y deshacer para movimientos de hotspots.
-4. Medir memoria del navegador; agregar workers o multiresolucion solo si los resultados lo justifican.
+1. Ejecutar una prueba manual de aceptacion del nuevo ZIP WebGL con las tres fotos reales.
+2. Medir peso, memoria y tiempo de importacion con un lote real de 30 a 50 fotos.
+3. Probar recarga o cierre durante una importacion activa.
+4. Agregar seleccion visual y deshacer para movimientos de hotspots.
 5. Mantener instalacion y publicacion fuera del siguiente tramo hasta que el flujo local quede aprobado.

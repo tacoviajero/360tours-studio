@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TourProject } from "../domain/tour";
 import { exportStaticTour } from "./exporter";
+import { calculateSha256 } from "../importers/imageProcessing";
 
 function createProject(): TourProject {
   return {
@@ -66,6 +67,11 @@ describe("exportStaticTour", () => {
     expect(files.has("deploy-manifest.json")).toBe(true);
     expect(files.has("viewer.css")).toBe(true);
     expect(files.has("viewer.js")).toBe(true);
+    expect(files.has("vendor/three.module.js")).toBe(true);
+    expect(files.has("vendor/three.core.js")).toBe(true);
+    expect(files.has("vendor/photo-sphere-viewer.module.js")).toBe(true);
+    expect(files.has("vendor/equirectangular-tiles-adapter.module.js")).toBe(true);
+    expect(files.has("vendor/photo-sphere-viewer.css")).toBe(true);
     expect(files.has("ABRIR_TOUR.cmd")).toBe(true);
     expect(files.has("servidor-local.ps1")).toBe(true);
     expect(files.has("LEEME.txt")).toBe(true);
@@ -88,10 +94,58 @@ describe("exportStaticTour", () => {
     });
     expect(viewerJs).toContain("floorplan-switcher");
     expect(viewerJs).toContain("data-floorplan-id");
+    expect(viewerJs).toContain("EquirectangularTilesAdapter");
+    expect(viewerJs).toContain("WebGlTourViewer");
     expect(viewerJs).toContain('window.location.protocol === "file:"');
     expect(viewerJs).toContain("ABRIR_TOUR.cmd");
     expect(String(files.get("servidor-local.ps1")?.content)).toContain("System.Net.Sockets.TcpListener");
     expect(String(files.get("servidor-local.ps1")?.content)).toContain("Google\\Chrome\\Application\\chrome.exe");
+  });
+
+  it("exports the byte-identical original instead of the editor preview", async () => {
+    const original = new Blob(["original-8k-data"], { type: "image/jpeg" });
+    const preview = new Blob(["small-preview"], { type: "image/jpeg" });
+    const project = createProject();
+    project.scenes = [
+      {
+        ...project.scenes[0],
+        panorama: "previews/entrada.jpg",
+        thumbnail: undefined,
+        hotspots: [],
+        metadata: {
+          panoramaAssets: {
+            original: {
+              path: "source/panoramas/entrada.jpg",
+              width: 8000,
+              height: 4000,
+              bytes: original.size,
+              sha256: await calculateSha256(original)
+            },
+            preview: { path: "previews/entrada.jpg", width: 2048, height: 1024, bytes: preview.size }
+          }
+        }
+      }
+    ];
+    project.startScene = "entrada";
+    project.floorplans = [];
+    project.gallery = [];
+    const assets = new Map([
+      ["source/panoramas/entrada.jpg", original],
+      ["previews/entrada.jpg", preview]
+    ]);
+
+    const result = await exportStaticTour(project, async (_project, assetPath) => assets.get(assetPath) ?? null);
+    const files = new Map(result.files.map((file) => [file.path, file]));
+    const exported = files.get("panoramas/entrada.jpg")?.content as Blob;
+    const exportedProject = JSON.parse(String(files.get("tour.json")?.content)) as TourProject;
+
+    expect(result.ok).toBe(true);
+    expect(await exported.text()).toBe("original-8k-data");
+    expect(await calculateSha256(exported)).toBe(await calculateSha256(original));
+    expect(exportedProject.scenes[0].panorama).toBe("panoramas/entrada.jpg");
+    expect(exportedProject.scenes[0].metadata?.panoramaAssets).toMatchObject({
+      original: { width: 8000, height: 4000, bytes: original.size }
+    });
   });
 
   it("blocks export when the project has validation errors", async () => {

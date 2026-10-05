@@ -130,6 +130,25 @@ export class BrowserProjectAssets {
     database.close();
   }
 
+  async removeSceneAssets(projectId: string, sceneId: string): Promise<void> {
+    const database = await this.openDatabase();
+    const projectAssets = (
+      await requestToPromise<StoredGenericAsset[]>(
+        database.transaction(this.assetStoreName, "readonly").objectStore(this.assetStoreName).getAll()
+      )
+    ).filter(
+      (asset) =>
+        asset.projectId === projectId &&
+        (asset.path.startsWith(`tiles/${sceneId}/`) || asset.path.endsWith(`/${sceneId}.jpg`) || asset.path.endsWith(`/${sceneId}.jpeg`))
+    );
+    const transaction = database.transaction([this.sceneStoreName, this.assetStoreName], "readwrite");
+    transaction.objectStore(this.sceneStoreName).delete([projectId, sceneId]);
+    const assetStore = transaction.objectStore(this.assetStoreName);
+    for (const asset of projectAssets) assetStore.delete([asset.projectId, asset.path]);
+    await transactionToPromise(transaction);
+    database.close();
+  }
+
   private openDatabase(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.databaseName, this.version);

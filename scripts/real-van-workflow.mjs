@@ -90,6 +90,11 @@ async function runRealWorkflow() {
       "deploy-manifest.json",
       "viewer.css",
       "viewer.js",
+      "vendor/three.module.js",
+      "vendor/three.core.js",
+      "vendor/photo-sphere-viewer.module.js",
+      "vendor/equirectangular-tiles-adapter.module.js",
+      "vendor/photo-sphere-viewer.css",
       "ABRIR_TOUR.cmd",
       "servidor-local.ps1",
       "LEEME.txt",
@@ -106,6 +111,21 @@ async function runRealWorkflow() {
       if (scene.metadata?.optimizedSize !== "2048x1024" || scene.metadata?.optimization?.resized !== true) {
         throw new Error(`La escena no trae metadata de optimizacion esperada: ${JSON.stringify(scene.metadata)}`);
       }
+      if (scene.metadata?.panoramaAssets?.original?.width !== 8000 || scene.metadata?.panoramaAssets?.original?.height !== 4000) {
+        throw new Error(`La escena no conserva metadata 8000x4000 del original: ${JSON.stringify(scene.metadata?.panoramaAssets)}`);
+      }
+      if (scene.metadata?.panoramaAssets?.tiles?.cols !== 8 || scene.metadata?.panoramaAssets?.tiles?.rows !== 4) {
+        throw new Error(`La escena no genero la cuadricula 8x4 esperada: ${JSON.stringify(scene.metadata?.panoramaAssets?.tiles)}`);
+      }
+    }
+
+    for (let index = 0; index < realPhotoPaths.length; index += 1) {
+      const scene = tour.scenes[index];
+      const exported = archive.get(scene.panorama);
+      const original = await readFile(realPhotoPaths[index]);
+      if (!exported || !Buffer.from(exported).equals(original)) {
+        throw new Error(`El panorama exportado ${scene.panorama} no es identico al JPG original.`);
+      }
     }
 
     const manifest = JSON.parse(new TextDecoder().decode(archive.get("deploy-manifest.json")));
@@ -120,9 +140,29 @@ async function runRealWorkflow() {
 
     await verifyExportedViewer(context, archive);
     await verifyWindowsLocalServer(archive);
+    await verifyOriginalRecovery(page);
   } finally {
     await browser.close();
   }
+}
+
+async function verifyOriginalRecovery(page) {
+  await page.evaluate(() => {
+    const projectId = localStorage.getItem("360tours-project:last");
+    const key = projectId ? `360tours-project:${projectId}` : "";
+    const raw = key ? localStorage.getItem(key) : null;
+    if (!raw) throw new Error("No se encontro el proyecto para probar recuperacion.");
+    const project = JSON.parse(raw);
+    for (const scene of project.scenes) {
+      if (scene.metadata) delete scene.metadata.panoramaAssets;
+    }
+    localStorage.setItem(key, JSON.stringify(project));
+  });
+  await page.reload();
+  await page.getByText(/Falta el panorama original de/).first().waitFor({ state: "visible" });
+  await page.locator("#originals-recovery").setInputFiles(realPhotoPaths);
+  await page.getByText("3 de 3 originales recuperados.", { exact: false }).waitFor({ state: "visible", timeout: 120_000 });
+  await page.getByText(/Falta el panorama original de/).waitFor({ state: "hidden" });
 }
 
 async function assertCanvasHasPanoramaDetail(page, selector, label) {
@@ -197,6 +237,14 @@ async function assertCanvasHasPanoramaDetail(page, selector, label) {
 
 async function verifyExportedViewer(context, archive) {
   const viewerPage = await context.newPage();
+  const browserErrors = [];
+  viewerPage.on("pageerror", (error) => browserErrors.push(error.message));
+  viewerPage.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
+  viewerPage.on("response", (response) => {
+    if (response.status() >= 400) browserErrors.push(`${response.status()} ${response.url()}`);
+  });
   await viewerPage.route("http://real-van-export.local/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^\/+/, "") || "index.html";
@@ -214,7 +262,12 @@ async function verifyExportedViewer(context, archive) {
   });
 
   await viewerPage.goto("http://real-van-export.local/index.html");
-  await viewerPage.getByRole("heading", { name: "Nuevo tour 360" }).waitFor({ state: "visible" });
+  try {
+    await viewerPage.getByRole("heading", { name: "Nuevo tour 360" }).waitFor({ state: "visible" });
+  } catch (error) {
+    await viewerPage.screenshot({ path: "test-results/real-export-viewer-failure.png" });
+    throw new Error(`${error instanceof Error ? error.message : String(error)} Browser: ${browserErrors.join(" | ")}`);
+  }
   await viewerPage.getByRole("button", { name: /20260917 094621 759/ }).waitFor({ state: "visible" });
   await viewerPage.getByRole("button", { name: /20260917 095036 680/ }).waitFor({ state: "visible" });
   await assertCanvasHasPanoramaDetail(viewerPage, ".viewer-canvas canvas", "exportado");

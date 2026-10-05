@@ -1,4 +1,5 @@
 import type { TourProject } from "../domain/tour";
+import { collectPanoramaAssetPaths } from "../domain/panoramaAssets";
 import type { ProjectSnapshotSummary } from "./storage";
 
 export interface ProjectFolderFile {
@@ -106,10 +107,7 @@ export function collectAssetPaths(project: TourProject): string[] {
   const paths = new Set<string>();
 
   for (const scene of project.scenes) {
-    paths.add(scene.panorama);
-    if (scene.thumbnail) {
-      paths.add(scene.thumbnail);
-    }
+    for (const path of collectPanoramaAssetPaths(scene)) paths.add(path);
   }
 
   for (const floorplan of project.floorplans) {

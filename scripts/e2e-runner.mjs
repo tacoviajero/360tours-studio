@@ -99,11 +99,17 @@ async function runChecks() {
       throw new Error(`Unexpected export filename: ${download.suggestedFilename()}`);
     }
     const archive = await readZipEntries(await download.path());
-    assertZipEntries(archive, ["index.html", "tour.json", "deploy-manifest.json", "viewer.css", "viewer.js", "panoramas/entrada-real.jpg"]);
+    assertZipEntries(archive, ["index.html", "tour.json", "deploy-manifest.json", "viewer.css", "viewer.js"]);
     const tour = JSON.parse(new TextDecoder().decode(archive.get("tour.json")));
     if (tour.scenes.length !== 1 || tour.scenes[0].name !== "Entrada Real") {
       throw new Error("Exported tour.json does not contain the imported scene.");
     }
+    const exportedScene = tour.scenes[0];
+    assertZipEntries(archive, [
+      exportedScene.panorama,
+      exportedScene.metadata.panoramaAssets.preview.path,
+      exportedScene.metadata.panoramaAssets.tiles.pathTemplate.replace("{col}", "0").replace("{row}", "0")
+    ]);
     await verifyExportedViewer(context, archive);
     await page.getByText("ZIP descargado.").waitFor({ state: "visible" });
     const backupDownloadPromise = page.waitForEvent("download");
@@ -113,7 +119,16 @@ async function runChecks() {
       throw new Error(`Unexpected backup filename: ${backupDownload.suggestedFilename()}`);
     }
     const backup = await readZipEntries(await backupDownload.path());
-    assertZipEntries(backup, ["project.json", "README.txt", "panoramas/entrada-real.jpg", "thumbnails/entrada-real.jpg"]);
+    const backupProject = JSON.parse(new TextDecoder().decode(backup.get("project.json")));
+    const backupScene = backupProject.scenes[0];
+    assertZipEntries(backup, [
+      "project.json",
+      "README.txt",
+      backupScene.thumbnail,
+      backupScene.metadata.panoramaAssets.original.path,
+      backupScene.metadata.panoramaAssets.preview.path,
+      backupScene.metadata.panoramaAssets.tiles.pathTemplate.replace("{col}", "0").replace("{row}", "0")
+    ]);
     if (![...backup.keys()].some((path) => path.startsWith(".history/") && path.endsWith(".json"))) {
       throw new Error("Editable backup does not include snapshot history.");
     }

@@ -87,7 +87,18 @@ async function runLargeWorkflow() {
     await page.getByRole("button", { name: "Exportar tour" }).click();
     const download = await downloadPromise;
     const archive = await readZipEntries(await download.path());
-    assertZipEntries(archive, ["index.html", "tour.json", "deploy-manifest.json", "viewer.css", "viewer.js", "panoramas/van-001.jpg", "panoramas/van-050.jpg"]);
+    assertZipEntries(archive, [
+      "index.html",
+      "tour.json",
+      "deploy-manifest.json",
+      "viewer.css",
+      "viewer.js",
+      "panoramas/van-001.jpg",
+      "panoramas/van-050.jpg",
+      "previews/van-001.jpg",
+      "tiles/van-001/0-0.jpg",
+      "tiles/van-050/0-0.jpg"
+    ]);
 
     const tour = JSON.parse(new TextDecoder().decode(archive.get("tour.json")));
     if (tour.scenes.length !== SCENE_COUNT) {
@@ -128,7 +139,7 @@ async function verifyExportedViewer(context, archive) {
   await viewerPage.route("http://large-tour-export.local/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^\/+/, "") || "index.html";
-    if (path.startsWith("panoramas/")) {
+    if (path.startsWith("panoramas/") || path.startsWith("previews/") || path.startsWith("tiles/")) {
       panoramaRequests.push(path);
     }
     const content = archive.get(path);
@@ -149,18 +160,18 @@ async function verifyExportedViewer(context, archive) {
   await viewerPage.getByRole("button", { name: "Van 050" }).waitFor({ state: "visible" });
   await viewerPage.locator(".viewer-canvas canvas").first().waitFor({ state: "visible" });
   await viewerPage.waitForTimeout(400);
-  if (!panoramaRequests.includes("panoramas/van-001.jpg")) {
+  if (!panoramaRequests.some((path) => path.includes("van-001"))) {
     throw new Error(`El viewer no cargo la escena inicial bajo demanda: ${panoramaRequests.join(", ")}`);
   }
-  if (panoramaRequests.includes("panoramas/van-050.jpg")) {
+  if (panoramaRequests.some((path) => path.includes("van-050"))) {
     throw new Error("El viewer cargo la escena 050 antes de seleccionarla; el tour grande no esta cargando bajo demanda.");
   }
-  if (new Set(panoramaRequests).size > 6) {
+  if (new Set(panoramaRequests).size > 12) {
     throw new Error(`El viewer pidio demasiados panoramas al inicio: ${panoramaRequests.join(", ")}`);
   }
   await viewerPage.getByRole("button", { name: "Van 050" }).click();
-  await viewerPage.waitForFunction(() => performance.getEntriesByName("http://large-tour-export.local/panoramas/van-050.jpg").length > 0);
-  if (!panoramaRequests.includes("panoramas/van-050.jpg")) {
+  await viewerPage.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("van-050")));
+  if (!panoramaRequests.some((path) => path.includes("van-050"))) {
     throw new Error("El viewer no cargo la escena 050 al seleccionarla.");
   }
   await viewerPage.getByRole("button", { name: "Van 050" }).waitFor({ state: "visible" });
