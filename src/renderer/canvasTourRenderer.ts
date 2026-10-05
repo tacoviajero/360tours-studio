@@ -16,6 +16,7 @@ export interface ResolvedSceneSource {
 
 export type SceneSourceResolver = (scene: Scene) => Promise<ResolvedSceneSource>;
 export type HotspotMoveHandler = (hotspotId: string, coordinates: Pick<ViewState, "yaw" | "pitch">) => void;
+export type HotspotSelectHandler = (hotspotId: string) => void;
 
 const MIN_FOV = 0.55;
 const MAX_FOV = 1.55;
@@ -43,17 +44,21 @@ export class CanvasTourRenderer implements TourRenderer {
   private resolveSceneSource: SceneSourceResolver;
   private cacheLimit: number;
   private onHotspotMove: HotspotMoveHandler;
+  private onHotspotSelect: HotspotSelectHandler;
+  private selectedHotspotId = "";
 
   constructor(
     onSceneChange: (sceneId: string) => void = () => undefined,
     resolveSceneSource: SceneSourceResolver = async (scene) => ({ src: scene.panorama }),
     cacheLimit = DEFAULT_CACHE_LIMIT,
-    onHotspotMove: HotspotMoveHandler = () => undefined
+    onHotspotMove: HotspotMoveHandler = () => undefined,
+    onHotspotSelect: HotspotSelectHandler = () => undefined
   ) {
     this.onSceneChange = onSceneChange;
     this.resolveSceneSource = resolveSceneSource;
     this.cacheLimit = Math.max(2, cacheLimit);
     this.onHotspotMove = onHotspotMove;
+    this.onHotspotSelect = onHotspotSelect;
   }
 
   mount(container: HTMLElement, project: TourProject): void {
@@ -95,6 +100,13 @@ export class CanvasTourRenderer implements TourRenderer {
       pitch: roundViewNumber(this.view.pitch),
       fov: roundViewNumber(this.view.fov)
     };
+  }
+
+  setSelectedHotspot(hotspotId: string): void {
+    this.selectedHotspotId = hotspotId;
+    for (const element of this.hotspotLayer?.querySelectorAll<HTMLElement>(".hotspot") ?? []) {
+      element.classList.toggle("is-selected", element.dataset.hotspotId === hotspotId);
+    }
   }
 
   screenToCoordinates(x: number, y: number): Pick<ViewState, "yaw" | "pitch"> | null {
@@ -399,7 +411,7 @@ export class CanvasTourRenderer implements TourRenderer {
     this.hotspotLayer.innerHTML = "";
     for (const hotspot of hotspots) {
       const element = document.createElement("button");
-      element.className = `hotspot hotspot--${hotspot.type}`;
+      element.className = `hotspot hotspot--${hotspot.type}${hotspot.id === this.selectedHotspotId ? " is-selected" : ""}`;
       element.type = "button";
       element.dataset.yaw = String(hotspot.yaw);
       element.dataset.pitch = String(hotspot.pitch);
@@ -459,17 +471,17 @@ export class CanvasTourRenderer implements TourRenderer {
       if (hotspot.type === "scene") {
         element.textContent = hotspot.label ?? "Ir";
         element.addEventListener("click", (event) => {
-          if (!shouldSuppressClick(event)) this.goToScene(hotspot.targetScene);
+          if (!shouldSuppressClick(event)) this.onHotspotSelect(hotspot.id);
         });
       } else if (hotspot.type === "info") {
         element.textContent = "Info";
         element.addEventListener("click", (event) => {
-          if (!shouldSuppressClick(event)) window.alert(`${hotspot.title}\n\n${hotspot.text}`);
+          if (!shouldSuppressClick(event)) this.onHotspotSelect(hotspot.id);
         });
       } else {
         element.textContent = hotspot.title ?? "Abrir";
         element.addEventListener("click", (event) => {
-          if (!shouldSuppressClick(event)) window.open(hotspot.url, "_blank", "noopener");
+          if (!shouldSuppressClick(event)) this.onHotspotSelect(hotspot.id);
         });
       }
 

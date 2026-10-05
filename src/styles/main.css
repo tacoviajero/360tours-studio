@@ -97,6 +97,30 @@ label span {
   overflow: hidden;
 }
 
+.compatibility-banner {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  top: 10px;
+  width: min(680px, calc(100% - 24px));
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 209, 102, 0.55);
+  border-radius: 8px;
+  background: #2b2518;
+  color: #ffe2a6;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42);
+}
+
+.compatibility-banner[data-level="blocked"] {
+  border-color: rgba(255, 155, 140, 0.7);
+  background: #321d1d;
+  color: #ffc0b7;
+}
+
 .studio-shell.is-left-collapsed {
   grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
 }
@@ -142,6 +166,8 @@ label span {
 }
 
 .topbar {
+  position: relative;
+  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -152,7 +178,7 @@ label span {
   padding: 18px 22px;
   border-bottom: 1px solid rgba(245, 240, 232, 0.08);
   background: rgba(16, 16, 20, 0.86);
-  overflow: auto;
+  overflow: visible;
 }
 
 .topbar-actions {
@@ -160,6 +186,57 @@ label span {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.action-menu {
+  position: relative;
+}
+
+.action-menu summary,
+.panel-menu summary,
+.property-section > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.action-menu summary::-webkit-details-marker,
+.panel-menu summary::-webkit-details-marker,
+.property-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-menu > summary {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(245, 240, 232, 0.16);
+  border-radius: 8px;
+  background: #24232a;
+}
+
+.action-menu[open] > summary {
+  border-color: #f08a4b;
+}
+
+.action-menu > div {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: calc(100% + 8px);
+  display: grid;
+  width: 210px;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(245, 240, 232, 0.16);
+  border-radius: 8px;
+  background: #1d1c22;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+.action-menu > div button,
+.action-menu > div .button-link {
+  width: 100%;
 }
 
 .topbar-actions button,
@@ -621,6 +698,51 @@ h2 {
   gap: 8px;
 }
 
+.panel-menu > summary {
+  padding: 10px 12px;
+  border: 1px solid rgba(245, 240, 232, 0.12);
+  border-radius: 8px;
+  color: #d7cec4;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.panel-menu[open] > summary {
+  margin-bottom: 8px;
+  border-color: rgba(240, 138, 75, 0.45);
+}
+
+.property-section {
+  border-bottom: 1px solid rgba(245, 240, 232, 0.08);
+  padding-bottom: 14px;
+}
+
+.property-section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.property-section > summary::after {
+  content: "+";
+  color: #f08a4b;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.property-section[open] > summary::after {
+  content: "-";
+}
+
+.property-section > summary h2 {
+  margin: 0;
+}
+
+.property-section[open] > summary {
+  margin-bottom: 12px;
+}
+
 .project-actions button {
   min-height: 38px;
   padding: 0 12px;
@@ -877,6 +999,11 @@ h2 {
   white-space: nowrap;
 }
 
+.hotspot.is-selected {
+  border-color: #ffd166;
+  box-shadow: 0 0 0 5px rgba(255, 209, 102, 0.28), 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
 .hotspot--info {
   background: #226c67;
 }
@@ -947,6 +1074,11 @@ h2 {
   border: 1px solid rgba(245, 240, 232, 0.1);
   border-radius: 8px;
   background: rgba(245, 240, 232, 0.035);
+}
+
+.hotspot-editor.is-selected {
+  border-color: rgba(255, 209, 102, 0.75);
+  background: rgba(255, 209, 102, 0.08);
 }
 
 .hotspot-editor header,
@@ -1173,5 +1305,36 @@ h2 {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+    max-height: none;
+  }
+
+  .topbar > div:first-child,
+  .topbar-actions,
+  .title-field,
+  .slug-field {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+
+  .action-menu > div {
+    left: 0;
+    right: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .topbar-actions button,
+  .topbar-actions .button-link,
+  .action-menu,
+  .action-menu > summary {
+    flex: 1 1 132px;
+  }
+
+  .action-menu > div {
+    width: min(250px, calc(100vw - 44px));
   }
 }

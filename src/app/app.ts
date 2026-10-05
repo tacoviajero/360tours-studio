@@ -3,7 +3,6 @@ import { validateProjectAssets } from "../domain/assetValidation";
 import { demoProject } from "../domain/demoProject";
 import { getOriginalPanoramaPath, setPanoramaAssets } from "../domain/panoramaAssets";
 import { validateProject } from "../domain/validation";
-import { calculateSha256, createImageThumbnail, createOptimizedPanorama, createPanoramaTiles } from "../importers/imageProcessing";
 import { JPEG360Importer } from "../importers/jpeg360Importer";
 import { isTauriRuntime, loadProjectFolderNative, saveProjectFolderNative } from "../platform/desktopBridge";
 import { BrowserProjectAssets } from "../project/browserAssets";
@@ -13,6 +12,17 @@ import { exportStaticTour } from "../publisher/exporter";
 import { publishTour } from "../publisher/sftpPublisher";
 import { createZipArchive } from "../publisher/zipArchive";
 import { CanvasTourRenderer } from "../renderer/canvasTourRenderer";
+import { detectBrowserCompatibility } from "./browserCompatibility";
+import { formatBytes, planImportCapacity } from "../importers/importPlanning";
+import { processPanorama } from "../importers/panoramaProcessing";
+
+interface ActiveImportSession {
+  projectId: string;
+  startedAt: string;
+  sceneIds: string[];
+  fileNames: string[];
+  completedSceneIds: string[];
+}
 
 export class Tours360StudioApp {
   private project: TourProject = createEmptyProject();
@@ -33,6 +43,10 @@ export class Tours360StudioApp {
   private leftPanelCollapsed = false;
   private rightPanelCollapsed = false;
   private sceneFilter = "";
+  private selectedHotspotId = "";
+  private undoStack: TourProject[] = [];
+  private redoStack: TourProject[] = [];
+  private readonly importSessionKey = "360tours-import:active";
 
   mount(root: HTMLElement): void {
     root.innerHTML = this.renderShell();
@@ -43,6 +57,7 @@ export class Tours360StudioApp {
   private renderShell(): string {
     return `
       <main class="studio-shell">
+        <div class="compatibility-banner" data-compatibility-banner role="status"></div>
         <aside class="project-panel" aria-label="Proyecto">
           <div class="brand-block">
             <p class="eyebrow">Local-first</p>
@@ -59,13 +74,16 @@ export class Tours360StudioApp {
             <div class="import-status" data-import-status></div>
           </section>
 
-            <div class="project-actions">
+            <details class="panel-menu" open>
+              <summary>Proyecto y recuperacion</summary>
+              <div class="project-actions">
               <button class="primary-action" data-action="new-project">Nuevo tour</button>
               <button data-action="open-project-folder">Abrir carpeta</button>
               <input id="originals-recovery" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple data-action="recover-originals" />
               <button data-action="choose-originals">Recuperar originales</button>
               <button data-action="load-demo">Cargar demo tecnico</button>
-            </div>
+              </div>
+            </details>
 
           <section>
             <div class="section-heading">
@@ -104,14 +122,21 @@ export class Tours360StudioApp {
           <div class="topbar-actions">
             <button data-action="toggle-left-panel">Escenas</button>
             <button data-action="toggle-right-panel">Herramientas</button>
+            <button data-action="undo" disabled>Deshacer</button>
+            <button data-action="redo" disabled>Rehacer</button>
             <button data-action="quick-tour">Preparar rapido</button>
-            <a class="button-link" href="/progress.html">Ver avance</a>
-            <button data-action="snapshot">Guardar snapshot</button>
-            <button data-action="download-backup">Descargar respaldo</button>
-            <button data-action="duplicate-project">Duplicar</button>
-            <button data-action="save-project-folder">Guardar carpeta</button>
-            <button data-action="export">Exportar tour</button>
-            <button data-action="publish">Publicar</button>
+            <button class="primary-action" data-action="export">Exportar tour</button>
+            <details class="action-menu">
+              <summary>Mas acciones</summary>
+              <div>
+                <a class="button-link" href="/progress.html">Ver avance</a>
+                <button data-action="snapshot">Guardar snapshot</button>
+                <button data-action="download-backup">Descargar respaldo</button>
+                <button data-action="duplicate-project">Duplicar</button>
+                <button data-action="save-project-folder">Guardar carpeta</button>
+                <button data-action="publish">Publicar</button>
+              </div>
+            </details>
           </div>
           <div class="persistence-status" data-persistence-status role="status" aria-live="polite"></div>
           </header>
@@ -124,55 +149,56 @@ export class Tours360StudioApp {
         </section>
 
         <aside class="properties-panel" aria-label="Propiedades">
-          <section>
-            <h2>Siguiente paso</h2>
+          <details class="property-section" open>
+            <summary><h2>Siguiente paso</h2></summary>
             <div data-next-steps></div>
-          </section>
-          <section>
-            <h2>Escena activa</h2>
+          </details>
+          <details class="property-section" open>
+            <summary><h2>Escena activa</h2></summary>
             <div data-scene-properties></div>
-          </section>
-          <section>
-            <h2>Recorrido</h2>
+          </details>
+          <details class="property-section" open>
+            <summary><h2>Recorrido</h2></summary>
             <div data-route-map></div>
-          </section>
-          <section>
-            <h2>Plano</h2>
+          </details>
+          <details class="property-section">
+            <summary><h2>Plano</h2></summary>
             <div data-floorplan-panel></div>
-          </section>
-          <section>
-            <h2>Galeria</h2>
+          </details>
+          <details class="property-section">
+            <summary><h2>Galeria</h2></summary>
             <div data-gallery-panel></div>
-          </section>
-          <section>
-            <h2>Validacion</h2>
+          </details>
+          <details class="property-section" open>
+            <summary><h2>Validacion</h2></summary>
             <div data-validation></div>
-          </section>
-          <section>
-            <h2>Historial</h2>
+          </details>
+          <details class="property-section">
+            <summary><h2>Historial</h2></summary>
             <div data-snapshot-list>
               <p class="muted">Guarda snapshots antes de cambios importantes.</p>
             </div>
-          </section>
-          <section>
-            <h2>Exportacion</h2>
+          </details>
+          <details class="property-section" open>
+            <summary><h2>Exportacion</h2></summary>
             <div data-export-status>
               <p class="muted">El paquete estatico se generara desde el modelo guardado.</p>
             </div>
-          </section>
-          <section>
-            <h2>Publicacion</h2>
+          </details>
+          <details class="property-section">
+            <summary><h2>Publicacion</h2></summary>
             <div class="publish-target" data-publish-status>
               <span>Destino</span>
               <strong data-publish-url>${escapeHtml(this.getPublishUrl())}</strong>
             </div>
-          </section>
+          </details>
         </aside>
       </main>
     `;
   }
 
   private async initialize(root: HTMLElement): Promise<void> {
+    this.renderBrowserCompatibility(root);
     const recovery = await this.storage.recoverLast();
     const savedProject = recovery.project;
     this.recentProjects = await this.storage.list();
@@ -183,10 +209,12 @@ export class Tours360StudioApp {
       this.syncTitleField(root);
     }
     this.snapshots = await this.storage.listSnapshots(this.project.id);
+    const interruptedImport = await this.recoverInterruptedImport();
 
     this.syncShellLayout(root);
     await this.renderWorkspace(root, true);
-    this.renderPersistenceStatus(root, recovery.warning ?? (savedProject ? "Proyecto local recuperado y listo." : "Listo para crear un tour local."), Boolean(recovery.warning));
+    const initialMessage = interruptedImport ?? recovery.warning ?? (savedProject ? "Proyecto local recuperado y listo." : "Listo para crear un tour local.");
+    this.renderPersistenceStatus(root, initialMessage, Boolean(interruptedImport || recovery.warning));
   }
 
   private syncShellLayout(root: HTMLElement): void {
@@ -197,6 +225,65 @@ export class Tours360StudioApp {
 
     shell.classList.toggle("is-left-collapsed", this.leftPanelCollapsed);
     shell.classList.toggle("is-right-collapsed", this.rightPanelCollapsed);
+  }
+
+  private renderBrowserCompatibility(root: HTMLElement): void {
+    const banner = root.querySelector<HTMLElement>("[data-compatibility-banner]");
+    if (!banner) return;
+    const compatibility = detectBrowserCompatibility();
+    banner.textContent = compatibility.message;
+    banner.dataset.level = compatibility.level;
+    banner.hidden = compatibility.level === "supported";
+  }
+
+  private pushUndoCheckpoint(): void {
+    this.undoStack.push(cloneProject(this.project));
+    if (this.undoStack.length > 40) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  private clearUndoHistory(): void {
+    this.undoStack = [];
+    this.redoStack = [];
+  }
+
+  private async undo(root: HTMLElement): Promise<void> {
+    const previous = this.undoStack.pop();
+    if (!previous) return;
+    this.redoStack.push(cloneProject(this.project));
+    this.project = previous;
+    this.activeSceneId = this.project.scenes.some((scene) => scene.id === this.activeSceneId)
+      ? this.activeSceneId
+      : this.project.startScene ?? this.project.scenes[0]?.id ?? "";
+    this.selectedHotspotId = "";
+    await this.persistAndRender(root, true);
+    this.renderPersistenceStatus(root, "Cambio deshecho.");
+  }
+
+  private async redo(root: HTMLElement): Promise<void> {
+    const next = this.redoStack.pop();
+    if (!next) return;
+    this.undoStack.push(cloneProject(this.project));
+    this.project = next;
+    this.activeSceneId = this.project.scenes.some((scene) => scene.id === this.activeSceneId)
+      ? this.activeSceneId
+      : this.project.startScene ?? this.project.scenes[0]?.id ?? "";
+    this.selectedHotspotId = "";
+    await this.persistAndRender(root, true);
+    this.renderPersistenceStatus(root, "Cambio rehecho.");
+  }
+
+  private updateUndoControls(root: HTMLElement): void {
+    const undo = root.querySelector<HTMLButtonElement>("[data-action='undo']");
+    const redo = root.querySelector<HTMLButtonElement>("[data-action='redo']");
+    if (undo) undo.disabled = this.undoStack.length === 0;
+    if (redo) redo.disabled = this.redoStack.length === 0;
+  }
+
+  private selectHotspot(root: HTMLElement, hotspotId: string): void {
+    this.selectedHotspotId = hotspotId;
+    this.renderer?.setSelectedHotspot(hotspotId);
+    this.renderSceneProperties(root);
   }
 
   private bindActions(root: HTMLElement): void {
@@ -210,6 +297,7 @@ export class Tours360StudioApp {
 
       if (target.dataset.sceneId) {
         this.activeSceneId = target.dataset.sceneId;
+        this.selectedHotspotId = "";
         this.renderer?.goToScene(this.activeSceneId);
         await this.renderPreviewFallback(root);
         this.renderWorkspace(root, false);
@@ -237,6 +325,21 @@ export class Tours360StudioApp {
 
       if (action === "quick-tour") {
         await this.prepareQuickTour(root, target);
+        return;
+      }
+
+      if (action === "undo") {
+        await this.undo(root);
+        return;
+      }
+
+      if (action === "redo") {
+        await this.redo(root);
+        return;
+      }
+
+      if (action === "select-hotspot" && target.dataset.hotspotId) {
+        this.selectHotspot(root, target.dataset.hotspotId);
         return;
       }
 
@@ -287,6 +390,8 @@ export class Tours360StudioApp {
         this.activeSceneId = "";
         this.activeFloorplanId = "";
         this.sceneFilter = "";
+        this.selectedHotspotId = "";
+        this.clearUndoHistory();
         this.syncTitleField(root);
         await this.persistAndRender(root, true);
       }
@@ -300,6 +405,8 @@ export class Tours360StudioApp {
         this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
         this.activeFloorplanId = this.project.floorplans[0]?.id ?? "";
         this.sceneFilter = "";
+        this.selectedHotspotId = "";
+        this.clearUndoHistory();
         this.syncTitleField(root);
         await this.persistAndRender(root, true);
       }
@@ -316,6 +423,8 @@ export class Tours360StudioApp {
           this.activeSceneId = project.startScene ?? project.scenes[0]?.id ?? "";
           this.activeFloorplanId = project.floorplans[0]?.id ?? "";
           this.sceneFilter = "";
+          this.selectedHotspotId = "";
+          this.clearUndoHistory();
           this.syncTitleField(root);
           await this.renderWorkspace(root, true);
           this.renderPersistenceStatus(root, "Proyecto local abierto.");
@@ -542,6 +651,18 @@ export class Tours360StudioApp {
       this.placementMode = null;
       this.renderPlacementHint(root, "");
     });
+
+    root.addEventListener("keydown", (event) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        void (event.shiftKey ? this.redo(root) : this.undo(root));
+      }
+      if (event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        void this.redo(root);
+      }
+    });
   }
 
   private async importFiles(root: HTMLElement, files: File[]): Promise<void> {
@@ -550,7 +671,13 @@ export class Tours360StudioApp {
       return;
     }
 
-    this.renderImportStatus(root, `Importando ${files.length} foto${files.length === 1 ? "" : "s"} 360...`);
+    const capacity = await planImportCapacity(files);
+    if (!capacity.allowed) {
+      this.renderImportIssues(root, [{ severity: "error", message: `${capacity.warning} Libera espacio o divide el recorrido en lotes.` }]);
+      return;
+    }
+    const capacityText = `Origen ${formatBytes(capacity.sourceBytes)}; almacenamiento estimado ${formatBytes(capacity.estimatedBytes)}.`;
+    this.renderImportStatus(root, `Importando ${files.length} foto${files.length === 1 ? "" : "s"} 360... ${capacityText}`);
 
     let result;
     try {
@@ -579,13 +706,18 @@ export class Tours360StudioApp {
     const importedScenes = result.scenes.map((scene) => ({ ...scene }));
 
     const candidates = this.dedupeSceneIds(importedScenes);
+    this.startImportSession(candidates, files);
     const newScenes: Scene[] = [];
-    const importIssues = [...result.issues];
+    const importIssues = [
+      ...result.issues,
+      ...(capacity.warning ? [{ severity: "warning" as const, message: capacity.warning }] : [])
+    ];
     for (const [index, scene] of candidates.entries()) {
       this.renderImportStatus(root, `Procesando ${index + 1} de ${candidates.length}: ${scene.name}`);
       try {
         await this.prepareImportedScene(scene, importedScenes[index], files);
         newScenes.push(scene);
+        this.markImportSceneCompleted(scene.id);
       } catch (error) {
         await this.assets.removeSceneAssets(this.project.id, scene.id);
         importIssues.push({
@@ -596,6 +728,7 @@ export class Tours360StudioApp {
     }
 
     if (newScenes.length === 0) {
+      this.clearImportSession();
       this.renderImportStatus(root, "No se importaron escenas porque no fue posible preservar sus originales.", importIssues, {
         files: files.length,
         imported: 0,
@@ -612,6 +745,7 @@ export class Tours360StudioApp {
     };
     this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
     await this.persistAndRender(root, true);
+    this.clearImportSession();
     this.renderImportStatus(
       root,
       `${newScenes.length} escena${newScenes.length === 1 ? "" : "s"} importada${newScenes.length === 1 ? "" : "s"}. ${
@@ -639,48 +773,45 @@ export class Tours360StudioApp {
     const tilePathTemplate = `tiles/${scene.id}/{col}-{row}.jpg`;
     scene.panorama = previewPath;
 
-    const [optimizedPanorama, sha256, tileSet] = await Promise.all([
-      createOptimizedPanorama(sourceFile),
-      calculateSha256(sourceFile),
-      createPanoramaTiles(sourceFile)
-    ]);
-    const previewFile = new File([optimizedPanorama.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
+    const processed = await processPanorama(sourceFile);
+    const previewFile = new File([processed.preview.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
     const originalFile = new File([sourceFile], sourceFile.name, { type: sourceFile.type || "image/jpeg" });
 
     scene.metadata = {
       ...scene.metadata,
       sourceFileName: sourceFile.name,
-      sourceBytes: optimizedPanorama.sourceBytes,
-      optimizedBytes: optimizedPanorama.outputBytes,
-      sourceSize: `${optimizedPanorama.sourceWidth}x${optimizedPanorama.sourceHeight}`,
-      optimizedSize: `${optimizedPanorama.outputWidth}x${optimizedPanorama.outputHeight}`,
+      sourceBytes: processed.sourceBytes,
+      optimizedBytes: processed.preview.bytes,
+      sourceSize: `${processed.sourceWidth}x${processed.sourceHeight}`,
+      optimizedSize: `${processed.preview.width}x${processed.preview.height}`,
+      processingMode: processed.usedWorker ? "worker" : "main-thread-fallback",
       optimization: {
-        maxWidth: optimizedPanorama.maxWidth,
-        quality: optimizedPanorama.quality,
-        resized: optimizedPanorama.resized
+        maxWidth: 2048,
+        quality: processed.preview.quality,
+        resized: processed.preview.resized
       }
     };
     setPanoramaAssets(scene, {
       original: {
         path: originalPath,
-        width: optimizedPanorama.sourceWidth,
-        height: optimizedPanorama.sourceHeight,
+        width: processed.sourceWidth,
+        height: processed.sourceHeight,
         bytes: sourceFile.size,
-        sha256
+        sha256: processed.sha256
       },
       preview: {
         path: previewPath,
-        width: optimizedPanorama.outputWidth,
-        height: optimizedPanorama.outputHeight,
-        bytes: optimizedPanorama.outputBytes
+        width: processed.preview.width,
+        height: processed.preview.height,
+        bytes: processed.preview.bytes
       },
       tiles: {
-        width: tileSet.width,
-        height: tileSet.height,
-        cols: tileSet.cols,
-        rows: tileSet.rows,
-        tileWidth: tileSet.tileWidth,
-        tileHeight: tileSet.tileHeight,
+        width: processed.tiles.width,
+        height: processed.tiles.height,
+        cols: processed.tiles.cols,
+        rows: processed.tiles.rows,
+        tileWidth: processed.tiles.tileWidth,
+        tileHeight: processed.tiles.tileHeight,
         pathTemplate: tilePathTemplate
       }
     });
@@ -688,16 +819,19 @@ export class Tours360StudioApp {
     await this.assets.saveScenePanorama(this.project.id, scene.id, previewFile);
     await this.assets.saveProjectAsset(this.project.id, previewPath, previewFile);
     await this.assets.saveProjectAsset(this.project.id, originalPath, originalFile);
-    for (const tile of tileSet.tiles) {
+    for (const tile of processed.tiles.tiles) {
       const path = tilePathTemplate.replace("{col}", String(tile.col)).replace("{row}", String(tile.row));
       await this.assets.saveProjectAsset(this.project.id, path, new File([tile.blob], `${tile.col}-${tile.row}.jpg`, { type: "image/jpeg" }));
     }
 
-    try {
-      const thumbnail = await createImageThumbnail(sourceFile);
+    if (processed.thumbnail) {
       scene.thumbnail = `thumbnails/${scene.id}.jpg`;
-      await this.assets.saveProjectAsset(this.project.id, scene.thumbnail, new File([thumbnail], `${scene.id}.jpg`, { type: "image/jpeg" }));
-    } catch {
+      await this.assets.saveProjectAsset(
+        this.project.id,
+        scene.thumbnail,
+        new File([processed.thumbnail], `${scene.id}.jpg`, { type: "image/jpeg" })
+      );
+    } else {
       scene.thumbnail = undefined;
     }
   }
@@ -720,6 +854,56 @@ export class Tours360StudioApp {
     status!.innerHTML = `<p class="${recovered === pendingScenes.length ? "status-ok" : "issue issue--warning"}">${recovered} de ${pendingScenes.length} originales recuperados. ${
       recovered < pendingScenes.length ? "Selecciona los JPG faltantes para completar la calidad final." : "El proyecto ya puede exportarse en alta resolucion."
     }</p>`;
+  }
+
+  private startImportSession(scenes: Scene[], files: File[]): void {
+    const session: ActiveImportSession = {
+      projectId: this.project.id,
+      startedAt: new Date().toISOString(),
+      sceneIds: scenes.map((scene) => scene.id),
+      fileNames: files.map((file) => file.name),
+      completedSceneIds: []
+    };
+    try {
+      localStorage.setItem(this.importSessionKey, JSON.stringify(session));
+    } catch {
+      // Import can continue even if the small recovery journal cannot be written.
+    }
+  }
+
+  private markImportSceneCompleted(sceneId: string): void {
+    const session = this.readImportSession();
+    if (!session || session.completedSceneIds.includes(sceneId)) return;
+    session.completedSceneIds.push(sceneId);
+    try {
+      localStorage.setItem(this.importSessionKey, JSON.stringify(session));
+    } catch {
+      // The asset writes still report their own quota errors.
+    }
+  }
+
+  private clearImportSession(): void {
+    localStorage.removeItem(this.importSessionKey);
+  }
+
+  private readImportSession(): ActiveImportSession | null {
+    try {
+      const value = JSON.parse(localStorage.getItem(this.importSessionKey) ?? "null") as ActiveImportSession | null;
+      return value && Array.isArray(value.sceneIds) && typeof value.projectId === "string" ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async recoverInterruptedImport(): Promise<string | null> {
+    const session = this.readImportSession();
+    if (!session) return null;
+    const savedSceneIds = new Set(session.projectId === this.project.id ? this.project.scenes.map((scene) => scene.id) : []);
+    for (const sceneId of session.sceneIds) {
+      if (!savedSceneIds.has(sceneId)) await this.assets.removeSceneAssets(session.projectId, sceneId);
+    }
+    this.clearImportSession();
+    return `Se detecto una importacion interrumpida de ${session.fileNames.length} foto${session.fileNames.length === 1 ? "" : "s"}. Los archivos parciales se limpiaron; vuelve a seleccionar el lote.`;
   }
 
   private dedupeSceneIds(scenes: Scene[]): Scene[] {
@@ -883,11 +1067,13 @@ export class Tours360StudioApp {
     this.renderValidation(root);
     this.renderExportReadiness(root);
     this.renderSnapshots(root);
+    this.updateUndoControls(root);
 
     if (remountPreview) {
       await this.mountPreview(root);
     } else {
       await this.renderPreviewFallback(root);
+      this.renderer?.setSelectedHotspot(this.selectedHotspotId);
     }
   }
 
@@ -975,9 +1161,11 @@ export class Tours360StudioApp {
         return { src, release: () => URL.revokeObjectURL(src) };
       },
       4,
-      (hotspotId, coordinates) => void this.moveHotspotFromCanvas(root, hotspotId, coordinates)
+      (hotspotId, coordinates) => void this.moveHotspotFromCanvas(root, hotspotId, coordinates),
+      (hotspotId) => this.selectHotspot(root, hotspotId)
     );
     this.renderer.mount(viewerElement, this.project);
+    this.renderer.setSelectedHotspot(this.selectedHotspotId);
     await this.renderPreviewFallback(root);
   }
 
@@ -1182,6 +1370,7 @@ export class Tours360StudioApp {
 
   private renderHotspotEditor(hotspot: Hotspot, index: number, sceneId: string): string {
     const id = escapeHtml(hotspot.id);
+    const selected = hotspot.id === this.selectedHotspotId;
     const typeLabel = hotspot.type === "scene" ? "Conexion" : hotspot.type === "info" ? "Informacion" : "Media";
     const labelField = `
       <label>
@@ -1200,10 +1389,13 @@ export class Tours360StudioApp {
         .join("");
 
       return `
-        <article class="hotspot-editor">
+        <article class="hotspot-editor${selected ? " is-selected" : ""}">
           <header>
             <strong>${index + 1}. ${typeLabel}</strong>
-            <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
+            <div class="mini-actions">
+              <button data-action="select-hotspot" data-hotspot-id="${id}" aria-pressed="${selected}">${selected ? "Seleccionado" : "Seleccionar"}</button>
+              <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
+            </div>
           </header>
           ${labelField}
           <label>
@@ -1217,10 +1409,13 @@ export class Tours360StudioApp {
 
     if (hotspot.type === "info") {
       return `
-        <article class="hotspot-editor">
+        <article class="hotspot-editor${selected ? " is-selected" : ""}">
           <header>
             <strong>${index + 1}. ${typeLabel}</strong>
-            <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
+            <div class="mini-actions">
+              <button data-action="select-hotspot" data-hotspot-id="${id}" aria-pressed="${selected}">${selected ? "Seleccionado" : "Seleccionar"}</button>
+              <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
+            </div>
           </header>
           ${labelField}
           <label>
@@ -1237,10 +1432,13 @@ export class Tours360StudioApp {
     }
 
     return `
-      <article class="hotspot-editor">
+      <article class="hotspot-editor${selected ? " is-selected" : ""}">
         <header>
           <strong>${index + 1}. ${typeLabel}</strong>
-          <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
+          <div class="mini-actions">
+            <button data-action="select-hotspot" data-hotspot-id="${id}" aria-pressed="${selected}">${selected ? "Seleccionado" : "Seleccionar"}</button>
+            <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
+          </div>
         </header>
         ${labelField}
         <label>
@@ -2094,6 +2292,8 @@ export class Tours360StudioApp {
   }
 
   private async addHotspotToActiveScene(root: HTMLElement, hotspot: Scene["hotspots"][number]): Promise<void> {
+    this.pushUndoCheckpoint();
+    this.selectedHotspotId = hotspot.id;
     this.project = {
       ...this.project,
       scenes: this.project.scenes.map((scene) =>
@@ -2132,6 +2332,8 @@ export class Tours360StudioApp {
       return;
     }
 
+    this.pushUndoCheckpoint();
+    this.selectedHotspotId = hotspotId;
     this.project = {
       ...this.project,
       scenes: this.project.scenes.map((scene) =>
@@ -2154,6 +2356,8 @@ export class Tours360StudioApp {
     hotspotId: string,
     coordinates: { yaw: number; pitch: number }
   ): Promise<void> {
+    this.pushUndoCheckpoint();
+    this.selectedHotspotId = hotspotId;
     this.project = {
       ...this.project,
       scenes: this.project.scenes.map((scene) =>
@@ -2170,10 +2374,13 @@ export class Tours360StudioApp {
     await this.saveProject(root);
     this.renderSceneProperties(root);
     this.renderNextSteps(root);
+    this.updateUndoControls(root);
   }
 
   private async deleteHotspot(root: HTMLElement, hotspotId: string): Promise<void> {
     if (!(await this.saveSnapshot(root))) return;
+    this.pushUndoCheckpoint();
+    if (this.selectedHotspotId === hotspotId) this.selectedHotspotId = "";
     this.project = {
       ...this.project,
       scenes: this.project.scenes.map((scene) =>
@@ -2417,14 +2624,6 @@ function getSceneOptimizationLabel(scene: Scene): string {
 
   const reduction = Math.max(0, Math.round((1 - optimizedBytes / sourceBytes) * 100));
   return `${optimizedSize ?? "optimizada"} · ${formatBytes(optimizedBytes)} · -${reduction}%`;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) {
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function createLinearHotspot(direction: "prev" | "next", targetScene: Scene): Scene["hotspots"][number] {

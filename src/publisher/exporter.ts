@@ -462,6 +462,11 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
     root.innerHTML = '<main class="local-open-help"><h1>Este tour necesita un servidor local</h1><p>No abras index.html directamente. Regresa a la carpeta del tour y ejecuta <strong>ABRIR_TOUR.cmd</strong>.</p></main>';
     return;
   }
+  const compatibilityCanvas = document.createElement("canvas");
+  if (!(compatibilityCanvas.getContext("webgl2") || compatibilityCanvas.getContext("webgl"))) {
+    root.innerHTML = '<main class="local-open-help"><h1>WebGL no esta disponible</h1><p>Activa la aceleracion grafica o abre este tour en Chrome o Edge actualizado.</p></main>';
+    return;
+  }
   const response = await fetch("./tour.json");
   const project = await response.json();
 
@@ -568,7 +573,11 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
       mediaPanel.innerHTML = '<div class="panel-card"><button type="button" data-close-panel>Cerrar</button><h2>Galeria</h2><div class="gallery-grid">' + project.gallery.map((item) => '<figure><img src="' + escapeHtml(item.image) + '" alt="' + escapeHtml(item.caption || "Foto de galeria") + '" />' + (item.caption ? '<figcaption>' + escapeHtml(item.caption) + '</figcaption>' : '') + '</figure>').join("") + '</div></div>';
     }
   }
-})();
+})().catch((error) => {
+  const root = document.getElementById("tour");
+  if (root) root.innerHTML = '<main class="local-open-help"><h1>No se pudo abrir el tour</h1><p>Prueba Chrome o Edge con aceleracion grafica activa. Detalle: ' + escapeHtml(error instanceof Error ? error.message : String(error)) + '</p></main>';
+  console.error(error);
+});
 
 class WebGlTourViewer {
   constructor(container, project, onSceneLink, onMediaPanel) {

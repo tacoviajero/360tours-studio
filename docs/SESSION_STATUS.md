@@ -16,6 +16,9 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Crear proyecto nuevo.
 - Importar panoramas JPG/JPEG con drag and drop.
 - Procesar importaciones por cola con progreso visible para reducir picos de memoria.
+- Procesar cada panorama en un Web Worker, decodificandolo una sola vez para producir preview, thumbnail, mosaicos y SHA-256.
+- Estimar el almacenamiento necesario antes de importar y bloquear lotes que no caben con margen de seguridad.
+- Registrar importaciones activas; despues de una recarga inesperada se limpian assets parciales y se indica que debe retomarse el lote.
 - Mantener visibles los avisos/errores de importacion aunque parte del lote haya sido valido.
 - Avisar dimensiones exactas cuando un JPG no parece panorama 360 completo 2:1.
 - Generar thumbnails de escenas al importar.
@@ -27,6 +30,10 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Editor con carga bajo demanda, precarga de escenas cercanas y cache LRU limitada a 4 panoramas.
 - Mensaje visible mientras una escena carga y error explicito si el panorama no puede abrirse.
 - Paneles laterales colapsables para dar mas espacio al panorama.
+- Menu superior compacto y secciones de herramientas plegables.
+- Seleccion visible de hotspots en panorama y propiedades.
+- Deshacer y rehacer movimientos, altas y eliminaciones de hotspots con botones o Ctrl+Z/Ctrl+Y.
+- Diagnostico de compatibilidad: navegadores sin WebGL/capacidades esenciales se bloquean con una explicacion; navegadores no Chromium muestran recomendacion.
 - Guia de siguiente paso dentro del editor segun el estado real del tour.
 - Flujo guiado con 4 etapas medibles: importar, conectar, revisar escenas y exportar.
 - Confirmacion individual de vista inicial y conteo de escenas revisadas.
@@ -78,7 +85,7 @@ pnpm test:local
 
 Resultados:
 
-- Unitarias: 7 archivos, 18 pruebas pasan.
+- Unitarias: 8 archivos, 20 pruebas pasan.
 - Build web: correcto.
 - E2E con Edge: correcto; cubre flujo guiado, confirmacion de escena, arrastre de hotspot, respaldo editable, recuperacion, almacenamiento lleno, export ZIP, viewer y tablero.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
@@ -87,6 +94,8 @@ Resultados:
 - La prueba real confirma que el ZIP contiene el iniciador local, su servidor PowerShell y las instrucciones de apertura.
 - Vite ignora las carpetas locales de panoramas 8K para evitar que el watcher de Windows caiga con `EBUSY`.
 - Prueba automatizada `pnpm test:large`: correcto; importa 50 escenas sinteticas, verifica busqueda y navegacion hasta la escena 050, limita a 4 panoramas la cache del editor, recarga autosave, prepara ruta lineal, exporta ZIP y confirma que el viewer no carga la escena 050 hasta seleccionarla.
+- El flujo basico confirma seleccion visual, deshacer un hotspot y recuperacion despues de una importacion interrumpida.
+- La prueba con fotos reales confirma que las tres imagenes 8K se procesan mediante Web Worker.
 - Renderer WebGL verificado con `pnpm test:real`; carga diferida verificada con `pnpm test:large`.
 - Prueba automatizada `pnpm test:diagnostics`: correcto; mezcla archivos validos, duplicado, imagen no 2:1 e invalido y conserva avisos visibles.
 - Prueba automatizada `pnpm test:local`: correcto; ejecuta build, unitarias, flujo basico en navegador, 3 fotos reales, 50 escenas, diagnosticos y viewer exportado.

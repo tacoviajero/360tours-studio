@@ -64,6 +64,7 @@ async function runChecks() {
     await page.getByLabel("Progreso para crear el tour").getByText("2 de 4", { exact: true }).first().waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Confirmar escena actual" }).click();
     await page.getByLabel("Progreso para crear el tour").getByText("4 de 4", { exact: true }).first().waitFor({ state: "visible" });
+    await page.locator(".action-menu > summary").click();
     await page.getByRole("button", { name: "Guardar snapshot" }).click();
     await page.getByRole("button", { name: "Snapshot guardado" }).waitFor({ state: "visible" });
     await page.evaluate(() => {
@@ -112,6 +113,7 @@ async function runChecks() {
     ]);
     await verifyExportedViewer(context, archive);
     await page.getByText("ZIP descargado.").waitFor({ state: "visible" });
+    await page.locator(".action-menu > summary").click();
     const backupDownloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Descargar respaldo" }).click();
     const backupDownload = await backupDownloadPromise;
@@ -143,6 +145,11 @@ async function runChecks() {
     await page.getByRole("button", { name: "Mover al centro visible" }).first().click();
     const draggableHotspot = page.locator(".tour-hotspot-layer .hotspot--scene").first();
     await draggableHotspot.waitFor({ state: "visible" });
+    await draggableHotspot.click();
+    await draggableHotspot.waitFor({ state: "visible" });
+    if (!(await draggableHotspot.evaluate((element) => element.classList.contains("is-selected")))) {
+      throw new Error("Clicking a hotspot in the editor did not select it.");
+    }
     const hotspotBefore = await readStoredHotspotPosition(page, "entrada-real");
     const hotspotBox = await draggableHotspot.boundingBox();
     if (!hotspotBox) throw new Error("The navigation hotspot has no visible bounds.");
@@ -159,6 +166,32 @@ async function runChecks() {
       },
       hotspotBefore
     );
+    await page.getByRole("button", { name: "Deshacer" }).click();
+    await page.waitForFunction(
+      ({ sceneId, yaw, pitch }) => {
+        const projectId = localStorage.getItem("360tours-project:last");
+        const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+        const hotspot = project?.scenes.find((scene) => scene.id === sceneId)?.hotspots.find((item) => item.type === "scene");
+        return hotspot && hotspot.yaw === yaw && hotspot.pitch === pitch;
+      },
+      { sceneId: "entrada-real", ...hotspotBefore }
+    );
+
+    await page.evaluate(() => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      localStorage.setItem(
+        "360tours-import:active",
+        JSON.stringify({
+          projectId,
+          startedAt: new Date().toISOString(),
+          sceneIds: ["interrumpida"],
+          fileNames: ["interrumpida.jpg"],
+          completedSceneIds: []
+        })
+      );
+    });
+    await page.reload();
+    await page.getByText(/Se detecto una importacion interrumpida/).waitFor({ state: "visible" });
 
     await page.getByRole("button", { name: "Cargar demo tecnico" }).click();
     await page.getByLabel("Preview del tour").locator(".tour-canvas").waitFor({ state: "visible" });

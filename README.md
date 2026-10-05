@@ -43,6 +43,7 @@ https://tacoviajero.com/tours/[slug]/
 - Vite
 - Preview canvas ligero en el editor
 - Photo Sphere Viewer + WebGL para el tour final
+- Web Worker y mosaicos para procesar panoramas 8K sin bloquear la interfaz
 - pnpm
 - Git
 - Filesystem + JSON como direccion de persistencia
@@ -107,6 +108,8 @@ cmd.exe /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Buil
 - Cada escena conserva cuatro niveles separados: JPG original intacto, preview de trabajo, thumbnail y mosaicos de alta resolucion para el viewer WebGL.
 - La exportacion comprueba el SHA-256 y copia el JPG original byte por byte; no reutiliza el preview reducido como imagen final.
 - Los proyectos creados antes de esta correccion pueden repararse con **Recuperar originales**, seleccionando otra vez sus JPG fuente.
+- Antes de importar se estima el espacio local; una importacion interrumpida se detecta y limpia al volver a abrir la app.
+- Chrome y Edge son los navegadores de trabajo soportados. Otros navegadores muestran un aviso de compatibilidad y la ausencia de WebGL produce un error explicito.
 - Para revisarlo localmente en Windows, extrae el ZIP completo y ejecuta `ABRIR_TOUR.cmd`; el iniciador abre Chrome cuando esta disponible. Abrir `index.html` directamente como `file://` esta bloqueado por la seguridad del navegador.
 
 ## Escritorio Windows

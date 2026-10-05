@@ -117,6 +117,9 @@ async function runRealWorkflow() {
       if (scene.metadata?.panoramaAssets?.tiles?.cols !== 8 || scene.metadata?.panoramaAssets?.tiles?.rows !== 4) {
         throw new Error(`La escena no genero la cuadricula 8x4 esperada: ${JSON.stringify(scene.metadata?.panoramaAssets?.tiles)}`);
       }
+      if (scene.metadata?.processingMode !== "worker") {
+        throw new Error(`La escena no se proceso en Web Worker: ${JSON.stringify(scene.metadata)}`);
+      }
     }
 
     for (let index = 0; index < realPhotoPaths.length; index += 1) {
