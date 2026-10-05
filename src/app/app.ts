@@ -1,6 +1,6 @@
 import { CURRENT_SCHEMA_VERSION, type Floorplan, type GalleryItem, type Hotspot, type Scene, type TourProject, type ValidationIssue } from "../domain/tour";
 import { validateProjectAssets } from "../domain/assetValidation";
-import { demoProject } from "../domain/demoProject";
+import { createDemoPanoramaFile, demoProject } from "../domain/demoProject";
 import { getOriginalPanoramaPath, getPanoramaAssets, setPanoramaAssets } from "../domain/panoramaAssets";
 import { validateProject } from "../domain/validation";
 import { JPEG360Importer } from "../importers/jpeg360Importer";
@@ -423,7 +423,13 @@ export class Tours360StudioApp {
         this.selectedHotspotId = "";
         this.clearUndoHistory();
         this.syncTitleField(root);
+        this.renderImportStatus(root, "Preparando demo local...");
+        for (const scene of this.project.scenes) {
+          const sourceFile = await createDemoPanoramaFile(scene.id as "entrada" | "sala" | "cocina");
+          await this.storePanoramaAssets(scene, sourceFile);
+        }
         await this.persistAndRender(root, true);
+        this.renderImportStatus(root, "Demo local lista. No necesita conexion a internet.");
       }
 
       if (action === "delete-project" && target.dataset.projectId) {
@@ -2478,6 +2484,7 @@ export class Tours360StudioApp {
       async (path) => this.resolveProjectAsset(this.project, path),
       () => {
         this.finalPreview = null;
+        target.focus();
       }
     );
     try {

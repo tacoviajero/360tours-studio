@@ -51,7 +51,39 @@ async function runChecks() {
     const context = await browser.newContext({ acceptDownloads: true });
     const page = await context.newPage();
     await page.goto(`${baseUrl}/`);
-  await page.getByRole("heading", { name: "360Tours Studio" }).waitFor({ state: "visible" });
+    await page.getByRole("heading", { name: "360Tours Studio" }).waitFor({ state: "visible" });
+    const externalDemoRequests = [];
+    page.on("request", (request) => {
+      if (request.url().includes("marzipano.net")) externalDemoRequests.push(request.url());
+    });
+    await page.getByRole("button", { name: "Cargar demo tecnico" }).click();
+    await page.getByText("Demo local lista. No necesita conexion a internet.").waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Vista final" }).click();
+    const demoDialog = page.getByRole("dialog", { name: "Vista final del tour" });
+    await demoDialog.waitFor({ state: "visible" });
+    await page.locator(".final-preview-viewer canvas").waitFor({ state: "visible" });
+    await page.locator("[data-preview-status]").waitFor({ state: "hidden" });
+    if (externalDemoRequests.length > 0) throw new Error(`La demo intento cargar recursos externos: ${externalDemoRequests.join(", ")}`);
+    if ((await page.evaluate(() => document.activeElement?.textContent?.trim())) !== "Cerrar") {
+      throw new Error("La vista final no coloco el foco inicial en Cerrar.");
+    }
+    await page.getByRole("button", { name: "Cerrar" }).click();
+    if ((await page.evaluate(() => document.activeElement instanceof HTMLElement ? document.activeElement.dataset.action : undefined)) !== "final-preview") {
+      throw new Error("La vista final no devolvio el foco al control que la abrio.");
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("button", { name: "Vista final" }).click();
+    await demoDialog.waitFor({ state: "visible" });
+    const mobileLayout = await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      viewerHeight: document.querySelector(".final-preview-viewer")?.getBoundingClientRect().height ?? 0
+    }));
+    if (mobileLayout.documentWidth > mobileLayout.viewportWidth || mobileLayout.viewerHeight < 300) {
+      throw new Error(`La vista final movil no cabe correctamente: ${JSON.stringify(mobileLayout)}`);
+    }
+    await page.getByRole("button", { name: "Cerrar" }).click();
+    await page.setViewportSize({ width: 1280, height: 720 });
     await page.getByRole("button", { name: "Nuevo tour" }).click();
     await page.locator("#panorama-import").setInputFiles({
       name: "entrada-real.jpg",

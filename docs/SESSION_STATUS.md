@@ -1,4 +1,4 @@
-# Estado de sesion - 4 octubre 2026
+# Estado de sesion - 5 octubre 2026
 
 Este archivo resume el estado actual para retomar 360Tours Studio sin depender del historial del chat.
 
@@ -27,6 +27,8 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Recuperar originales de proyectos anteriores mediante seleccion multiple, sin reconstruir el tour.
 - Preview 360 con visor canvas interactivo.
 - Vista final WebGL dentro de Studio con los mosaicos reales, selector de escenas, hotspots, fullscreen y flechas de teclado.
+- Demo tecnica con tres panoramas generados y almacenados localmente; no depende de servidores externos ni permisos CORS.
+- Dialogo de Vista final con foco contenido, foco inicial predecible y retorno al boton que lo abrio.
 - Preflight de calidad con resolucion por escena, originales, mosaicos y peso estimado del ZIP.
 - Progreso visible durante importacion y exportacion; la importacion puede cancelarse entre escenas.
 - Renderer ligero del editor con cache de pixeles por escena para reducir trabajo al mover la vista.
@@ -92,7 +94,7 @@ Resultados:
 
 - Unitarias: 9 archivos, 21 pruebas pasan.
 - Build web: correcto.
-- E2E con Edge: correcto; cubre flujo guiado, confirmacion de escena, arrastre de hotspot, respaldo editable, recuperacion, almacenamiento lleno, export ZIP, viewer y tablero.
+- E2E con Edge: correcto; cubre demo sin red, Vista final WebGL, foco, viewport movil 390x844, flujo guiado, arrastre de hotspot, respaldo editable, recuperacion, almacenamiento lleno, export ZIP, viewer y tablero.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales 8000x4000, verifica que los JPG exportados sean identicos byte por byte, valida mosaicos 8x4, abre el viewer WebGL y repara un proyecto sin metadata de originales.
 - La prueba real ahora rechaza lienzos negros, sin variedad de color o sin detalle horizontal/vertical; guarda captura diagnostica solo cuando falla.
@@ -144,6 +146,6 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 
 1. Ejecutar una prueba manual de aceptacion del nuevo ZIP WebGL con las tres fotos reales.
 2. Medir peso, memoria y tiempo de importacion con un lote real de 30 a 50 fotos.
-3. Probar recarga o cierre durante una importacion activa.
-4. Agregar seleccion visual y deshacer para movimientos de hotspots.
+3. Completar la auditoria del editor usando solamente teclado.
+4. Hacer QA tactil en un telefono o tablet real cuando sea oportuno.
 5. Mantener instalacion y publicacion fuera del siguiente tramo hasta que el flujo local quede aprobado.

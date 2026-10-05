@@ -13,6 +13,8 @@ export class FinalTourPreview {
   private readonly hotspotLayer: HTMLDivElement;
   private readonly sceneList: HTMLDivElement;
   private readonly status: HTMLDivElement;
+  private readonly dialog: HTMLElement;
+  private readonly previouslyFocused: HTMLElement | null;
   private keyHandler: (event: KeyboardEvent) => void;
 
   constructor(
@@ -21,6 +23,7 @@ export class FinalTourPreview {
     private readonly resolveAsset: PreviewAssetResolver,
     private readonly onClose: () => void
   ) {
+    this.previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.currentSceneId = project.startScene ?? project.scenes[0]?.id ?? "";
     this.host.innerHTML = `
       <section class="final-preview" role="dialog" aria-modal="true" aria-label="Vista final del tour">
@@ -41,6 +44,7 @@ export class FinalTourPreview {
     `;
     this.sceneList = this.requiredElement("[data-preview-scenes]");
     this.status = this.requiredElement("[data-preview-status]");
+    this.dialog = this.requiredElement(".final-preview");
     const viewerElement = this.requiredElement("[data-final-viewer]");
     this.hotspotLayer = document.createElement("div");
     this.hotspotLayer.className = "final-preview-hotspots";
@@ -59,12 +63,14 @@ export class FinalTourPreview {
       if (event.key === "Escape") this.close();
       if (event.key === "ArrowLeft") void this.navigate(-1);
       if (event.key === "ArrowRight") void this.navigate(1);
+      if (event.key === "Tab") this.trapFocus(event);
     };
     window.addEventListener("keydown", this.keyHandler);
   }
 
   async open(): Promise<void> {
     this.renderSceneMenu();
+    this.host.querySelector<HTMLButtonElement>("[data-preview-action='close']")?.focus();
     const scene = this.getScene(this.currentSceneId);
     if (!scene) throw new Error("El tour no contiene una escena para previsualizar.");
     const panorama = await this.preparePanorama(scene);
@@ -208,7 +214,23 @@ export class FinalTourPreview {
     this.objectUrls.clear();
     this.host.innerHTML = "";
     this.host.hidden = true;
+    this.previouslyFocused?.focus();
     this.onClose();
+  }
+
+  private trapFocus(event: KeyboardEvent): void {
+    const focusable = [...this.dialog.querySelectorAll<HTMLElement>("button:not([disabled]), [href], [tabindex]:not([tabindex='-1'])")]
+      .filter((element) => !element.hidden && element.getClientRects().length > 0);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   private getScene(sceneId: string): Scene | undefined {

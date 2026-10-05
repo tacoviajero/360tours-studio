@@ -12,8 +12,11 @@ interface PlanPoint {
   next: string;
 }
 
-  const lastUpdated = "4 octubre 2026";
+  const lastUpdated = "5 octubre 2026";
   const recentChanges = [
+    "La demo tecnica ahora genera y almacena tres panoramas locales; Vista final ya no depende de marzipano.net ni de permisos CORS.",
+    "La Vista final WebGL ahora atrapa el foco dentro del dialogo, lo devuelve al cerrar y conserva navegacion por flechas y Escape.",
+    "El flujo E2E verifica automaticamente la Vista final a 390x844 sin desbordamiento horizontal y con area de panorama util.",
     "Cada ZIP exportado incluye ABRIR_TOUR.cmd, un servidor local PowerShell e instrucciones; abrir index.html como file:// ya muestra ayuda en vez de una pantalla negra.",
     "La prueba con los 3 JPG reales ahora valida detalle visual horizontal/vertical y variedad de color; ya no acepta un canvas negro o con salida degenerada.",
     "El servidor local deja de vigilar las carpetas de fotos 8K para evitar cierres EBUSY de Vite en Windows.",
@@ -57,7 +60,7 @@ const points: PlanPoint[] = [
   { id: 9, title: "Modelo de datos", phase: "Base", percent: 90, status: "done", evidence: "TourProject versionado con schemaVersion 1.", next: "Agregar migraciones al cambiar schema." },
   { id: 10, title: "Modelo de escena", phase: "Base", percent: 85, status: "done", evidence: "Escenas con id, nombre, panorama, vista inicial, hotspots y metadata.", next: "Soportar cambio de panorama por escena." },
   { id: 11, title: "Hotspots", phase: "Editor", percent: 92, status: "done", evidence: "Modelo y UI cubren scene, info, image, video y link con validacion basica de URL.", next: "Pulir iconos/estilos por tipo y arrastre directo." },
-  { id: 12, title: "Gestor de proyectos", phase: "Editor", percent: 72, status: "progress", evidence: "Nuevo, abrir carpeta, recientes, demo, duplicar, autosave y eliminar proyecto local con limpieza de historial/assets funcionando.", next: "Agregar archivar y busqueda." },
+  { id: 12, title: "Gestor de proyectos", phase: "Editor", percent: 76, status: "progress", evidence: "Nuevo, abrir carpeta, recientes, demo local sin red, duplicar, autosave y eliminar proyecto con limpieza de historial/assets funcionando.", next: "Agregar archivar y busqueda." },
   { id: 13, title: "Importacion de panoramas", phase: "Editor", percent: 100, status: "done", evidence: "La cola crea por escena un original intacto, preview 2048px, thumbnail, mosaicos 360, SHA-256 y conexiones lineales; los fallos parciales se limpian y se informan.", next: "Mantener compatibilidad al ampliar formatos de entrada." },
   { id: 14, title: "Editor principal", phase: "Editor", percent: 96, status: "done", evidence: "Layout adaptable con paneles y secciones plegables, menu compacto, visor canvas, flujo guiado, guardado y acciones contextuales.", next: "Afinar detalles a partir de la prueba manual de aceptacion." },
   { id: 15, title: "Gestion de escenas", phase: "Editor", percent: 88, status: "progress", evidence: "Renombrar, reordenar, eliminar, escena inicial, navegacion anterior/siguiente, conexion lineal automatica, resumen y busqueda para tours grandes ya existen.", next: "Duplicar configuracion y cambiar panorama." },
@@ -66,7 +69,7 @@ const points: PlanPoint[] = [
   { id: 18, title: "Puntos de informacion", phase: "Producto", percent: 86, status: "done", evidence: "Info, imagen, video y link se crean, editan, validan y exportan; info/media abren panel en el tour publicado.", next: "Detectar formatos embebibles de video con mensajes mas claros." },
   { id: 19, title: "Plano de planta", phase: "Producto", percent: 86, status: "done", evidence: "Importa multiples plantas, cambia la planta activa, renombra, elimina y ubica marcadores por escena; el export tambien permite alternar plantas.", next: "Agregar arrastre directo de marcadores y miniaturas de plano." },
   { id: 20, title: "Galeria", phase: "Producto", percent: 74, status: "progress", evidence: "Importar, previsualizar miniaturas, editar caption, eliminar y ordenar fotos ya funciona.", next: "Agregar reordenamiento por arrastre y vista ampliada." },
-  { id: 21, title: "Menu de escenas", phase: "Producto", percent: 94, status: "done", evidence: "Studio y viewer final incluyen listas scrollables; en movil el menu exportado funciona como drawer y cierra al seleccionar escena.", next: "QA tactil en un telefono real." },
+  { id: 21, title: "Menu de escenas", phase: "Producto", percent: 96, status: "done", evidence: "Studio y viewer final incluyen listas scrollables; la prueba movil 390x844 confirma que el menu y el panorama caben sin desbordamiento.", next: "QA tactil en un telefono real." },
   { id: 22, title: "Fullscreen", phase: "Producto", percent: 92, status: "done", evidence: "Studio y tour exportado abren el visor WebGL en pantalla completa sin recarga.", next: "QA en navegadores moviles reales." },
   { id: 23, title: "Preview", phase: "Producto", percent: 100, status: "done", evidence: "El editor usa previews ligeros y ahora abre una Vista final WebGL con los mismos mosaicos del tour exportado, navegacion, hotspots y teclado.", next: "QA con mas camaras y navegadores." },
   { id: 24, title: "Renderer", phase: "Producto", percent: 100, status: "done", evidence: "El tour final usa Photo Sphere Viewer sobre WebGL y mosaicos de alta resolucion generados desde el original; la comprobacion visual pasa con los 3 JPG reales.", next: "Mantener las pruebas visuales al evolucionar el viewer." },
@@ -86,7 +89,7 @@ const points: PlanPoint[] = [
   { id: 38, title: "Manejo de errores", phase: "Robustez", percent: 97, status: "progress", evidence: "Importacion y visor final muestran progreso, cancelacion o reintento; el preflight limpia parciales, bloquea originales faltantes y verifica SHA-256.", next: "Cubrir permisos de carpeta y, mas adelante, errores SFTP." },
   { id: 39, title: "Recuperacion ante fallos", phase: "Robustez", percent: 96, status: "done", evidence: "Recupera snapshots y originales; un diario detecta importaciones interrumpidas al recargar, limpia assets parciales y pide reanudar el lote.", next: "Verificar cierre forzado en otros navegadores." },
   { id: 40, title: "Rendimiento", phase: "Robustez", percent: 100, status: "done", evidence: "Un Web Worker decodifica cada 8K una sola vez; el editor limita cache a 4 previews y el viewer carga mosaicos bajo demanda. Pasan 3 fotos 8K y 50 escenas.", next: "Medir tiempos con un lote real de 30 a 50 originales." },
-  { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 68, status: "progress", evidence: "Labels, foco, controles plegables, seleccion con aria-pressed y atajos Ctrl+Z/Ctrl+Y funcionan.", next: "Auditar el recorrido completo exclusivamente con teclado." },
+  { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 76, status: "progress", evidence: "Labels, controles plegables, aria-pressed y atajos funcionan; Vista final atrapa el foco, inicia en Cerrar y lo devuelve al control de apertura.", next: "Auditar el resto del editor exclusivamente con teclado." },
   { id: 42, title: "UX general", phase: "Producto", percent: 98, status: "done", evidence: "Paneles plegables, Vista final, progreso operativo, menu compacto, seleccion visible, deshacer/rehacer, flujo guiado, busqueda y errores recuperables.", next: "Recoger observaciones de la aceptacion manual." },
   { id: 43, title: "MVP robusto", phase: "Robustez", percent: 98, status: "progress", evidence: "La bateria valida flujo guiado, respaldos, recuperacion de originales, integridad SHA-256, 3 JPG reales 8K, 50 escenas y export WebGL.", next: "Completar una prueba manual de aceptacion del nuevo ZIP." },
   { id: 44, title: "Fuera de alcance respetado", phase: "Base", percent: 100, status: "done", evidence: "No se agrego SaaS, usuarios, CRM, pagos ni infraestructura cloud.", next: "Seguir evitando expansion innecesaria." },
