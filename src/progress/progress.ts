@@ -14,6 +14,9 @@ interface PlanPoint {
 
   const lastUpdated = "5 octubre 2026";
   const recentChanges = [
+    "El editor ya permite orientar el panorama con flechas, ajustar zoom con mas/menos y restablecer la vista con Inicio.",
+    "La auditoria E2E recorre por teclado carga de demo, escenas, panorama, Mas acciones y Vista final; tambien rechaza controles sin nombre accesible.",
+    "Los selectores de archivo ocultos salieron del orden de tabulacion y sus etiquetas visibles se activan con Enter o Espacio.",
     "La demo tecnica ahora genera y almacena tres panoramas locales; Vista final ya no depende de marzipano.net ni de permisos CORS.",
     "La Vista final WebGL ahora atrapa el foco dentro del dialogo, lo devuelve al cerrar y conserva navegacion por flechas y Escape.",
     "El flujo E2E verifica automaticamente la Vista final a 390x844 sin desbordamiento horizontal y con area de panorama util.",
@@ -89,7 +92,7 @@ const points: PlanPoint[] = [
   { id: 38, title: "Manejo de errores", phase: "Robustez", percent: 97, status: "progress", evidence: "Importacion y visor final muestran progreso, cancelacion o reintento; el preflight limpia parciales, bloquea originales faltantes y verifica SHA-256.", next: "Cubrir permisos de carpeta y, mas adelante, errores SFTP." },
   { id: 39, title: "Recuperacion ante fallos", phase: "Robustez", percent: 96, status: "done", evidence: "Recupera snapshots y originales; un diario detecta importaciones interrumpidas al recargar, limpia assets parciales y pide reanudar el lote.", next: "Verificar cierre forzado en otros navegadores." },
   { id: 40, title: "Rendimiento", phase: "Robustez", percent: 100, status: "done", evidence: "Un Web Worker decodifica cada 8K una sola vez; el editor limita cache a 4 previews y el viewer carga mosaicos bajo demanda. Pasan 3 fotos 8K y 50 escenas.", next: "Medir tiempos con un lote real de 30 a 50 originales." },
-  { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 76, status: "progress", evidence: "Labels, controles plegables, aria-pressed y atajos funcionan; Vista final atrapa el foco, inicia en Cerrar y lo devuelve al control de apertura.", next: "Auditar el resto del editor exclusivamente con teclado." },
+  { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 92, status: "done", evidence: "La prueba recorre por teclado demo, escenas, panorama, menus y Vista final; valida nombres, orden de foco, Escape, retorno de foco y controles de giro/zoom.", next: "Hacer una revision posterior con lector de pantalla real." },
   { id: 42, title: "UX general", phase: "Producto", percent: 98, status: "done", evidence: "Paneles plegables, Vista final, progreso operativo, menu compacto, seleccion visible, deshacer/rehacer, flujo guiado, busqueda y errores recuperables.", next: "Recoger observaciones de la aceptacion manual." },
   { id: 43, title: "MVP robusto", phase: "Robustez", percent: 98, status: "progress", evidence: "La bateria valida flujo guiado, respaldos, recuperacion de originales, integridad SHA-256, 3 JPG reales 8K, 50 escenas y export WebGL.", next: "Completar una prueba manual de aceptacion del nuevo ZIP." },
   { id: 44, title: "Fuera de alcance respetado", phase: "Base", percent: 100, status: "done", evidence: "No se agrego SaaS, usuarios, CRM, pagos ni infraestructura cloud.", next: "Seguir evitando expansion innecesaria." },

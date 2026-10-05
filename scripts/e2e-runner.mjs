@@ -56,9 +56,29 @@ async function runChecks() {
     page.on("request", (request) => {
       if (request.url().includes("marzipano.net")) externalDemoRequests.push(request.url());
     });
-    await page.getByRole("button", { name: "Cargar demo tecnico" }).click();
+    await focusByKeyboard(page, "[data-action='load-demo']", "Cargar demo tecnico");
+    await page.keyboard.press("Enter");
     await page.getByText("Demo local lista. No necesita conexion a internet.").waitFor({ state: "visible" });
-    await page.getByRole("button", { name: "Vista final" }).click();
+    await assertAccessibleControls(page);
+    await focusByKeyboard(page, "[data-scene-id='sala']", "escena Sala");
+    await page.keyboard.press("Enter");
+    await page.locator("[data-scene-id='sala'].is-active").waitFor({ state: "visible" });
+    await focusByKeyboard(page, ".tour-canvas", "panorama del editor");
+    const canvasBeforeKeyboard = await page.locator(".tour-canvas").evaluate((canvas) => canvas.toDataURL());
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(180);
+    const canvasAfterKeyboard = await page.locator(".tour-canvas").evaluate((canvas) => canvas.toDataURL());
+    if (canvasBeforeKeyboard === canvasAfterKeyboard) throw new Error("Las flechas no cambiaron la vista panoramica del editor.");
+    await focusByKeyboard(page, ".action-menu > summary", "Mas acciones");
+    await page.keyboard.press("Enter");
+    if (!(await page.locator(".action-menu").evaluate((menu) => menu.open))) throw new Error("Enter no abrio Mas acciones.");
+    await page.keyboard.press("Escape");
+    if (await page.locator(".action-menu").evaluate((menu) => menu.open)) throw new Error("Escape no cerro Mas acciones.");
+    if (!(await page.evaluate(() => document.activeElement?.matches(".action-menu > summary")))) {
+      throw new Error("Mas acciones no recupero el foco al cerrarse con Escape.");
+    }
+    await focusByKeyboard(page, "[data-action='final-preview']", "Vista final", "Shift+Tab");
+    await page.keyboard.press("Enter");
     const demoDialog = page.getByRole("dialog", { name: "Vista final del tour" });
     await demoDialog.waitFor({ state: "visible" });
     await page.locator(".final-preview-viewer canvas").waitFor({ state: "visible" });
@@ -67,7 +87,7 @@ async function runChecks() {
     if ((await page.evaluate(() => document.activeElement?.textContent?.trim())) !== "Cerrar") {
       throw new Error("La vista final no coloco el foco inicial en Cerrar.");
     }
-    await page.getByRole("button", { name: "Cerrar" }).click();
+    await page.keyboard.press("Escape");
     if ((await page.evaluate(() => document.activeElement instanceof HTMLElement ? document.activeElement.dataset.action : undefined)) !== "final-preview") {
       throw new Error("La vista final no devolvio el foco al control que la abrio.");
     }
@@ -251,6 +271,39 @@ async function runChecks() {
   } finally {
     await browser.close();
   }
+}
+
+async function focusByKeyboard(page, selector, description, key = "Tab") {
+  for (let attempt = 0; attempt < 180; attempt += 1) {
+    if (await page.evaluate((candidate) => document.activeElement?.matches(candidate) ?? false, selector)) return;
+    await page.keyboard.press(key);
+  }
+  throw new Error(`No se pudo alcanzar ${description} usando ${key}.`);
+}
+
+async function assertAccessibleControls(page) {
+  const audit = await page.evaluate(() => {
+    const candidates = [...document.querySelectorAll("button, summary, a[href], input, select, textarea, [role='button']")];
+    const visible = candidates.filter((element) => {
+      const style = getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
+    });
+    const unnamed = visible.filter((element) => {
+      if (element instanceof HTMLInputElement && element.type === "hidden") return false;
+      const labels = "labels" in element && element.labels ? [...element.labels].map((label) => label.textContent ?? "").join(" ") : "";
+      return ![element.getAttribute("aria-label"), element.textContent, element.getAttribute("title"), element.getAttribute("placeholder"), labels]
+        .some((value) => value?.trim());
+    });
+    const positiveTabIndex = visible.filter((element) => element.tabIndex > 0);
+    return {
+      visible: visible.length,
+      unnamed: unnamed.map((element) => element.outerHTML.slice(0, 180)),
+      positiveTabIndex: positiveTabIndex.map((element) => element.outerHTML.slice(0, 180))
+    };
+  });
+  if (audit.unnamed.length > 0) throw new Error(`Controles sin nombre accesible: ${audit.unnamed.join(" | ")}`);
+  if (audit.positiveTabIndex.length > 0) throw new Error(`Controles con tabindex positivo: ${audit.positiveTabIndex.join(" | ")}`);
+  if (audit.visible < 20) throw new Error(`La auditoria encontro muy pocos controles visibles: ${audit.visible}.`);
 }
 
 async function readStoredHotspotPosition(page, sceneId) {

@@ -70,6 +70,10 @@ export class CanvasTourRenderer implements TourRenderer {
 
     this.canvas = document.createElement("canvas");
     this.canvas.className = "tour-canvas";
+    this.canvas.tabIndex = 0;
+    this.canvas.setAttribute("role", "img");
+    this.canvas.setAttribute("aria-label", "Vista panoramica. Usa flechas para mirar, mas y menos para acercar o alejar, e Inicio para restablecer la vista.");
+    this.canvas.setAttribute("aria-keyshortcuts", "ArrowLeft ArrowRight ArrowUp ArrowDown + - Home");
     this.context = this.canvas.getContext("2d", { alpha: false });
     this.hotspotLayer = document.createElement("div");
     this.hotspotLayer.className = "tour-hotspot-layer";
@@ -331,6 +335,24 @@ export class CanvasTourRenderer implements TourRenderer {
       event.preventDefault();
       const nextFov = this.view.fov + Math.sign(event.deltaY) * 0.08;
       this.view = clampView({ ...this.view, fov: nextFov });
+      this.requestRender();
+    });
+
+    this.canvas.addEventListener("keydown", (event) => {
+      const scene = this.project?.scenes.find((item) => item.id === this.currentSceneId);
+      const viewStep = event.shiftKey ? 0.04 : 0.12;
+      const zoomStep = event.shiftKey ? 0.03 : 0.08;
+      let nextView: ViewState | null = null;
+      if (event.key === "ArrowLeft") nextView = { ...this.view, yaw: this.view.yaw - viewStep };
+      if (event.key === "ArrowRight") nextView = { ...this.view, yaw: this.view.yaw + viewStep };
+      if (event.key === "ArrowUp") nextView = { ...this.view, pitch: this.view.pitch + viewStep };
+      if (event.key === "ArrowDown") nextView = { ...this.view, pitch: this.view.pitch - viewStep };
+      if (event.key === "+" || event.key === "=") nextView = { ...this.view, fov: this.view.fov - zoomStep };
+      if (event.key === "-" || event.key === "_") nextView = { ...this.view, fov: this.view.fov + zoomStep };
+      if (event.key === "Home" && scene) nextView = scene.initialView;
+      if (!nextView) return;
+      event.preventDefault();
+      this.view = clampView(nextView);
       this.requestRender();
     });
   }

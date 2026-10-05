@@ -76,6 +76,17 @@ textarea:focus-visible {
   outline: none;
 }
 
+summary:focus-visible,
+[role="button"]:focus-visible,
+.tour-canvas:focus-visible {
+  outline: 3px solid #ffb06f;
+  outline-offset: 3px;
+}
+
+.tour-canvas:focus-visible {
+  outline-offset: -5px;
+}
+
 textarea {
   min-height: 82px;
   resize: vertical;

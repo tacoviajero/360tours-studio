@@ -69,8 +69,8 @@ export class Tours360StudioApp {
           </div>
 
           <section class="import-zone" data-drop-zone>
-            <input id="panorama-import" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple data-action="import-files" />
-            <label class="import-label" for="panorama-import">
+            <input id="panorama-import" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple tabindex="-1" data-action="import-files" />
+            <label class="import-label" for="panorama-import" role="button" tabindex="0" data-file-trigger="panorama-import">
               <span>Importar panoramas JPG</span>
               <small>Arrastra fotos 360 o selecciona archivos</small>
             </label>
@@ -82,7 +82,7 @@ export class Tours360StudioApp {
               <div class="project-actions">
               <button class="primary-action" data-action="new-project">Nuevo tour</button>
               <button data-action="open-project-folder">Abrir carpeta</button>
-              <input id="originals-recovery" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple data-action="recover-originals" />
+              <input id="originals-recovery" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple tabindex="-1" aria-label="Seleccionar panoramas originales" data-action="recover-originals" />
               <button data-action="choose-originals">Recuperar originales</button>
               <button data-action="load-demo">Cargar demo tecnico</button>
               </div>
@@ -674,6 +674,23 @@ export class Tours360StudioApp {
     });
 
     root.addEventListener("keydown", (event) => {
+      const keyboardTarget = event.target instanceof HTMLElement ? event.target : null;
+      const fileTrigger = keyboardTarget?.closest<HTMLElement>("[data-file-trigger]");
+      if (fileTrigger && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        const input = document.getElementById(fileTrigger.dataset.fileTrigger ?? "");
+        if (input instanceof HTMLInputElement) input.click();
+        return;
+      }
+      if (event.key === "Escape") {
+        const actionMenu = root.querySelector<HTMLDetailsElement>(".action-menu[open]");
+        if (actionMenu) {
+          event.preventDefault();
+          actionMenu.open = false;
+          actionMenu.querySelector<HTMLElement>("summary")?.focus();
+          return;
+        }
+      }
       if (!(event.ctrlKey || event.metaKey)) return;
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
@@ -1392,7 +1409,7 @@ export class Tours360StudioApp {
       <div class="tool-group">
         <h3>Hotspots</h3>
         <p class="metric">${scene.hotspots.length} punto${scene.hotspots.length === 1 ? "" : "s"}</p>
-        <select data-field="hotspot-target" ${targetOptions ? "" : "disabled"}>
+        <select data-field="hotspot-target" aria-label="Escena destino" ${targetOptions ? "" : "disabled"}>
           ${targetOptions || "<option>No hay destino disponible</option>"}
         </select>
         <div class="button-row">
@@ -1705,8 +1722,8 @@ export class Tours360StudioApp {
 
     panel.innerHTML = `
       <div class="field-stack">
-        <input id="floorplan-import" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/jpg" data-action="import-floorplan" />
-        <label class="compact-import" for="floorplan-import">
+        <input id="floorplan-import" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/jpg" tabindex="-1" data-action="import-floorplan" />
+        <label class="compact-import" for="floorplan-import" role="button" tabindex="0" data-file-trigger="floorplan-import">
           <span>${floorplan ? "Agregar otra planta" : "Importar plano"}</span>
         </label>
         ${floorplanTabs ? `<div class="floorplan-tabs" aria-label="Plantas">${floorplanTabs}</div>` : ""}
@@ -1778,8 +1795,8 @@ export class Tours360StudioApp {
 
     panel.innerHTML = `
       <div class="field-stack">
-        <input id="gallery-import" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" multiple data-action="import-gallery" />
-        <label class="compact-import" for="gallery-import">
+        <input id="gallery-import" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" multiple tabindex="-1" data-action="import-gallery" />
+        <label class="compact-import" for="gallery-import" role="button" tabindex="0" data-file-trigger="gallery-import">
           <span>Importar fotos</span>
         </label>
         <p class="metric">${this.project.gallery.length} foto${this.project.gallery.length === 1 ? "" : "s"} de galeria</p>
