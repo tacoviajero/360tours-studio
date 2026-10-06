@@ -19,6 +19,8 @@ import type { FinalTourPreview } from "../preview/finalTourPreview";
 import {
   ArrowDown,
   ArrowUp,
+  ChevronLeft,
+  ChevronRight,
   Crosshair,
   Download,
   Ellipsis,
@@ -1366,9 +1368,9 @@ export class Tours360StudioApp {
       viewerElement.append(controls);
     }
     controls.innerHTML = `
-      <button data-action="previous-scene" ${sceneIndex <= 0 ? "disabled" : ""}>Anterior</button>
-      <span>${escapeHtml(activeScene.name)}</span>
-      <button data-action="next-scene" ${sceneIndex >= this.project.scenes.length - 1 ? "disabled" : ""}>Siguiente</button>
+      <button data-action="previous-scene" aria-label="Escena anterior" title="Ir a la escena anterior" ${sceneIndex <= 0 ? "disabled" : ""}>${renderIcon(ChevronLeft)}<span>Anterior</span></button>
+      <span class="preview-scene-name" title="${escapeHtml(activeScene.name)}">${escapeHtml(activeScene.name)}</span>
+      <button data-action="next-scene" aria-label="Escena siguiente" title="Ir a la escena siguiente" ${sceneIndex >= this.project.scenes.length - 1 ? "disabled" : ""}><span>Siguiente</span>${renderIcon(ChevronRight)}</button>
     `;
   }
 

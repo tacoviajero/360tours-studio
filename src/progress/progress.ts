@@ -14,6 +14,7 @@ interface PlanPoint {
 
   const lastUpdated = "6 octubre 2026";
   const recentChanges = [
+    "La marca del Header tiene mayor presencia y el navegador inferior usa un control segmentado uniforme con flechas, nombre de escena y tipografia armonizada.",
     "La marca 360Tours Studio ocupa completa la celda izquierda del Header; el nombre del tour y su estado comparten una linea separados por un guion.",
     "360Tours Studio ahora vive en un Header que cruza todo el editor; las tres columnas comienzan debajo de una sola barra global.",
     "La barra de escenas ya no repite marca ni descripcion y sus listas, estadisticas y botones ajustan texto sin desbordarse.",
