@@ -21,6 +21,7 @@ import {
   ArrowUp,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Crosshair,
   Download,
   Ellipsis,
@@ -35,6 +36,7 @@ import {
   PanelRightOpen,
   Plus,
   Redo2,
+  RefreshCw,
   Route,
   ScanEye,
   Trash,
@@ -573,6 +575,10 @@ export class Tours360StudioApp {
         await this.deleteActiveScene(root);
       }
 
+      if (action === "duplicate-scene") {
+        await this.duplicateActiveScene(root);
+      }
+
       if (action === "move-hotspot-here" && target.dataset.hotspotId) {
         await this.moveHotspotToCurrentView(root, target.dataset.hotspotId, target);
       }
@@ -717,6 +723,11 @@ export class Tours360StudioApp {
 
         if (target.dataset.action === "recover-originals" && target instanceof HTMLInputElement) {
           await this.recoverOriginalPanoramas(root, Array.from(target.files ?? []));
+          target.value = "";
+        }
+
+        if (target.dataset.action === "replace-scene-panorama" && target instanceof HTMLInputElement) {
+          await this.replaceActiveScenePanorama(root, target.files?.[0] ?? null);
           target.value = "";
         }
 
@@ -943,27 +954,29 @@ export class Tours360StudioApp {
     const previewPath = `previews/${scene.id}.jpg`;
     const originalPath = `source/panoramas/${scene.id}.jpg`;
     const tilePathTemplate = `tiles/${scene.id}/{col}-{row}.jpg`;
-    scene.panorama = previewPath;
-
     const processed = await processPanorama(sourceFile, signal);
     const previewFile = new File([processed.preview.blob], `${scene.id}.jpg`, { type: "image/jpeg" });
     const originalFile = new File([sourceFile], sourceFile.name, { type: sourceFile.type || "image/jpeg" });
-
-    scene.metadata = {
-      ...scene.metadata,
-      sourceFileName: sourceFile.name,
-      sourceBytes: processed.sourceBytes,
-      optimizedBytes: processed.preview.bytes,
-      sourceSize: `${processed.sourceWidth}x${processed.sourceHeight}`,
-      optimizedSize: `${processed.preview.width}x${processed.preview.height}`,
-      processingMode: processed.usedWorker ? "worker" : "main-thread-fallback",
-      optimization: {
-        maxWidth: 2048,
-        quality: processed.preview.quality,
-        resized: processed.preview.resized
+    const { reviewedAt: _reviewedAt, ...preservedMetadata } = scene.metadata ?? {};
+    const nextScene: Scene = {
+      ...scene,
+      panorama: previewPath,
+      metadata: {
+        ...preservedMetadata,
+        sourceFileName: sourceFile.name,
+        sourceBytes: processed.sourceBytes,
+        optimizedBytes: processed.preview.bytes,
+        sourceSize: `${processed.sourceWidth}x${processed.sourceHeight}`,
+        optimizedSize: `${processed.preview.width}x${processed.preview.height}`,
+        processingMode: processed.usedWorker ? "worker" : "main-thread-fallback",
+        optimization: {
+          maxWidth: 2048,
+          quality: processed.preview.quality,
+          resized: processed.preview.resized
+        }
       }
     };
-    setPanoramaAssets(scene, {
+    setPanoramaAssets(nextScene, {
       original: {
         path: originalPath,
         width: processed.sourceWidth,
@@ -987,25 +1000,27 @@ export class Tours360StudioApp {
         pathTemplate: tilePathTemplate
       }
     });
-
-    await this.assets.saveScenePanorama(this.project.id, scene.id, previewFile);
-    await this.assets.saveProjectAsset(this.project.id, previewPath, previewFile);
-    await this.assets.saveProjectAsset(this.project.id, originalPath, originalFile);
+    const assetWrites = [
+      { path: previewPath, file: previewFile },
+      { path: originalPath, file: originalFile }
+    ];
     for (const tile of processed.tiles.tiles) {
       const path = tilePathTemplate.replace("{col}", String(tile.col)).replace("{row}", String(tile.row));
-      await this.assets.saveProjectAsset(this.project.id, path, new File([tile.blob], `${tile.col}-${tile.row}.jpg`, { type: "image/jpeg" }));
+      assetWrites.push({ path, file: new File([tile.blob], `${tile.col}-${tile.row}.jpg`, { type: "image/jpeg" }) });
     }
 
     if (processed.thumbnail) {
-      scene.thumbnail = `thumbnails/${scene.id}.jpg`;
-      await this.assets.saveProjectAsset(
-        this.project.id,
-        scene.thumbnail,
-        new File([processed.thumbnail], `${scene.id}.jpg`, { type: "image/jpeg" })
-      );
+      nextScene.thumbnail = `thumbnails/${scene.id}.jpg`;
+      assetWrites.push({
+        path: nextScene.thumbnail,
+        file: new File([processed.thumbnail], `${scene.id}.jpg`, { type: "image/jpeg" })
+      });
     } else {
-      scene.thumbnail = undefined;
+      nextScene.thumbnail = undefined;
     }
+
+    await this.assets.replaceSceneAssets(this.project.id, scene.id, previewFile, assetWrites);
+    Object.assign(scene, nextScene);
   }
 
   private async recoverOriginalPanoramas(root: HTMLElement, files: File[]): Promise<void> {
@@ -1531,7 +1546,10 @@ export class Tours360StudioApp {
           <details class="scene-overflow-menu">
             <summary aria-label="Acciones de la escena" title="Acciones de la escena">${renderIcon(Ellipsis)}</summary>
             <div>
-              <button class="danger-action" data-action="delete-scene">${renderIcon(Trash)}<span>Eliminar escena</span></button>
+              <input id="scene-panorama-replace" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" tabindex="-1" aria-hidden="true" data-action="replace-scene-panorama" />
+              <label for="scene-panorama-replace" role="button" tabindex="0" aria-label="Reemplazar panorama" data-file-trigger="scene-panorama-replace">${renderIcon(RefreshCw)}<span>Reemplazar panorama</span></label>
+              <button aria-label="Duplicar escena" data-action="duplicate-scene">${renderIcon(Copy)}<span>Duplicar escena</span></button>
+              <button class="danger-action" aria-label="Eliminar escena" data-action="delete-scene">${renderIcon(Trash)}<span>Eliminar escena</span></button>
             </div>
           </details>
         </div>
@@ -2306,6 +2324,66 @@ export class Tours360StudioApp {
     await this.persistAndRender(root, false);
   }
 
+  private async replaceActiveScenePanorama(root: HTMLElement, file: File | null): Promise<void> {
+    const scene = this.project.scenes.find((item) => item.id === this.activeSceneId);
+    if (!scene || !file) return;
+
+    let result;
+    try {
+      result = await this.importer.import([{ file }]);
+    } catch {
+      this.renderPersistenceStatus(root, "No se pudo leer el nuevo panorama.", true);
+      return;
+    }
+    if (result.scenes.length === 0) {
+      this.renderImportIssues(root, result.issues);
+      return;
+    }
+    if (!window.confirm(`Reemplazar el panorama de "${scene.name}"? Se conservaran su nombre, orientacion y puntos interactivos.`)) {
+      return;
+    }
+
+    const replacement = cloneScene(scene);
+    this.renderPersistenceStatus(root, `Procesando el nuevo panorama de ${scene.name}...`);
+    try {
+      await this.storePanoramaAssets(replacement, file);
+      this.project = {
+        ...this.project,
+        scenes: this.project.scenes.map((item) => (item.id === scene.id ? replacement : item))
+      };
+      await this.persistAndRender(root, true);
+      this.renderImportStatus(root, `Panorama de ${scene.name} reemplazado. Revisa y vuelve a confirmar su orientacion.`, result.issues);
+      this.renderPersistenceStatus(root, "Panorama reemplazado y guardado.");
+    } catch (error) {
+      this.renderPersistenceStatus(root, `No se reemplazo el panorama: ${getErrorMessage(error)}`, true);
+    }
+  }
+
+  private async duplicateActiveScene(root: HTMLElement): Promise<void> {
+    const sourceIndex = this.project.scenes.findIndex((item) => item.id === this.activeSceneId);
+    const source = this.project.scenes[sourceIndex];
+    if (!source) return;
+    if (!(await this.saveSnapshot(root))) return;
+
+    const duplicateId = createDuplicateSceneId(source.id, this.project.scenes);
+    const duplicateName = createDuplicateSceneName(source.name, this.project.scenes);
+    const duplicate = duplicateScene(source, duplicateId, duplicateName);
+    this.renderPersistenceStatus(root, `Duplicando ${source.name}...`);
+    try {
+      await this.assets.copySceneAssets(this.project.id, source.id, duplicate.id);
+      const scenes = [...this.project.scenes];
+      scenes.splice(sourceIndex + 1, 0, duplicate);
+      this.project = { ...this.project, scenes };
+      this.activeSceneId = duplicate.id;
+      this.selectedHotspotId = "";
+      await this.persistAndRender(root, true);
+      this.renderPersistenceStatus(root, `Escena duplicada como ${duplicate.name}.`);
+    } catch (error) {
+      await this.assets.removeSceneAssets(this.project.id, duplicate.id);
+      this.renderPersistenceStatus(root, `No se pudo duplicar la escena: ${getErrorMessage(error)}`, true);
+    }
+  }
+
   private async deleteActiveScene(root: HTMLElement): Promise<void> {
     const scene = this.project.scenes.find((item) => item.id === this.activeSceneId);
     if (!scene || !window.confirm(`Eliminar "${scene.name}" del tour?`)) {
@@ -2313,6 +2391,8 @@ export class Tours360StudioApp {
     }
 
     if (!(await this.saveSnapshot(root))) return;
+    const previousProject = this.project;
+    const previousActiveSceneId = this.activeSceneId;
     const scenes = this.project.scenes
       .filter((item) => item.id !== scene.id)
       .map((item) => ({
@@ -2321,9 +2401,30 @@ export class Tours360StudioApp {
       }));
     const startScene = this.project.startScene === scene.id ? scenes[0]?.id ?? null : this.project.startScene;
 
-    this.project = { ...this.project, scenes, startScene };
+    this.project = {
+      ...this.project,
+      scenes,
+      startScene,
+      floorplans: this.project.floorplans.map((floorplan) => ({
+        ...floorplan,
+        markers: floorplan.markers.filter((marker) => marker.sceneId !== scene.id)
+      }))
+    };
     this.activeSceneId = startScene ?? scenes[0]?.id ?? "";
-    await this.persistAndRender(root, true);
+    if (!(await this.saveProject(root))) {
+      this.project = previousProject;
+      this.activeSceneId = previousActiveSceneId;
+      await this.renderWorkspace(root, true);
+      return;
+    }
+    try {
+      await this.assets.removeSceneAssets(this.project.id, scene.id);
+    } catch (error) {
+      this.renderPersistenceStatus(root, `La escena se elimino, pero no se pudieron limpiar todos sus archivos: ${getErrorMessage(error)}`, true);
+    }
+    this.recentProjects = await this.storage.list();
+    this.snapshots = await this.storage.listSnapshots(this.project.id);
+    await this.renderWorkspace(root, true);
   }
 
   private async importFloorplan(root: HTMLElement, file: File | null): Promise<void> {
@@ -2937,6 +3038,62 @@ function toSlug(value: string): string {
 
 function cloneProject(project: TourProject): TourProject {
   return JSON.parse(JSON.stringify(project)) as TourProject;
+}
+
+function cloneScene(scene: Scene): Scene {
+  return JSON.parse(JSON.stringify(scene)) as Scene;
+}
+
+function createDuplicateSceneId(sourceId: string, scenes: Scene[]): string {
+  const existingIds = new Set(scenes.map((scene) => scene.id));
+  const base = `${sourceId}-copia`;
+  let candidate = base;
+  let suffix = 2;
+  while (existingIds.has(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+function createDuplicateSceneName(sourceName: string, scenes: Scene[]): string {
+  const existingNames = new Set(scenes.map((scene) => scene.name.toLocaleLowerCase()));
+  const base = `${sourceName} copia`;
+  let candidate = base;
+  let suffix = 2;
+  while (existingNames.has(candidate.toLocaleLowerCase())) {
+    candidate = `${base} ${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+function duplicateScene(source: Scene, targetId: string, targetName: string): Scene {
+  const duplicate = cloneScene(source);
+  duplicate.id = targetId;
+  duplicate.name = targetName;
+  duplicate.panorama = replaceSceneAssetPath(duplicate.panorama, source.id, targetId);
+  duplicate.thumbnail = duplicate.thumbnail ? replaceSceneAssetPath(duplicate.thumbnail, source.id, targetId) : undefined;
+  duplicate.hotspots = duplicate.hotspots.map((hotspot, index) => ({
+    ...hotspot,
+    id: `${targetId}-${hotspot.type}-${index + 1}`
+  }));
+  if (duplicate.metadata) delete duplicate.metadata.reviewedAt;
+
+  const assets = getPanoramaAssets(duplicate);
+  setPanoramaAssets(duplicate, {
+    original: assets.original ? { ...assets.original, path: replaceSceneAssetPath(assets.original.path, source.id, targetId) } : undefined,
+    preview: assets.preview ? { ...assets.preview, path: replaceSceneAssetPath(assets.preview.path, source.id, targetId) } : undefined,
+    tiles: assets.tiles ? { ...assets.tiles, pathTemplate: replaceSceneAssetPath(assets.tiles.pathTemplate, source.id, targetId) } : undefined
+  });
+  return duplicate;
+}
+
+function replaceSceneAssetPath(path: string, sourceSceneId: string, targetSceneId: string): string {
+  if (path.startsWith(`tiles/${sourceSceneId}/`)) {
+    return `tiles/${targetSceneId}/${path.slice(`tiles/${sourceSceneId}/`.length)}`;
+  }
+  return path.replace(`/${sourceSceneId}.jpg`, `/${targetSceneId}.jpg`);
 }
 
 function getSceneRouteStatus(scenes: Scene[], scene: Scene, index: number): string {

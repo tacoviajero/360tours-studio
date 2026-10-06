@@ -6,6 +6,10 @@ import { getPanoramaAssets, getPanoramaTilePath } from "../domain/panoramaAssets
 
 export type PreviewAssetResolver = (path: string) => Promise<Blob | null>;
 
+const MIN_FOV = 0.55;
+const MAX_FOV = 1.55;
+const RADIANS_TO_DEGREES = 180 / Math.PI;
+
 export class FinalTourPreview {
   private viewer: Viewer | null = null;
   private currentSceneId = "";
@@ -84,6 +88,8 @@ export class FinalTourPreview {
       mousewheelCtrlKey: false,
       touchmoveTwoFingers: false,
       rendererParameters: { antialias: true, preserveDrawingBuffer: true },
+      minFov: MIN_FOV * RADIANS_TO_DEGREES,
+      maxFov: MAX_FOV * RADIANS_TO_DEGREES,
       defaultYaw: scene.initialView.yaw,
       defaultPitch: scene.initialView.pitch,
       defaultZoomLvl: fovToZoom(scene.initialView.fov)
@@ -262,7 +268,7 @@ export class FinalTourPreview {
 }
 
 function fovToZoom(fov: number): number {
-  return Math.max(0, Math.min(100, 100 - ((fov - 0.55) / 1) * 100));
+  return Math.max(0, Math.min(100, 100 - ((fov - MIN_FOV) / (MAX_FOV - MIN_FOV)) * 100));
 }
 
 function hasUsableTiles(scene: Scene): boolean {

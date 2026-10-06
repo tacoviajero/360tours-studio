@@ -101,6 +101,8 @@ describe("exportStaticTour", () => {
     expect(viewerJs).toContain("data-floorplan-id");
     expect(viewerJs).toContain("EquirectangularTilesAdapter");
     expect(viewerJs).toContain("WebGlTourViewer");
+    expect(viewerJs).toContain("minFov: 0.55 * 180 / Math.PI");
+    expect(viewerJs).toContain("maxFov: 1.55 * 180 / Math.PI");
     expect(viewerJs).toContain('event.key === "ArrowRight"');
     expect(viewerJs).toContain("viewer-loading");
     expect(viewerJs).toContain("Reintentar");

@@ -14,6 +14,11 @@ export interface StoredGenericAsset {
   blob: Blob;
 }
 
+export interface SceneAssetWrite {
+  path: string;
+  file: File;
+}
+
 export class BrowserProjectAssets {
   private readonly databaseName = "360tours-studio-assets";
   private readonly sceneStoreName = "scene-assets";
@@ -70,6 +75,75 @@ export class BrowserProjectAssets {
     );
     database.close();
     return asset ?? null;
+  }
+
+  async replaceSceneAssets(projectId: string, sceneId: string, panorama: File, assets: SceneAssetWrite[]): Promise<void> {
+    const database = await this.openDatabase();
+    const existingAssets = (
+      await requestToPromise<StoredGenericAsset[]>(
+        database.transaction(this.assetStoreName, "readonly").objectStore(this.assetStoreName).getAll()
+      )
+    ).filter((asset) => asset.projectId === projectId && isSceneAssetPath(asset.path, sceneId));
+    const transaction = database.transaction([this.sceneStoreName, this.assetStoreName], "readwrite");
+    const sceneStore = transaction.objectStore(this.sceneStoreName);
+    const assetStore = transaction.objectStore(this.assetStoreName);
+
+    sceneStore.put({
+      projectId,
+      sceneId,
+      fileName: panorama.name,
+      mimeType: panorama.type || "image/jpeg",
+      blob: panorama
+    } satisfies StoredProjectAsset);
+    for (const asset of existingAssets) assetStore.delete([asset.projectId, asset.path]);
+    for (const asset of assets) {
+      assetStore.put({
+        projectId,
+        path: asset.path,
+        fileName: asset.file.name,
+        mimeType: asset.file.type || "application/octet-stream",
+        blob: asset.file
+      } satisfies StoredGenericAsset);
+    }
+
+    await transactionToPromise(transaction);
+    database.close();
+  }
+
+  async copySceneAssets(projectId: string, sourceSceneId: string, targetSceneId: string): Promise<void> {
+    const database = await this.openDatabase();
+    const sourcePanorama = await requestToPromise<StoredProjectAsset | undefined>(
+      database.transaction(this.sceneStoreName, "readonly").objectStore(this.sceneStoreName).get([projectId, sourceSceneId])
+    );
+    const sourceAssets = (
+      await requestToPromise<StoredGenericAsset[]>(
+        database.transaction(this.assetStoreName, "readonly").objectStore(this.assetStoreName).getAll()
+      )
+    ).filter((asset) => asset.projectId === projectId && isSceneAssetPath(asset.path, sourceSceneId));
+
+    if (!sourcePanorama || sourceAssets.length === 0) {
+      database.close();
+      throw new Error("No se encontraron todos los archivos de la escena original.");
+    }
+
+    const transaction = database.transaction([this.sceneStoreName, this.assetStoreName], "readwrite");
+    transaction.objectStore(this.sceneStoreName).put({
+      ...sourcePanorama,
+      sceneId: targetSceneId,
+      fileName: replaceSceneIdInPath(sourcePanorama.fileName, sourceSceneId, targetSceneId)
+    } satisfies StoredProjectAsset);
+    const assetStore = transaction.objectStore(this.assetStoreName);
+    for (const asset of sourceAssets) {
+      const path = replaceSceneIdInPath(asset.path, sourceSceneId, targetSceneId);
+      assetStore.put({
+        ...asset,
+        path,
+        fileName: path.split("/").pop() ?? asset.fileName
+      } satisfies StoredGenericAsset);
+    }
+
+    await transactionToPromise(transaction);
+    database.close();
   }
 
   async copyProjectAssets(sourceProjectId: string, targetProjectId: string): Promise<void> {
@@ -182,4 +256,20 @@ function transactionToPromise(transaction: IDBTransaction): Promise<void> {
     transaction.addEventListener("error", () => reject(transaction.error ?? new Error("No se pudo copiar los assets locales.")));
     transaction.addEventListener("abort", () => reject(transaction.error ?? new Error("No se pudo copiar los assets locales.")));
   });
+}
+
+function isSceneAssetPath(path: string, sceneId: string): boolean {
+  return (
+    path === `previews/${sceneId}.jpg` ||
+    path === `source/panoramas/${sceneId}.jpg` ||
+    path === `thumbnails/${sceneId}.jpg` ||
+    path.startsWith(`tiles/${sceneId}/`)
+  );
+}
+
+function replaceSceneIdInPath(path: string, sourceSceneId: string, targetSceneId: string): string {
+  if (path.startsWith(`tiles/${sourceSceneId}/`)) {
+    return `tiles/${targetSceneId}/${path.slice(`tiles/${sourceSceneId}/`.length)}`;
+  }
+  return path.replace(`/${sourceSceneId}.jpg`, `/${targetSceneId}.jpg`);
 }

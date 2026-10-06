@@ -674,6 +674,8 @@ class WebGlTourViewer {
       mousewheelCtrlKey: false,
       touchmoveTwoFingers: false,
       rendererParameters: { antialias: true, preserveDrawingBuffer: true },
+      minFov: 0.55 * 180 / Math.PI,
+      maxFov: 1.55 * 180 / Math.PI,
       defaultYaw: initialScene?.initialView?.yaw || 0,
       defaultPitch: initialScene?.initialView?.pitch || 0,
       defaultZoomLvl: this.fovToZoom(initialScene?.initialView?.fov || 1.2)

@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import { deflateSync } from "node:zlib";
 import { chromium } from "@playwright/test";
 
-const port = 4300 + Math.floor(Math.random() * 1000);
+const port = await findAvailablePort();
 const baseUrl = `http://127.0.0.1:${port}`;
 const progressPercent = await readProgressPercent();
 const preview =
@@ -30,7 +31,7 @@ try {
   await waitForServer(baseUrl, 120_000);
   await runChecks();
   finished = true;
-  console.log("E2E checks passed: guided flow, hotspot drag, editable backup, local recovery, export, and progress dashboard.");
+  console.log("E2E checks passed: guided flow, scene replacement and duplication, hotspot drag, recovery, export, and progress dashboard.");
 } catch (error) {
   exitCode = 1;
   console.error(error);
@@ -251,6 +252,67 @@ async function runChecks() {
       { sceneId: "entrada-real", ...hotspotBefore }
     );
 
+    const sceneBeforeReplacement = await readStoredScene(page, "entrada-real");
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator("[data-action='replace-scene-panorama']").setInputFiles({
+      name: "entrada-reemplazada.jpg",
+      mimeType: "image/jpeg",
+      buffer: createPngFixture(1024, 512)
+    });
+    try {
+      await page.waitForFunction(
+        () => {
+          const projectId = localStorage.getItem("360tours-project:last");
+          const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+          return project?.scenes.find((scene) => scene.id === "entrada-real")?.metadata?.sourceFileName === "entrada-reemplazada.jpg";
+        },
+        undefined,
+        { timeout: 90_000 }
+      );
+    } catch {
+      throw new Error(`Panorama replacement did not finish. Status: ${await page.locator(".persistence-status").innerText()}`);
+    }
+    await page.locator(".persistence-status").getByText("- Panorama reemplazado y guardado.", { exact: true }).waitFor({ state: "visible" });
+    const sceneAfterReplacement = await readStoredScene(page, "entrada-real");
+    if (sceneAfterReplacement.metadata?.sourceFileName !== "entrada-reemplazada.jpg") {
+      throw new Error("Replacing a panorama did not update its source metadata.");
+    }
+    if (JSON.stringify(sceneAfterReplacement.initialView) !== JSON.stringify(sceneBeforeReplacement.initialView)) {
+      throw new Error("Replacing a panorama changed the saved initial view.");
+    }
+    if (JSON.stringify(sceneAfterReplacement.hotspots) !== JSON.stringify(sceneBeforeReplacement.hotspots)) {
+      throw new Error("Replacing a panorama changed its interactive points.");
+    }
+    if (sceneAfterReplacement.metadata?.reviewedAt) {
+      throw new Error("A replaced panorama remained marked as reviewed.");
+    }
+    await assertEditorCanvasHasPixels(page);
+
+    await page.locator(".scene-overflow-menu > summary").click();
+    await page.getByRole("button", { name: "Duplicar escena" }).click();
+    await page.locator(".persistence-status").getByText("- Escena duplicada como Entrada Real copia.", { exact: true }).waitFor({ state: "visible" });
+    const duplicateScene = await readStoredScene(page, "entrada-real-copia");
+    if (duplicateScene.panorama === sceneAfterReplacement.panorama) {
+      throw new Error("The duplicated scene reused the original preview path.");
+    }
+    if (duplicateScene.metadata?.panoramaAssets?.original?.path === sceneAfterReplacement.metadata?.panoramaAssets?.original?.path) {
+      throw new Error("The duplicated scene reused the original source path.");
+    }
+    if (JSON.stringify(duplicateScene.initialView) !== JSON.stringify(sceneAfterReplacement.initialView)) {
+      throw new Error("Duplicating a scene did not preserve its initial view.");
+    }
+    if (duplicateScene.hotspots.length !== sceneAfterReplacement.hotspots.length) {
+      throw new Error("Duplicating a scene did not preserve its interactive points.");
+    }
+    await assertEditorCanvasHasPixels(page);
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator(".scene-overflow-menu > summary").click();
+    await page.getByRole("button", { name: "Eliminar escena" }).click();
+    await page.getByLabel("Proyecto").getByRole("button", { name: /1\. Entrada Real/ }).waitFor({ state: "visible" });
+    await page.getByLabel("Proyecto").getByRole("button", { name: /2\. Pasillo/ }).waitFor({ state: "visible" });
+    await assertEditorCanvasHasPixels(page);
+
     await page.evaluate(() => {
       const projectId = localStorage.getItem("360tours-project:last");
       localStorage.setItem(
@@ -298,6 +360,19 @@ async function runChecks() {
   }
 }
 
+function findAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.unref();
+    server.addListener("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      server.close((error) => (error ? reject(error) : resolve(port)));
+    });
+  });
+}
+
 async function focusByKeyboard(page, selector, description, key = "Tab") {
   for (let attempt = 0; attempt < 180; attempt += 1) {
     if (await page.evaluate((candidate) => document.activeElement?.matches(candidate) ?? false, selector)) return;
@@ -338,6 +413,16 @@ async function readStoredHotspotPosition(page, sceneId) {
     const hotspot = project?.scenes.find((scene) => scene.id === targetSceneId)?.hotspots.find((item) => item.type === "scene");
     if (!hotspot) throw new Error(`No scene hotspot found in ${targetSceneId}.`);
     return { yaw: hotspot.yaw, pitch: hotspot.pitch };
+  }, sceneId);
+}
+
+async function readStoredScene(page, sceneId) {
+  return page.evaluate((targetSceneId) => {
+    const projectId = localStorage.getItem("360tours-project:last");
+    const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+    const scene = project?.scenes.find((item) => item.id === targetSceneId);
+    if (!scene) throw new Error(`No scene found with id ${targetSceneId}.`);
+    return scene;
   }, sceneId);
 }
 

@@ -1600,6 +1600,7 @@ summary svg,
 }
 
 .scene-overflow-menu > div button,
+.scene-overflow-menu > div label,
 .hotspot-overflow-menu > div button {
   display: flex;
   align-items: center;
@@ -1609,7 +1610,17 @@ summary svg,
   padding: 0 9px;
   border: 0;
   background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
   text-align: left;
+}
+
+.scene-overflow-menu > div label:hover,
+.scene-overflow-menu > div label:focus-visible {
+  background: rgba(245, 240, 232, 0.07);
+  color: #f5f0e8;
+  outline: none;
 }
 
 .scene-quick-actions {
