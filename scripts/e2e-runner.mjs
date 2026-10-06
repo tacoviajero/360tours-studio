@@ -285,6 +285,14 @@ async function runChecks() {
     await page.getByLabel("Avance general").getByText(`${progressPercent}%`).waitFor({ state: "visible" });
     await page.getByRole("heading", { name: "Plano de planta" }).waitFor({ state: "visible" });
     await page.getByRole("heading", { name: "Criterios de exito" }).waitFor({ state: "visible" });
+    const studioReturn = page.getByRole("link", { name: "Volver a 360Tours Studio" });
+    await studioReturn.waitFor({ state: "visible" });
+    if ((await studioReturn.getAttribute("href")) !== "/") {
+      throw new Error("El tablero de avances no enlaza al editor principal.");
+    }
+    await studioReturn.click();
+    await page.waitForURL(`${baseUrl}/`);
+    await page.getByRole("heading", { name: "360Tours Studio", exact: true }).waitFor({ state: "visible" });
   } finally {
     await browser.close();
   }

@@ -1,4 +1,5 @@
 import "../styles/progress.css";
+import { ArrowLeft, createElement } from "lucide";
 
 type Status = "done" | "progress" | "pending";
 
@@ -14,6 +15,7 @@ interface PlanPoint {
 
   const lastUpdated = "6 octubre 2026";
   const recentChanges = [
+    "El tablero de avances ahora incluye un acceso directo para volver al editor de 360Tours Studio.",
     "El nombre del tour se edita directamente al inicio de la barra de escenas y se sincroniza con el Header y Recientes tras guardarse.",
     "La marca del Header tiene mayor presencia y el navegador inferior usa un control segmentado uniforme con flechas, nombre de escena y tipografia armonizada.",
     "La marca 360Tours Studio ocupa completa la celda izquierda del Header; el nombre del tour y su estado comparten una linea separados por un guion.",
@@ -137,6 +139,10 @@ appRoot.innerHTML = `
   <main class="progress-shell">
     <header class="hero">
       <div>
+        <a class="studio-return" href="/">
+          ${createElement(ArrowLeft, { width: 16, height: 16, "stroke-width": 1.8, "aria-hidden": "true" }).outerHTML}
+          <span>Volver a 360Tours Studio</span>
+        </a>
         <p class="eyebrow">Plan maestro</p>
         <h1>Avance de 360Tours Studio</h1>
         <p>Seguimiento honesto de los 50 puntos: lo verde esta usable, lo amarillo esta iniciado, lo rojo todavia falta cerrarlo.</p>

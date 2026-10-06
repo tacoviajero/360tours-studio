@@ -39,6 +39,33 @@ body {
   border-bottom: 1px solid rgba(245, 240, 232, 0.1);
 }
 
+.studio-return {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  margin-bottom: 20px;
+  color: #d7cec4;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.studio-return:hover {
+  color: #f5f0e8;
+}
+
+.studio-return:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid #f08a4b;
+  outline-offset: 5px;
+}
+
+.studio-return svg {
+  flex: 0 0 auto;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: #f08a4b;
