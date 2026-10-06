@@ -361,9 +361,36 @@ label span {
   padding: 8px 4px 10px;
 }
 
-.project-settings .title-field,
 .project-settings .slug-field {
   min-width: 0;
+}
+
+.project-title-editor {
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(245, 240, 232, 0.08);
+}
+
+.project-title-editor label > span {
+  margin-bottom: 3px;
+  color: #8f8880;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.project-title-editor input {
+  min-height: 34px;
+  padding: 3px 0 5px;
+  border: 0;
+  border-bottom: 1px solid rgba(245, 240, 232, 0.14);
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.94rem;
+  font-weight: 500;
+}
+
+.project-title-editor input:hover,
+.project-title-editor input:focus-visible {
+  border-bottom-color: #f08a4b;
 }
 
 .action-menu-divider {
@@ -1395,7 +1422,6 @@ h2 {
   color: #ffd28a;
 }
 
-.title-field,
 .slug-field {
   display: grid;
   min-width: min(420px, 60vw);
@@ -2230,7 +2256,6 @@ button.text-action:focus-visible {
     height: 100dvh;
   }
 
-  .title-field,
   .slug-field {
     width: 100%;
     min-width: 0;

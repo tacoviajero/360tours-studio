@@ -139,12 +139,8 @@ export class Tours360StudioApp {
               <summary class="toolbar-icon" aria-haspopup="menu" aria-label="Acciones" title="Mas acciones del proyecto" data-tooltip="Mas acciones del proyecto">${renderIcon(Ellipsis)}</summary>
               <div class="action-menu-panel">
                 <details class="project-settings">
-                  <summary title="Editar nombre y direccion web del proyecto">Proyecto</summary>
+                  <summary title="Editar la direccion web del proyecto">Proyecto</summary>
                   <div>
-                    <label class="title-field">
-                      <span>Nombre del proyecto</span>
-                      <input value="${escapeHtml(this.project.title)}" data-field="project-title" />
-                    </label>
                     <label class="slug-field">
                       <span>Direccion web</span>
                       <input value="${escapeHtml(this.project.publish?.slug ?? this.project.id)}" data-field="publish-slug" />
@@ -167,6 +163,12 @@ export class Tours360StudioApp {
             <strong>Proyecto y escenas</strong>
             <button data-action="toggle-left-panel" aria-label="Cerrar panel de escenas">Cerrar</button>
           </div>
+          <section class="project-title-editor" aria-label="Tour actual">
+            <label>
+              <span>Nombre del tour</span>
+              <input value="${escapeHtml(this.project.title)}" placeholder="Tour sin nombre" data-field="project-title" />
+            </label>
+          </section>
           <section class="import-zone" data-drop-zone>
             <input id="panorama-import" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple tabindex="-1" data-action="import-files" />
             <label class="import-label" for="panorama-import" role="button" tabindex="0" data-file-trigger="panorama-import">
@@ -662,7 +664,10 @@ export class Tours360StudioApp {
       if (target.dataset.field === "project-title") {
         this.project = { ...this.project, title: target.value };
         this.renderWorkspaceContext(root);
-        await this.saveProject(root);
+        if (await this.saveProject(root)) {
+          this.recentProjects = await this.storage.list();
+          this.renderRecentProjects(root);
+        }
       }
 
       if (target.dataset.field === "publish-slug") {
@@ -2825,10 +2830,9 @@ export class Tours360StudioApp {
   }
 
   private syncTitleField(root: HTMLElement): void {
-    const field = root.querySelector<HTMLInputElement>("[data-field='project-title']");
-    if (field) {
+    root.querySelectorAll<HTMLInputElement>("[data-field='project-title']").forEach((field) => {
       field.value = this.project.title;
-    }
+    });
 
     const slug = root.querySelector<HTMLInputElement>("[data-field='publish-slug']");
     if (slug) {

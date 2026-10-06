@@ -159,8 +159,6 @@ async function runChecks() {
         return originalSetItem.call(this, key, value);
       };
     });
-    await page.locator(".action-menu > summary").click();
-    await page.locator(".project-settings > summary").click();
     await page.locator("[data-field='project-title']").fill("Cambio sin guardar");
     await page.getByText(/No hay espacio local suficiente/).waitFor({ state: "visible" });
     await page.evaluate(() => {
@@ -168,8 +166,6 @@ async function runChecks() {
     });
     await page.locator("[data-field='project-title']").fill("Nuevo tour 360");
     await page.getByText("- Guardado local.", { exact: true }).waitFor({ state: "visible" });
-    await page.keyboard.press("Escape");
-    await page.keyboard.press("Escape");
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar tour" }).click();
     const download = await downloadPromise;
