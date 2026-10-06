@@ -1,6 +1,7 @@
 import type { TourProject } from "../domain/tour";
 import { collectPanoramaAssetPaths } from "../domain/panoramaAssets";
 import type { ProjectSnapshotSummary } from "./storage";
+import type { SnapshotAssetArchive, SnapshotAssetManifest } from "./browserAssets";
 
 export interface ProjectFolderFile {
   path: string;
@@ -17,7 +18,10 @@ export interface LoadedProjectFolder {
   snapshots: Array<{
     id: string;
     project: TourProject;
+    createdAt?: string;
+    assetState?: ProjectSnapshotSummary["assetState"];
   }>;
+  snapshotAssetArchive: SnapshotAssetArchive;
 }
 
 export type ProjectAssetResolver = (project: TourProject, assetPath: string) => Promise<Blob | null>;
@@ -27,7 +31,8 @@ export async function buildProjectFolder(
   project: TourProject,
   resolveAsset: ProjectAssetResolver,
   snapshots: ProjectSnapshotSummary[] = [],
-  resolveSnapshot?: ProjectSnapshotResolver
+  resolveSnapshot?: ProjectSnapshotResolver,
+  snapshotAssetArchive?: SnapshotAssetArchive
 ): Promise<ProjectFolderFile[]> {
   const files: ProjectFolderFile[] = [
     {
@@ -63,6 +68,26 @@ export async function buildProjectFolder(
         mimeType: "application/json"
       });
     }
+    files.push({
+      path: ".history/index.json",
+      content: JSON.stringify(snapshots, null, 2),
+      mimeType: "application/json"
+    });
+  }
+
+  if (snapshotAssetArchive && snapshotAssetArchive.manifests.length > 0) {
+    files.push({
+      path: ".history/assets-manifest.json",
+      content: JSON.stringify(snapshotAssetArchive.manifests, null, 2),
+      mimeType: "application/json"
+    });
+    for (const version of snapshotAssetArchive.versions) {
+      files.push({
+        path: `.history/assets/${version.versionId}.bin`,
+        content: version.blob,
+        mimeType: version.blob.type || "application/octet-stream"
+      });
+    }
   }
 
   return files;
@@ -90,17 +115,52 @@ export async function loadProjectFolder(
 
   const snapshots: LoadedProjectFolder["snapshots"] = [];
   const historyFiles = listFiles ? await listFiles(".history") : [];
-  for (const historyPath of historyFiles.filter((path) => path.endsWith(".json"))) {
+  const historyIndex = await readHistoryIndex(readFile);
+  for (const historyPath of historyFiles.filter((path) => /^\.history\/[^/]+\.json$/.test(path) && !path.endsWith("/index.json") && !path.endsWith("/assets-manifest.json"))) {
     const snapshotFile = await readFile(historyPath);
     if (snapshotFile) {
+      const id = historyPath.split("/").pop()?.replace(/\.json$/, "") ?? historyPath;
+      const summary = historyIndex.find((item) => item.id === id);
       snapshots.push({
-        id: historyPath.split("/").pop()?.replace(/\.json$/, "") ?? historyPath,
-        project: parseSnapshot(await snapshotFile.text())
+        id,
+        project: parseSnapshot(await snapshotFile.text()),
+        createdAt: summary?.createdAt ?? new Date(snapshotFile.lastModified).toISOString(),
+        assetState: summary?.assetState
       });
     }
   }
 
-  return { project, assetFiles, snapshots };
+  const snapshotAssetArchive = await readSnapshotAssetArchive(readFile);
+
+  return { project, assetFiles, snapshots, snapshotAssetArchive };
+}
+
+async function readHistoryIndex(readFile: (path: string) => Promise<File | null>): Promise<ProjectSnapshotSummary[]> {
+  const file = await readFile(".history/index.json");
+  if (!file) return [];
+  try {
+    const value = JSON.parse(await file.text());
+    return Array.isArray(value) ? (value as ProjectSnapshotSummary[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function readSnapshotAssetArchive(readFile: (path: string) => Promise<File | null>): Promise<SnapshotAssetArchive> {
+  const manifestFile = await readFile(".history/assets-manifest.json");
+  if (!manifestFile) return { manifests: [], versions: [] };
+  try {
+    const manifests = JSON.parse(await manifestFile.text()) as SnapshotAssetManifest[];
+    if (!Array.isArray(manifests)) return { manifests: [], versions: [] };
+    const versions: SnapshotAssetArchive["versions"] = [];
+    for (const versionId of new Set(manifests.map((item) => item.versionId))) {
+      const file = await readFile(`.history/assets/${versionId}.bin`);
+      if (file) versions.push({ versionId, blob: file });
+    }
+    return { manifests, versions };
+  } catch {
+    return { manifests: [], versions: [] };
+  }
 }
 
 export function collectAssetPaths(project: TourProject): string[] {

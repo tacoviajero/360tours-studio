@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TourProject } from "../domain/tour";
 import { buildProjectFolder, collectAssetPaths, loadProjectFolder } from "./projectRepository";
+import type { SnapshotAssetArchive } from "./browserAssets";
 
 const project: TourProject = {
   schemaVersion: 1,
@@ -64,7 +65,21 @@ describe("projectRepository", () => {
       project,
       async (_project, assetPath) => assets.get(assetPath) ?? null,
       [{ id: "snap-1", projectId: project.id, title: "Snapshot", createdAt: "2026-09-12T00:00:00.000Z", sceneCount: 1 }],
-      async () => project
+      async () => project,
+      {
+        manifests: [
+          {
+            projectId: project.id,
+            snapshotId: "snap-1",
+            path: "panoramas/entrada.jpg",
+            source: "project",
+            fileName: "entrada.jpg",
+            mimeType: "image/jpeg",
+            versionId: "version-1"
+          }
+        ],
+        versions: [{ versionId: "version-1", blob: new Blob(["historic panorama"], { type: "image/jpeg" }) }]
+      } satisfies SnapshotAssetArchive
     );
     const fileMap = new Map(files.map((file) => [file.path, file]));
 
@@ -84,8 +99,17 @@ describe("projectRepository", () => {
     expect(fileMap.has("project.json")).toBe(true);
     expect(fileMap.has("README.txt")).toBe(true);
     expect(fileMap.has(".history/snap-1.json")).toBe(true);
+    expect(fileMap.has(".history/index.json")).toBe(true);
+    expect(fileMap.has(".history/assets-manifest.json")).toBe(true);
+    expect(fileMap.has(".history/assets/version-1.bin")).toBe(true);
     expect(loaded.project.title).toBe(project.title);
     expect(loaded.assetFiles.map((file) => file.path).sort()).toEqual(Array.from(assets.keys()).sort());
     expect(loaded.snapshots).toHaveLength(1);
+    expect(loaded.snapshots[0]).toMatchObject({
+      id: "snap-1",
+      createdAt: "2026-09-12T00:00:00.000Z"
+    });
+    expect(loaded.snapshotAssetArchive.manifests).toHaveLength(1);
+    expect(await loaded.snapshotAssetArchive.versions[0].blob.text()).toBe("historic panorama");
   });
 });

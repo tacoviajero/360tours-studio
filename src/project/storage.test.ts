@@ -61,6 +61,34 @@ describe("BrowserProjectStorage", () => {
 
     expect(recovery.project?.title).toBe("Recovered Project");
     expect(recovery.warning).toContain("snapshot");
+    expect(recovery.snapshotId).toBeTruthy();
+  });
+
+  it("preserves imported snapshot identity, date and asset state", async () => {
+    const storage = new BrowserProjectStorage();
+    const summary = await storage.snapshot(project, {
+      id: "imported-snapshot",
+      createdAt: "2026-09-12T00:00:00.000Z",
+      assetState: "complete"
+    });
+
+    expect(summary).toMatchObject({
+      id: "imported-snapshot",
+      createdAt: "2026-09-12T00:00:00.000Z",
+      assetState: "complete"
+    });
+    await expect(storage.listSnapshots(project.id)).resolves.toEqual([summary]);
+  });
+
+  it("removes one snapshot without touching the project", async () => {
+    const storage = new BrowserProjectStorage();
+    await storage.save(project);
+    const snapshot = await storage.snapshot(project);
+
+    await storage.removeSnapshot(project.id, snapshot.id);
+
+    await expect(storage.load(project.id)).resolves.toMatchObject({ id: project.id });
+    await expect(storage.loadSnapshot(project.id, snapshot.id)).rejects.toThrow("Snapshot no encontrado.");
   });
 
   it("ignores corrupt indexes and reports storage write failures", async () => {

@@ -1,4 +1,4 @@
-# Estado de sesion - 5 octubre 2026
+# Estado de sesion - 6 octubre 2026
 
 Este archivo resume el estado actual para retomar 360Tours Studio sin depender del historial del chat.
 
@@ -9,7 +9,7 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - App web: compila con Vite/TypeScript.
 - App Windows: Tauri compila ejecutable y genera instalador NSIS.
 - Persistencia: local-first con autosave, proyectos recientes, snapshots, carpeta editable y assets en IndexedDB.
-- Recuperacion: si el proyecto actual queda corrupto, intenta restaurar el snapshot valido mas reciente y repara la copia principal.
+- Recuperacion: los snapshots nuevos conservan configuracion y blobs de imagen deduplicados; si el proyecto actual queda corrupto, restaura ambos desde el punto valido mas reciente.
 
 ## Funciones listas
 
@@ -56,10 +56,11 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Arrastrar hotspots directamente sobre el panorama y guardar su posicion sin activar el enlace.
 - Importar multiples planos de planta, renombrarlos, eliminarlos y ubicar marcadores.
 - Importar galeria, editar captions, ordenar y eliminar fotos.
-- Guardar snapshots y restaurarlos.
+- Guardar snapshots completos y restaurar tanto la configuracion como las versiones exactas de panoramas, mosaicos, miniaturas, planos y galeria.
+- Reutilizar blobs sin cambios entre snapshots para que una foto 8K no se duplique en cada punto de recuperacion.
 - Mostrar estado de guardado y errores de cuota/permisos sin descartar los cambios abiertos.
 - Bloquear operaciones destructivas cuando no puede crearse su snapshot preventivo.
-- Descargar respaldo ZIP editable con `project.json`, assets, miniaturas e historial.
+- Descargar respaldo ZIP editable con `project.json`, assets, miniaturas e historial reconstruible mediante indice, manifiesto y versiones deduplicadas.
 - Ignorar indices locales corruptos y ocultar proyectos imposibles de leer sin borrar sus datos.
 - Duplicar proyectos con assets.
 - Eliminar proyectos recientes con confirmacion y limpieza local de historial/assets.
@@ -94,9 +95,9 @@ pnpm test:local
 
 Resultados:
 
-- Unitarias: 9 archivos, 21 pruebas pasan.
+- Unitarias: 9 archivos, 23 pruebas pasan.
 - Build web: correcto.
-- E2E con Edge: correcto; recorre con teclado demo, escenas, panorama, menus y Vista final; audita nombres de controles y cubre ademas viewport movil 390x844, flujo guiado, arrastre, respaldo, recuperacion, almacenamiento lleno, export ZIP, viewer y tablero.
+- E2E con Chromium: correcto; recorre el flujo guiado y verifica reemplazo de panorama, snapshots hacia atras y adelante comparando los bytes de IndexedDB, respaldo con assets historicos, recuperacion, export ZIP, viewer y tablero.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales 8000x4000, verifica que los JPG exportados sean identicos byte por byte, valida mosaicos 8x4, abre el viewer WebGL y repara un proyecto sin metadata de originales.
 - La prueba real ahora rechaza lienzos negros, sin variedad de color o sin detalle horizontal/vertical; guarda captura diagnostica solo cuando falla.

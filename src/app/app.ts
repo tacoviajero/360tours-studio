@@ -7,7 +7,7 @@ import { JPEG360Importer } from "../importers/jpeg360Importer";
 import { isTauriRuntime, loadProjectFolderNative, saveProjectFolderNative } from "../platform/desktopBridge";
 import { BrowserProjectAssets } from "../project/browserAssets";
 import { buildProjectFolder, loadProjectFolder } from "../project/projectRepository";
-import { BrowserProjectStorage, type ProjectSnapshotSummary, type ProjectSummary } from "../project/storage";
+import { BrowserProjectStorage, createSnapshotId, type ProjectSnapshotSummary, type ProjectSummary } from "../project/storage";
 import { exportStaticTour } from "../publisher/exporter";
 import { publishTour } from "../publisher/sftpPublisher";
 import { createZipArchive } from "../publisher/zipArchive";
@@ -279,6 +279,13 @@ export class Tours360StudioApp {
     this.renderBrowserCompatibility(root);
     const recovery = await this.storage.recoverLast();
     const savedProject = recovery.project;
+    if (savedProject && recovery.snapshotId && (await this.assets.hasSnapshotAssets(savedProject.id, recovery.snapshotId))) {
+      try {
+        await this.assets.restoreSnapshotAssets(savedProject.id, recovery.snapshotId);
+      } catch (error) {
+        recovery.warning = `${recovery.warning ?? "Se recupero la configuracion."} No se restauraron sus imagenes: ${getErrorMessage(error)}`;
+      }
+    }
     this.recentProjects = await this.storage.list();
     if (savedProject) {
       this.project = savedProject;
@@ -1215,14 +1222,31 @@ export class Tours360StudioApp {
     }
   }
 
-  private async saveSnapshot(root: HTMLElement): Promise<boolean> {
+  private async saveSnapshot(root: HTMLElement, protectedSnapshotId?: string): Promise<boolean> {
+    const createdAt = new Date().toISOString();
+    const snapshotId = createSnapshotId(createdAt);
+    const previousSnapshots = await this.storage.listSnapshots(this.project.id);
     try {
-      await this.storage.snapshot(this.project);
+      await this.assets.saveSnapshotAssets(this.project.id, snapshotId);
+      await this.storage.snapshot(this.project, {
+        id: snapshotId,
+        createdAt,
+        assetState: "complete",
+        preserveSnapshotIds: protectedSnapshotId ? [protectedSnapshotId] : []
+      });
       this.snapshots = await this.storage.listSnapshots(this.project.id);
+      const retainedIds = new Set(this.snapshots.map((snapshot) => snapshot.id));
+      for (const snapshot of previousSnapshots) {
+        if (!retainedIds.has(snapshot.id) && snapshot.id !== protectedSnapshotId) {
+          await this.assets.removeSnapshotAssets(this.project.id, snapshot.id);
+        }
+      }
       this.renderSnapshots(root);
-      this.renderPersistenceStatus(root, "Punto de recuperacion guardado.");
+      this.renderPersistenceStatus(root, "Punto de recuperacion completo guardado.");
       return true;
     } catch (error) {
+      await this.assets.removeSnapshotAssets(this.project.id, snapshotId).catch(() => undefined);
+      await this.storage.removeSnapshot(this.project.id, snapshotId).catch(() => undefined);
       this.renderPersistenceStatus(root, `No se creo el punto de recuperacion. ${getErrorMessage(error)}`, true);
       return false;
     }
@@ -2113,7 +2137,7 @@ export class Tours360StudioApp {
               <article class="snapshot-item">
                 <div>
                   <strong>${escapeHtml(snapshot.title)}</strong>
-                  <small>${formatRelativeDate(snapshot.createdAt)} · ${snapshot.sceneCount} escena${snapshot.sceneCount === 1 ? "" : "s"}</small>
+                  <small>${formatRelativeDate(snapshot.createdAt)} · ${snapshot.sceneCount} escena${snapshot.sceneCount === 1 ? "" : "s"} · ${snapshot.assetState === "complete" ? "recuperacion completa" : "configuracion heredada"}</small>
                 </div>
                 <button data-action="restore-snapshot" data-snapshot-id="${escapeHtml(snapshot.id)}">Restaurar</button>
               </article>
@@ -2129,13 +2153,29 @@ export class Tours360StudioApp {
       return;
     }
 
-    if (!(await this.saveSnapshot(root))) return;
     const snapshot = await this.storage.loadSnapshot(this.project.id, snapshotId);
+    const hasCompleteAssets = await this.assets.hasSnapshotAssets(this.project.id, snapshotId);
+    if (!(await this.saveSnapshot(root, snapshotId))) return;
+    if (hasCompleteAssets) {
+      try {
+        await this.assets.restoreSnapshotAssets(this.project.id, snapshotId);
+      } catch (error) {
+        this.renderPersistenceStatus(root, `No se restauro el punto de recuperacion. ${getErrorMessage(error)}`, true);
+        return;
+      }
+    }
     this.project = cloneProject(snapshot);
     this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
     this.activeFloorplanId = this.project.floorplans[0]?.id ?? "";
     this.syncTitleField(root);
     await this.persistAndRender(root, true);
+    this.renderPersistenceStatus(
+      root,
+      hasCompleteAssets
+        ? "Proyecto e imagenes restaurados desde el punto de recuperacion."
+        : "Configuracion restaurada desde un snapshot antiguo; sus imagenes no estaban versionadas.",
+      !hasCompleteAssets
+    );
   }
 
   private async duplicateProject(root: HTMLElement, target: HTMLElement): Promise<void> {
@@ -2165,11 +2205,13 @@ export class Tours360StudioApp {
       return;
     }
 
+    const snapshotAssetArchive = await this.assets.exportSnapshotAssets(this.project.id, this.snapshots.map((snapshot) => snapshot.id));
     const files = await buildProjectFolder(
       this.project,
       async (project, assetPath) => this.resolveProjectAsset(project, assetPath),
       this.snapshots,
-      async (projectId, snapshotId) => this.storage.loadSnapshot(projectId, snapshotId)
+      async (projectId, snapshotId) => this.storage.loadSnapshot(projectId, snapshotId),
+      snapshotAssetArchive
     );
 
     try {
@@ -2199,11 +2241,13 @@ export class Tours360StudioApp {
     }
 
     try {
+      const snapshotAssetArchive = await this.assets.exportSnapshotAssets(this.project.id, this.snapshots.map((snapshot) => snapshot.id));
       const files = await buildProjectFolder(
         this.project,
         async (project, assetPath) => this.resolveProjectAsset(project, assetPath),
         this.snapshots,
-        async (projectId, snapshotId) => this.storage.loadSnapshot(projectId, snapshotId)
+        async (projectId, snapshotId) => this.storage.loadSnapshot(projectId, snapshotId),
+        snapshotAssetArchive
       );
       const archive = await createZipArchive(files);
       this.downloadBlob(archive, `${this.getExportSlug()}-respaldo.zip`);
@@ -2238,8 +2282,13 @@ export class Tours360StudioApp {
       this.activeFloorplanId = loaded.project.floorplans[0]?.id ?? "";
       await this.saveProject(root);
       for (const snapshot of loaded.snapshots) {
-        await this.storage.snapshot(snapshot.project);
+        await this.storage.snapshot(snapshot.project, {
+          id: snapshot.id,
+          createdAt: snapshot.createdAt,
+          assetState: loaded.snapshotAssetArchive.manifests.some((item) => item.snapshotId === snapshot.id) ? "complete" : "legacy"
+        });
       }
+      await this.assets.importSnapshotAssets(loaded.snapshotAssetArchive);
       this.recentProjects = await this.storage.list();
       this.snapshots = await this.storage.listSnapshots(this.project.id);
       this.syncTitleField(root);
@@ -2342,6 +2391,7 @@ export class Tours360StudioApp {
     if (!window.confirm(`Reemplazar el panorama de "${scene.name}"? Se conservaran su nombre, orientacion y puntos interactivos.`)) {
       return;
     }
+    if (!(await this.saveSnapshot(root))) return;
 
     const replacement = cloneScene(scene);
     this.renderPersistenceStatus(root, `Procesando el nuevo panorama de ${scene.name}...`);

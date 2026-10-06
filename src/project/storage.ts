@@ -12,11 +12,20 @@ export interface ProjectSnapshotSummary {
   title: string;
   createdAt: string;
   sceneCount: number;
+  assetState?: "complete" | "legacy";
+}
+
+export interface ProjectSnapshotOptions {
+  id?: string;
+  createdAt?: string;
+  assetState?: ProjectSnapshotSummary["assetState"];
+  preserveSnapshotIds?: string[];
 }
 
 export interface ProjectRecoveryResult {
   project: TourProject | null;
   warning?: string;
+  snapshotId?: string;
 }
 
 export class ProjectStorageError extends Error {
@@ -35,9 +44,10 @@ export interface ProjectStorage {
   list(): Promise<ProjectSummary[]>;
   listSnapshots(projectId: string): Promise<ProjectSnapshotSummary[]>;
   loadSnapshot(projectId: string, snapshotId: string): Promise<TourProject>;
+  removeSnapshot(projectId: string, snapshotId: string): Promise<void>;
   remove(projectId: string): Promise<void>;
   save(project: TourProject): Promise<void>;
-  snapshot(project: TourProject): Promise<ProjectSnapshotSummary>;
+  snapshot(project: TourProject, options?: ProjectSnapshotOptions): Promise<ProjectSnapshotSummary>;
 }
 
 export class BrowserProjectStorage implements ProjectStorage {
@@ -70,15 +80,16 @@ export class BrowserProjectStorage implements ProjectStorage {
     } catch (error) {
       const snapshot = await this.loadNewestValidSnapshot(projectId);
       if (snapshot) {
-        let warning = `El proyecto guardado estaba danado. Se recupero el snapshot mas reciente de "${snapshot.title}".`;
+        let warning = `El proyecto guardado estaba danado. Se recupero el snapshot mas reciente de "${snapshot.project.title}".`;
         try {
-          await this.save(snapshot);
+          await this.save(snapshot.project);
         } catch (saveError) {
           warning += ` ${saveError instanceof Error ? saveError.message : "No se pudo guardar la recuperacion."}`;
         }
         return {
-          project: snapshot,
-          warning
+          project: snapshot.project,
+          warning,
+          snapshotId: snapshot.summary.id
         };
       }
 
@@ -143,6 +154,13 @@ export class BrowserProjectStorage implements ProjectStorage {
     return parseProject(rawProject);
   }
 
+  async removeSnapshot(projectId: string, snapshotId: string): Promise<void> {
+    localStorage.removeItem(this.snapshotKey(projectId, snapshotId));
+    const key = this.snapshotIndexKey(projectId);
+    const summaries = parseArray<ProjectSnapshotSummary>(localStorage.getItem(key) ?? "[]").filter(isSnapshotSummary);
+    localStorage.setItem(key, JSON.stringify(summaries.filter((summary) => summary.id !== snapshotId)));
+  }
+
   async save(project: TourProject): Promise<void> {
     try {
       localStorage.setItem(`${this.prefix}${project.id}`, JSON.stringify(project, null, 2));
@@ -177,20 +195,21 @@ export class BrowserProjectStorage implements ProjectStorage {
     }
   }
 
-  async snapshot(project: TourProject): Promise<ProjectSnapshotSummary> {
-    const createdAt = new Date().toISOString();
-    const id = createdAt.replace(/[-:.Z]/g, "");
+  async snapshot(project: TourProject, options: ProjectSnapshotOptions = {}): Promise<ProjectSnapshotSummary> {
+    const createdAt = options.createdAt ?? new Date().toISOString();
+    const id = options.id ?? createSnapshotId(createdAt);
     const summary: ProjectSnapshotSummary = {
       id,
       projectId: project.id,
       title: project.title,
       createdAt,
-      sceneCount: project.scenes.length
+      sceneCount: project.scenes.length,
+      assetState: options.assetState
     };
 
     try {
       localStorage.setItem(this.snapshotKey(project.id, id), JSON.stringify(project, null, 2));
-      this.updateSnapshotIndex(summary);
+      this.updateSnapshotIndex(summary, options.preserveSnapshotIds ?? []);
     } catch (error) {
       throw createWriteError(error);
     }
@@ -208,11 +227,15 @@ export class BrowserProjectStorage implements ProjectStorage {
     localStorage.setItem(this.indexKey, JSON.stringify(nextIndex));
   }
 
-  private updateSnapshotIndex(summary: ProjectSnapshotSummary): void {
+  private updateSnapshotIndex(summary: ProjectSnapshotSummary, preserveSnapshotIds: string[]): void {
     const key = this.snapshotIndexKey(summary.projectId);
     const summaries = parseArray<ProjectSnapshotSummary>(localStorage.getItem(key) ?? "[]").filter(isSnapshotSummary);
-    const nextIndex = [summary, ...summaries.filter((item) => item.id !== summary.id)].slice(0, 20);
+    const candidates = [summary, ...summaries.filter((item) => item.id !== summary.id)];
+    const preserved = new Set(preserveSnapshotIds);
+    const nextIndex = candidates.filter((item, index) => index < 20 || preserved.has(item.id));
+    const evicted = summaries.filter((item) => !nextIndex.some((kept) => kept.id === item.id));
     localStorage.setItem(key, JSON.stringify(nextIndex));
+    for (const item of evicted) localStorage.removeItem(this.snapshotKey(summary.projectId, item.id));
   }
 
   private snapshotIndexKey(projectId: string): string {
@@ -223,16 +246,24 @@ export class BrowserProjectStorage implements ProjectStorage {
     return `${this.prefix}${projectId}:history:${snapshotId}`;
   }
 
-  private async loadNewestValidSnapshot(projectId: string): Promise<TourProject | null> {
+  private async loadNewestValidSnapshot(
+    projectId: string
+  ): Promise<{ project: TourProject; summary: ProjectSnapshotSummary } | null> {
     for (const summary of await this.listSnapshots(projectId)) {
       try {
-        return await this.loadSnapshot(projectId, summary.id);
+        return { project: await this.loadSnapshot(projectId, summary.id), summary };
       } catch {
         // Keep looking for an older valid recovery point.
       }
     }
     return null;
   }
+}
+
+export function createSnapshotId(createdAt = new Date().toISOString()): string {
+  const timestamp = createdAt.replace(/[-:.Z]/g, "");
+  const suffix = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10);
+  return `${timestamp}-${suffix}`;
 }
 
 function parseProject(rawProject: string): TourProject {

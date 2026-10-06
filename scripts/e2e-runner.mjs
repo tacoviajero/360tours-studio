@@ -140,7 +140,7 @@ async function runChecks() {
     await page.getByLabel("Progreso para crear el tour").getByText("4 de 4", { exact: true }).first().waitFor({ state: "visible" });
     await page.locator(".action-menu > summary").click();
     await page.getByRole("button", { name: "Guardar snapshot" }).click();
-    await page.getByText("- Punto de recuperacion guardado.", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("- Punto de recuperacion completo guardado.", { exact: true }).waitFor({ state: "visible" });
     await page.evaluate(() => {
       const projectId = localStorage.getItem("360tours-project:last");
       if (!projectId) throw new Error("No last project to corrupt for recovery check.");
@@ -208,6 +208,10 @@ async function runChecks() {
     if (![...backup.keys()].some((path) => path.startsWith(".history/") && path.endsWith(".json"))) {
       throw new Error("Editable backup does not include snapshot history.");
     }
+    assertZipEntries(backup, [".history/index.json", ".history/assets-manifest.json"]);
+    if (![...backup.keys()].some((path) => path.startsWith(".history/assets/") && path.endsWith(".bin"))) {
+      throw new Error("Editable backup does not include deduplicated snapshot assets.");
+    }
 
     await page.locator("#panorama-import").setInputFiles({
       name: "pasillo.jpg",
@@ -253,11 +257,12 @@ async function runChecks() {
     );
 
     const sceneBeforeReplacement = await readStoredScene(page, "entrada-real");
+    const panoramaBeforeReplacement = await readStoredPanoramaSignature(page, "entrada-real");
     page.once("dialog", (dialog) => dialog.accept());
     await page.locator("[data-action='replace-scene-panorama']").setInputFiles({
       name: "entrada-reemplazada.jpg",
       mimeType: "image/jpeg",
-      buffer: createPngFixture(1024, 512)
+      buffer: createPngFixture(1024, 512, 67)
     });
     try {
       await page.waitForFunction(
@@ -286,7 +291,45 @@ async function runChecks() {
     if (sceneAfterReplacement.metadata?.reviewedAt) {
       throw new Error("A replaced panorama remained marked as reviewed.");
     }
+    const panoramaAfterReplacement = await readStoredPanoramaSignature(page, "entrada-real");
+    if (panoramaAfterReplacement === panoramaBeforeReplacement) {
+      throw new Error("Replacing a panorama did not replace its stored source blob.");
+    }
     await assertEditorCanvasHasPixels(page);
+
+    const snapshotBeforeReplacement = await readNewestSnapshotId(page);
+    await page.getByRole("heading", { name: "Historial" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator(`[data-action='restore-snapshot'][data-snapshot-id='${snapshotBeforeReplacement}']`).click();
+    await page.getByText("- Proyecto e imagenes restaurados desde el punto de recuperacion.", { exact: true }).waitFor({ state: "visible" });
+    const restoredScene = await readStoredScene(page, "entrada-real");
+    if (restoredScene.metadata?.sourceFileName !== sceneBeforeReplacement.metadata?.sourceFileName) {
+      throw new Error("Snapshot restoration did not restore the previous scene metadata.");
+    }
+    if ((await readStoredPanoramaSignature(page, "entrada-real")) !== panoramaBeforeReplacement) {
+      throw new Error("Snapshot restoration did not restore the previous panorama blob.");
+    }
+    await assertEditorCanvasHasPixels(page);
+
+    const replacementSnapshot = await findSnapshotIdBySourceName(page, "entrada-reemplazada.jpg");
+    await page.locator(".persistence-status").evaluate((element) => {
+      element.textContent = "";
+    });
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator(`[data-action='restore-snapshot'][data-snapshot-id='${replacementSnapshot}']`).click();
+    await page.waitForFunction(() => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+      return project?.scenes.find((scene) => scene.id === "entrada-real")?.metadata?.sourceFileName === "entrada-reemplazada.jpg";
+    });
+    await page.getByText("- Proyecto e imagenes restaurados desde el punto de recuperacion.", { exact: true }).waitFor({ state: "visible" });
+    const forwardSignature = await readStoredPanoramaSignature(page, "entrada-real");
+    if (forwardSignature !== panoramaAfterReplacement) {
+      const forwardScene = await readStoredScene(page, "entrada-real");
+      throw new Error(
+        `Restoring the forward snapshot did not recover the replacement panorama. target=${replacementSnapshot} source=${forwardScene.metadata?.sourceFileName} expected=${panoramaAfterReplacement} actual=${forwardSignature}`
+      );
+    }
 
     await page.locator(".scene-overflow-menu > summary").click();
     await page.getByRole("button", { name: "Duplicar escena" }).click();
@@ -424,6 +467,49 @@ async function readStoredScene(page, sceneId) {
     if (!scene) throw new Error(`No scene found with id ${targetSceneId}.`);
     return scene;
   }, sceneId);
+}
+
+async function readNewestSnapshotId(page) {
+  return page.evaluate(() => {
+    const projectId = localStorage.getItem("360tours-project:last");
+    const snapshots = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}:history:index`) ?? "[]") : [];
+    if (!snapshots[0]?.id) throw new Error("No snapshot available.");
+    return snapshots[0].id;
+  });
+}
+
+async function findSnapshotIdBySourceName(page, sourceFileName) {
+  return page.evaluate((targetSourceFileName) => {
+    const projectId = localStorage.getItem("360tours-project:last");
+    const snapshots = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}:history:index`) ?? "[]") : [];
+    const match = snapshots.find((snapshot) => {
+      const stored = JSON.parse(localStorage.getItem(`360tours-project:${projectId}:history:${snapshot.id}`) ?? "null");
+      return stored?.scenes.some((scene) => scene.metadata?.sourceFileName === targetSourceFileName);
+    });
+    if (!match?.id) throw new Error(`No snapshot found for ${targetSourceFileName}.`);
+    return match.id;
+  }, sourceFileName);
+}
+
+async function readStoredPanoramaSignature(page, sceneId) {
+  return page.evaluate(async ({ projectId, targetSceneId }) => {
+    const database = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("360tours-studio-assets", 3);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const asset = await new Promise((resolve, reject) => {
+      const request = database.transaction("scene-assets", "readonly").objectStore("scene-assets").get([projectId, targetSceneId]);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    database.close();
+    if (!asset?.blob) throw new Error(`No stored panorama for ${targetSceneId}.`);
+    const bytes = new Uint8Array(await asset.blob.arrayBuffer());
+    let hash = 2166136261;
+    for (const byte of bytes) hash = Math.imul(hash ^ byte, 16777619);
+    return `${bytes.length}:${hash >>> 0}`;
+  }, { projectId: await page.evaluate(() => localStorage.getItem("360tours-project:last")), targetSceneId: sceneId });
 }
 
 async function readProgressPercent() {
@@ -580,7 +666,7 @@ function mimeTypeFor(path) {
   return "application/octet-stream";
 }
 
-function createPngFixture(width, height) {
+function createPngFixture(width, height, blue = 120) {
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const raw = Buffer.alloc((width * 3 + 1) * height);
 
@@ -591,7 +677,7 @@ function createPngFixture(width, height) {
       const offset = row + 1 + x * 3;
       raw[offset] = Math.round((x / width) * 255);
       raw[offset + 1] = Math.round((y / height) * 190);
-      raw[offset + 2] = 120;
+      raw[offset + 2] = blue;
     }
   }
 

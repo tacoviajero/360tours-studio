@@ -4,6 +4,7 @@ export interface StoredProjectAsset {
   fileName: string;
   mimeType: string;
   blob: Blob;
+  versionId?: string;
 }
 
 export interface StoredGenericAsset {
@@ -11,6 +12,28 @@ export interface StoredGenericAsset {
   path: string;
   fileName: string;
   mimeType: string;
+  blob: Blob;
+  versionId?: string;
+}
+
+export interface SnapshotAssetManifest {
+  projectId: string;
+  snapshotId: string;
+  path: string;
+  source: "scene" | "project" | "marker";
+  sceneId?: string;
+  fileName: string;
+  mimeType: string;
+  versionId: string;
+}
+
+export interface SnapshotAssetArchive {
+  manifests: SnapshotAssetManifest[];
+  versions: Array<{ versionId: string; blob: Blob }>;
+}
+
+interface StoredAssetVersion {
+  versionId: string;
   blob: Blob;
 }
 
@@ -23,7 +46,9 @@ export class BrowserProjectAssets {
   private readonly databaseName = "360tours-studio-assets";
   private readonly sceneStoreName = "scene-assets";
   private readonly assetStoreName = "project-assets";
-  private readonly version = 2;
+  private readonly snapshotStoreName = "snapshot-assets";
+  private readonly versionStoreName = "asset-versions";
+  private readonly version = 3;
 
   async saveScenePanorama(projectId: string, sceneId: string, file: File): Promise<void> {
     const database = await this.openDatabase();
@@ -75,6 +100,198 @@ export class BrowserProjectAssets {
     );
     database.close();
     return asset ?? null;
+  }
+
+  async saveSnapshotAssets(projectId: string, snapshotId: string): Promise<void> {
+    const database = await this.openDatabase();
+    const sceneAssets = (
+      await requestToPromise<StoredProjectAsset[]>(
+        database.transaction(this.sceneStoreName, "readonly").objectStore(this.sceneStoreName).getAll()
+      )
+    ).filter((asset) => asset.projectId === projectId);
+    const projectAssets = (
+      await requestToPromise<StoredGenericAsset[]>(
+        database.transaction(this.assetStoreName, "readonly").objectStore(this.assetStoreName).getAll()
+      )
+    ).filter((asset) => asset.projectId === projectId);
+
+    const transaction = database.transaction(
+      [this.sceneStoreName, this.assetStoreName, this.snapshotStoreName, this.versionStoreName],
+      "readwrite"
+    );
+    const sceneStore = transaction.objectStore(this.sceneStoreName);
+    const assetStore = transaction.objectStore(this.assetStoreName);
+    const snapshotStore = transaction.objectStore(this.snapshotStoreName);
+    const versionStore = transaction.objectStore(this.versionStoreName);
+
+    if (sceneAssets.length === 0 && projectAssets.length === 0) {
+      const versionId = createAssetVersionId();
+      versionStore.put({ versionId, blob: new Blob([]) } satisfies StoredAssetVersion);
+      snapshotStore.put({
+        projectId,
+        snapshotId,
+        path: "@empty",
+        source: "marker",
+        fileName: "",
+        mimeType: "application/octet-stream",
+        versionId
+      } satisfies SnapshotAssetManifest);
+    }
+
+    for (const asset of sceneAssets) {
+      const versionId = asset.versionId ?? createAssetVersionId();
+      if (!asset.versionId) sceneStore.put({ ...asset, versionId });
+      versionStore.put({ versionId, blob: asset.blob } satisfies StoredAssetVersion);
+      snapshotStore.put({
+        projectId,
+        snapshotId,
+        path: sceneSnapshotPath(asset.sceneId),
+        source: "scene",
+        sceneId: asset.sceneId,
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+        versionId
+      } satisfies SnapshotAssetManifest);
+    }
+
+    for (const asset of projectAssets) {
+      const versionId = asset.versionId ?? createAssetVersionId();
+      if (!asset.versionId) assetStore.put({ ...asset, versionId });
+      versionStore.put({ versionId, blob: asset.blob } satisfies StoredAssetVersion);
+      snapshotStore.put({
+        projectId,
+        snapshotId,
+        path: asset.path,
+        source: "project",
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+        versionId
+      } satisfies SnapshotAssetManifest);
+    }
+
+    await transactionToPromise(transaction);
+    database.close();
+  }
+
+  async hasSnapshotAssets(projectId: string, snapshotId: string): Promise<boolean> {
+    const database = await this.openDatabase();
+    const manifests = await requestToPromise<SnapshotAssetManifest[]>(
+      database.transaction(this.snapshotStoreName, "readonly").objectStore(this.snapshotStoreName).getAll()
+    );
+    database.close();
+    return manifests.some((item) => item.projectId === projectId && item.snapshotId === snapshotId);
+  }
+
+  async restoreSnapshotAssets(projectId: string, snapshotId: string): Promise<void> {
+    const database = await this.openDatabase();
+    const manifests = (
+      await requestToPromise<SnapshotAssetManifest[]>(
+        database.transaction(this.snapshotStoreName, "readonly").objectStore(this.snapshotStoreName).getAll()
+      )
+    ).filter((item) => item.projectId === projectId && item.snapshotId === snapshotId);
+    if (manifests.length === 0) {
+      database.close();
+      throw new Error("Este punto de recuperacion no contiene sus archivos de imagen.");
+    }
+
+    const versions = new Map(
+      (await requestToPromise<StoredAssetVersion[]>(
+        database.transaction(this.versionStoreName, "readonly").objectStore(this.versionStoreName).getAll()
+      )).map((item) => [item.versionId, item])
+    );
+    if (manifests.some((item) => !versions.has(item.versionId))) {
+      database.close();
+      throw new Error("El punto de recuperacion esta incompleto y no se puede restaurar.");
+    }
+
+    const currentScenes = (
+      await requestToPromise<StoredProjectAsset[]>(
+        database.transaction(this.sceneStoreName, "readonly").objectStore(this.sceneStoreName).getAll()
+      )
+    ).filter((item) => item.projectId === projectId);
+    const currentAssets = (
+      await requestToPromise<StoredGenericAsset[]>(
+        database.transaction(this.assetStoreName, "readonly").objectStore(this.assetStoreName).getAll()
+      )
+    ).filter((item) => item.projectId === projectId);
+    const transaction = database.transaction([this.sceneStoreName, this.assetStoreName], "readwrite");
+    const sceneStore = transaction.objectStore(this.sceneStoreName);
+    const assetStore = transaction.objectStore(this.assetStoreName);
+    for (const item of currentScenes) sceneStore.delete([item.projectId, item.sceneId]);
+    for (const item of currentAssets) assetStore.delete([item.projectId, item.path]);
+
+    for (const manifest of manifests) {
+      const blob = versions.get(manifest.versionId)!.blob;
+      if (manifest.source === "scene" && manifest.sceneId) {
+        sceneStore.put({
+          projectId,
+          sceneId: manifest.sceneId,
+          fileName: manifest.fileName,
+          mimeType: manifest.mimeType,
+          blob,
+          versionId: manifest.versionId
+        } satisfies StoredProjectAsset);
+      } else if (manifest.source === "project") {
+        assetStore.put({
+          projectId,
+          path: manifest.path,
+          fileName: manifest.fileName,
+          mimeType: manifest.mimeType,
+          blob,
+          versionId: manifest.versionId
+        } satisfies StoredGenericAsset);
+      }
+    }
+    await transactionToPromise(transaction);
+    database.close();
+  }
+
+  async exportSnapshotAssets(projectId: string, snapshotIds: string[]): Promise<SnapshotAssetArchive> {
+    const database = await this.openDatabase();
+    const snapshotIdSet = new Set(snapshotIds);
+    const manifests = (
+      await requestToPromise<SnapshotAssetManifest[]>(
+        database.transaction(this.snapshotStoreName, "readonly").objectStore(this.snapshotStoreName).getAll()
+      )
+    ).filter((item) => item.projectId === projectId && snapshotIdSet.has(item.snapshotId));
+    const versionIds = new Set(manifests.map((item) => item.versionId));
+    const versions = (
+      await requestToPromise<StoredAssetVersion[]>(
+        database.transaction(this.versionStoreName, "readonly").objectStore(this.versionStoreName).getAll()
+      )
+    ).filter((item) => versionIds.has(item.versionId));
+    database.close();
+    return { manifests, versions };
+  }
+
+  async importSnapshotAssets(archive: SnapshotAssetArchive): Promise<void> {
+    if (archive.manifests.length === 0) return;
+    const database = await this.openDatabase();
+    const transaction = database.transaction([this.snapshotStoreName, this.versionStoreName], "readwrite");
+    const snapshotStore = transaction.objectStore(this.snapshotStoreName);
+    const versionStore = transaction.objectStore(this.versionStoreName);
+    for (const version of archive.versions) versionStore.put(version);
+    for (const manifest of archive.manifests) snapshotStore.put(manifest);
+    await transactionToPromise(transaction);
+    database.close();
+  }
+
+  async removeSnapshotAssets(projectId: string, snapshotId: string): Promise<void> {
+    const database = await this.openDatabase();
+    const manifests = await requestToPromise<SnapshotAssetManifest[]>(
+      database.transaction(this.snapshotStoreName, "readonly").objectStore(this.snapshotStoreName).getAll()
+    );
+    const removed = manifests.filter((item) => item.projectId === projectId && item.snapshotId === snapshotId);
+    const retainedVersionIds = new Set(
+      manifests.filter((item) => item.projectId !== projectId || item.snapshotId !== snapshotId).map((item) => item.versionId)
+    );
+    const transaction = database.transaction([this.snapshotStoreName, this.versionStoreName], "readwrite");
+    for (const item of removed) transaction.objectStore(this.snapshotStoreName).delete([item.projectId, item.snapshotId, item.path]);
+    for (const versionId of new Set(removed.map((item) => item.versionId))) {
+      if (!retainedVersionIds.has(versionId)) transaction.objectStore(this.versionStoreName).delete(versionId);
+    }
+    await transactionToPromise(transaction);
+    database.close();
   }
 
   async replaceSceneAssets(projectId: string, sceneId: string, panorama: File, assets: SceneAssetWrite[]): Promise<void> {
@@ -187,8 +404,20 @@ export class BrowserProjectAssets {
         database.transaction(this.assetStoreName, "readonly").objectStore(this.assetStoreName).getAll()
       )
     ).filter((asset) => asset.projectId === projectId);
+    const snapshotAssets = (
+      await requestToPromise<SnapshotAssetManifest[]>(
+        database.transaction(this.snapshotStoreName, "readonly").objectStore(this.snapshotStoreName).getAll()
+      )
+    ).filter((asset) => asset.projectId === projectId);
+    const allSnapshotAssets = await requestToPromise<SnapshotAssetManifest[]>(
+      database.transaction(this.snapshotStoreName, "readonly").objectStore(this.snapshotStoreName).getAll()
+    );
+    const retainedVersionIds = new Set(allSnapshotAssets.filter((asset) => asset.projectId !== projectId).map((asset) => asset.versionId));
 
-    const transaction = database.transaction([this.sceneStoreName, this.assetStoreName], "readwrite");
+    const transaction = database.transaction(
+      [this.sceneStoreName, this.assetStoreName, this.snapshotStoreName, this.versionStoreName],
+      "readwrite"
+    );
     const sceneStore = transaction.objectStore(this.sceneStoreName);
     const assetStore = transaction.objectStore(this.assetStoreName);
 
@@ -198,6 +427,11 @@ export class BrowserProjectAssets {
 
     for (const asset of projectAssets) {
       assetStore.delete([asset.projectId, asset.path]);
+    }
+
+    for (const asset of snapshotAssets) {
+      transaction.objectStore(this.snapshotStoreName).delete([asset.projectId, asset.snapshotId, asset.path]);
+      if (!retainedVersionIds.has(asset.versionId)) transaction.objectStore(this.versionStoreName).delete(asset.versionId);
     }
 
     await transactionToPromise(transaction);
@@ -235,12 +469,28 @@ export class BrowserProjectAssets {
         if (!database.objectStoreNames.contains(this.assetStoreName)) {
           database.createObjectStore(this.assetStoreName, { keyPath: ["projectId", "path"] });
         }
+        if (!database.objectStoreNames.contains(this.snapshotStoreName)) {
+          database.createObjectStore(this.snapshotStoreName, { keyPath: ["projectId", "snapshotId", "path"] });
+        }
+        if (!database.objectStoreNames.contains(this.versionStoreName)) {
+          database.createObjectStore(this.versionStoreName, { keyPath: "versionId" });
+        }
       });
 
       request.addEventListener("success", () => resolve(request.result));
       request.addEventListener("error", () => reject(request.error ?? new Error("No se pudo abrir IndexedDB.")));
     });
   }
+}
+
+function createAssetVersionId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `asset-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function sceneSnapshotPath(sceneId: string): string {
+  return `@scene/${sceneId}`;
 }
 
 function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
