@@ -139,7 +139,7 @@ async function runChecks() {
     await page.getByLabel("Progreso para crear el tour").getByText("4 de 4", { exact: true }).first().waitFor({ state: "visible" });
     await page.locator(".action-menu > summary").click();
     await page.getByRole("button", { name: "Guardar snapshot" }).click();
-    await page.getByText("Punto de recuperacion guardado.", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("- Punto de recuperacion guardado.", { exact: true }).waitFor({ state: "visible" });
     await page.evaluate(() => {
       const projectId = localStorage.getItem("360tours-project:last");
       if (!projectId) throw new Error("No last project to corrupt for recovery check.");
@@ -167,7 +167,7 @@ async function runChecks() {
       window.__failLocalWrites = false;
     });
     await page.locator("[data-field='project-title']").fill("Nuevo tour 360");
-    await page.getByText("Guardado local.", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("- Guardado local.", { exact: true }).waitFor({ state: "visible" });
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     const downloadPromise = page.waitForEvent("download");
@@ -189,7 +189,7 @@ async function runChecks() {
       exportedScene.metadata.panoramaAssets.tiles.pathTemplate.replace("{col}", "0").replace("{row}", "0")
     ]);
     await verifyExportedViewer(context, archive);
-    await page.locator(".persistence-status").getByText("ZIP descargado.", { exact: true }).waitFor({ state: "visible" });
+    await page.locator(".persistence-status").getByText("- ZIP descargado.", { exact: true }).waitFor({ state: "visible" });
     await page.locator(".action-menu > summary").click();
     const backupDownloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Descargar respaldo" }).click();

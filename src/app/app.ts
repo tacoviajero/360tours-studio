@@ -99,9 +99,11 @@ export class Tours360StudioApp {
         <header class="topbar">
           <h1 class="app-brand">360Tours Studio</h1>
           <div class="workspace-context">
-            <strong data-workspace-project>${escapeHtml(this.project.title)}</strong>
+            <div class="workspace-title-line">
+              <strong data-workspace-project>${escapeHtml(this.project.title)}</strong>
+              <small class="persistence-status" data-persistence-status role="status" aria-live="polite"></small>
+            </div>
             <span data-workspace-scene>Sin escenas</span>
-            <small class="persistence-status" data-persistence-status role="status" aria-live="polite"></small>
           </div>
           <div class="topbar-navigation" role="group" aria-label="Paneles del editor">
             <span class="toolbar-tip" data-tooltip="Mostrar u ocultar escenas">
@@ -1209,7 +1211,7 @@ export class Tours360StudioApp {
     if (!status) {
       return;
     }
-    status.textContent = message;
+    status.textContent = message ? `- ${message}` : "";
     status.classList.toggle("is-error", isError);
   }
 
