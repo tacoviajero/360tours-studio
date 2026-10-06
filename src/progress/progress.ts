@@ -14,13 +14,14 @@ interface PlanPoint {
 
   const lastUpdated = "5 octubre 2026";
   const recentChanges = [
+    "La cabecera del editor ahora separa contexto, paneles y salida; Proyecto, historial y tareas secundarias viven en un solo menu Acciones.",
     "Vista final ahora elige automaticamente entre panoramas simples y mosaicos; tambien abre proyectos antiguos sin mostrar el error de adaptador.",
     "El editor movil inicia con el panorama al frente y abre Escenas o Herramientas como paneles laterales con cierre y Escape.",
     "La barra superior es mas compacta: nombre y direccion web pasaron a Proyecto, y Recorrido, Validacion y Exportacion inician plegados.",
     "Hotspots, slug y mosaicos WebGL ahora se presentan como Puntos interactivos, Direccion web e Imagenes optimizadas.",
     "La prueba E2E cubre Vista final con y sin mosaicos, cambios de escritorio a movil y retroalimentacion visible al descargar el ZIP.",
     "El editor ya permite orientar el panorama con flechas, ajustar zoom con mas/menos y restablecer la vista con Inicio.",
-    "La auditoria E2E recorre por teclado carga de demo, escenas, panorama, Mas acciones y Vista final; tambien rechaza controles sin nombre accesible.",
+    "La auditoria E2E recorre por teclado carga de demo, escenas, panorama, Acciones y Vista final; tambien rechaza controles sin nombre accesible.",
     "Los selectores de archivo ocultos salieron del orden de tabulacion y sus etiquetas visibles se activan con Enter o Espacio.",
     "La demo tecnica ahora genera y almacena tres panoramas locales; Vista final ya no depende de marzipano.net ni de permisos CORS.",
     "La Vista final WebGL ahora atrapa el foco dentro del dialogo, lo devuelve al cerrar y conserva navegacion por flechas y Escape.",
@@ -98,7 +99,7 @@ const points: PlanPoint[] = [
   { id: 39, title: "Recuperacion ante fallos", phase: "Robustez", percent: 96, status: "done", evidence: "Recupera snapshots y originales; un diario detecta importaciones interrumpidas al recargar, limpia assets parciales y pide reanudar el lote.", next: "Verificar cierre forzado en otros navegadores." },
   { id: 40, title: "Rendimiento", phase: "Robustez", percent: 100, status: "done", evidence: "Un Web Worker decodifica cada 8K una sola vez; el editor limita cache a 4 previews y el viewer carga mosaicos bajo demanda. Pasan 3 fotos 8K y 50 escenas.", next: "Medir tiempos con un lote real de 30 a 50 originales." },
   { id: 41, title: "Accesibilidad del editor", phase: "Producto", percent: 95, status: "done", evidence: "La prueba recorre por teclado demo, escenas, panorama, menus y Vista final; valida nombres, foco, Escape y retorno de foco. En movil los controles principales y paneles alcanzan 44px.", next: "Hacer una revision posterior con lector de pantalla real." },
-  { id: 42, title: "UX general", phase: "Producto", percent: 100, status: "done", evidence: "Visor prioritario, paneles moviles por tarea, barra compacta, lenguaje claro, flujo guiado, seleccion visible, deshacer/rehacer y errores recuperables.", next: "Recoger observaciones durante la creacion de un tour grande real." },
+  { id: 42, title: "UX general", phase: "Producto", percent: 100, status: "done", evidence: "Visor prioritario, paneles moviles por tarea y cabecera jerarquizada: contexto, paneles, vista final y exportacion; lo secundario queda en Acciones.", next: "Recoger observaciones durante la creacion de un tour grande real." },
   { id: 43, title: "MVP robusto", phase: "Robustez", percent: 98, status: "progress", evidence: "La bateria valida flujo guiado, respaldos, recuperacion de originales, integridad SHA-256, 3 JPG reales 8K, 50 escenas y export WebGL.", next: "Completar una prueba manual de aceptacion del nuevo ZIP." },
   { id: 44, title: "Fuera de alcance respetado", phase: "Base", percent: 100, status: "done", evidence: "No se agrego SaaS, usuarios, CRM, pagos ni infraestructura cloud.", next: "Seguir evitando expansion innecesaria." },
   { id: 45, title: "Extensiones futuras", phase: "Base", percent: 35, status: "progress", evidence: "Modelo deja espacio para media, branding y metadatos.", next: "Documentar extension points concretos." },

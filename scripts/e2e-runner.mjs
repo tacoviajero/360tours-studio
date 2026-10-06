@@ -69,13 +69,13 @@ async function runChecks() {
     await page.waitForTimeout(180);
     const canvasAfterKeyboard = await page.locator(".tour-canvas").evaluate((canvas) => canvas.toDataURL());
     if (canvasBeforeKeyboard === canvasAfterKeyboard) throw new Error("Las flechas no cambiaron la vista panoramica del editor.");
-    await focusByKeyboard(page, ".action-menu > summary", "Mas acciones");
+    await focusByKeyboard(page, ".action-menu > summary", "Acciones");
     await page.keyboard.press("Enter");
-    if (!(await page.locator(".action-menu").evaluate((menu) => menu.open))) throw new Error("Enter no abrio Mas acciones.");
+    if (!(await page.locator(".action-menu").evaluate((menu) => menu.open))) throw new Error("Enter no abrio Acciones.");
     await page.keyboard.press("Escape");
-    if (await page.locator(".action-menu").evaluate((menu) => menu.open)) throw new Error("Escape no cerro Mas acciones.");
+    if (await page.locator(".action-menu").evaluate((menu) => menu.open)) throw new Error("Escape no cerro Acciones.");
     if (!(await page.evaluate(() => document.activeElement?.matches(".action-menu > summary")))) {
-      throw new Error("Mas acciones no recupero el foco al cerrarse con Escape.");
+      throw new Error("Acciones no recupero el foco al cerrarse con Escape.");
     }
     await focusByKeyboard(page, "[data-action='final-preview']", "Vista final", "Shift+Tab");
     await page.keyboard.press("Enter");
@@ -152,7 +152,7 @@ async function runChecks() {
     await page.getByLabel("Progreso para crear el tour").getByText("4 de 4", { exact: true }).first().waitFor({ state: "visible" });
     await page.locator(".action-menu > summary").click();
     await page.getByRole("button", { name: "Guardar snapshot" }).click();
-    await page.getByRole("button", { name: "Snapshot guardado" }).waitFor({ state: "visible" });
+    await page.getByText("Punto de recuperacion guardado.", { exact: true }).waitFor({ state: "visible" });
     await page.evaluate(() => {
       const projectId = localStorage.getItem("360tours-project:last");
       if (!projectId) throw new Error("No last project to corrupt for recovery check.");
@@ -172,6 +172,7 @@ async function runChecks() {
         return originalSetItem.call(this, key, value);
       };
     });
+    await page.locator(".action-menu > summary").click();
     await page.locator(".project-settings > summary").click();
     await page.locator("[data-field='project-title']").fill("Cambio sin guardar");
     await page.getByText(/No hay espacio local suficiente/).waitFor({ state: "visible" });
@@ -180,6 +181,7 @@ async function runChecks() {
     });
     await page.locator("[data-field='project-title']").fill("Nuevo tour 360");
     await page.getByText("Guardado local.", { exact: true }).waitFor({ state: "visible" });
+    await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar tour" }).click();
@@ -254,6 +256,7 @@ async function runChecks() {
       },
       hotspotBefore
     );
+    await page.locator(".action-menu > summary").click();
     await page.getByRole("button", { name: "Deshacer" }).click();
     await page.waitForFunction(
       ({ sceneId, yaw, pitch }) => {

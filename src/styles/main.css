@@ -174,35 +174,34 @@ label span {
   grid-template-rows: auto 1fr;
   min-width: 0;
   min-height: 0;
+  container-type: inline-size;
 }
 
 .topbar {
   position: relative;
   z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(140px, auto) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 68px;
-  max-height: 116px;
-  padding: 12px 18px;
+  gap: 14px;
+  min-height: 64px;
+  padding: 9px 14px;
   border-bottom: 1px solid rgba(245, 240, 232, 0.08);
-  background: rgba(16, 16, 20, 0.86);
+  background: #111116;
   overflow: visible;
 }
 
 .workspace-context {
   display: grid;
-  gap: 3px;
-  min-width: 150px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .workspace-context strong {
-  max-width: 32ch;
+  max-width: 28ch;
   overflow: hidden;
   color: #f5f0e8;
-  font-size: 0.98rem;
+  font-size: 0.92rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -212,15 +211,24 @@ label span {
   font-size: 0.76rem;
 }
 
+.topbar-navigation,
 .topbar-actions {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 
-.action-menu,
-.project-settings {
+.topbar-navigation {
+  padding-right: 14px;
+  border-right: 1px solid rgba(245, 240, 232, 0.1);
+}
+
+.topbar-actions {
+  justify-content: flex-end;
+}
+
+.action-menu {
   position: relative;
 }
 
@@ -239,46 +247,81 @@ label span {
   display: none;
 }
 
-.action-menu > summary,
-.project-settings > summary {
+.action-menu > summary {
   display: grid;
   place-items: center;
-  min-height: 38px;
-  padding: 0 14px;
+  min-height: 36px;
+  padding: 0 12px;
   border: 1px solid rgba(245, 240, 232, 0.16);
   border-radius: 8px;
   background: #24232a;
 }
 
-.action-menu[open] > summary,
-.project-settings[open] > summary {
+.action-menu[open] > summary {
   border-color: #f08a4b;
+  background: #2b282a;
 }
 
-.action-menu > div,
-.project-settings > div {
+.action-menu > .action-menu-panel {
   position: absolute;
   z-index: 20;
   right: 0;
   top: calc(100% + 8px);
   display: grid;
-  width: 210px;
+  width: 244px;
   gap: 6px;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid rgba(245, 240, 232, 0.16);
   border-radius: 8px;
   background: #1d1c22;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
 }
 
-.action-menu > div button,
-.action-menu > div .button-link,
-.project-settings > div label {
+.action-menu-panel > button,
+.action-menu-panel > .button-link,
+.project-settings label {
   width: 100%;
 }
 
+.project-settings {
+  position: static;
+  padding-bottom: 2px;
+}
+
+.project-settings > summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: #f5f0e8;
+  font-weight: 700;
+}
+
+.project-settings > summary::after {
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  content: "";
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 160ms ease-out;
+}
+
+.project-settings[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.project-settings > summary:hover {
+  background: rgba(245, 240, 232, 0.06);
+}
+
 .project-settings > div {
-  width: min(360px, calc(100vw - 32px));
+  display: grid;
+  gap: 8px;
+  padding: 8px 4px 10px;
 }
 
 .project-settings .title-field,
@@ -286,11 +329,25 @@ label span {
   min-width: 0;
 }
 
+.action-menu-history {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.action-menu-divider {
+  height: 1px;
+  margin: 2px 0;
+  background: rgba(245, 240, 232, 0.1);
+}
+
+.topbar-navigation button,
 .topbar-actions button,
 .topbar-actions .button-link,
 .primary-action {
-  min-height: 38px;
-  padding: 0 14px;
+  min-height: 36px;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 .mobile-panel-header {
@@ -298,11 +355,15 @@ label span {
 }
 
 .persistence-status {
-  flex: 0 0 100%;
-  min-height: 1rem;
+  display: block;
+  max-width: 34ch;
+  min-height: 0.9rem;
+  overflow: hidden;
   color: #9cc5a6;
-  font-size: 0.76rem;
-  text-align: right;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .persistence-status.is-error {
@@ -1563,6 +1624,72 @@ h2 {
   line-height: 1.35;
 }
 
+@container (max-width: 920px) {
+  .topbar {
+    grid-template-columns: minmax(140px, 1fr) auto;
+    row-gap: 6px;
+  }
+
+  .workspace-context {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .topbar-navigation {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  .topbar-actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+@container (max-width: 560px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+    padding: 9px 10px 10px;
+  }
+
+  .workspace-context,
+  .topbar-navigation,
+  .topbar-actions {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  .workspace-context {
+    grid-row: 1;
+  }
+
+  .topbar-navigation {
+    grid-row: 2;
+  }
+
+  .topbar-actions {
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .topbar-actions button,
+  .topbar-actions > details > summary {
+    padding: 0 6px;
+    font-size: 0.78rem;
+    white-space: normal;
+  }
+
+  .action-menu > .action-menu-panel {
+    right: 0;
+    width: min(300px, calc(100vw - 20px));
+  }
+}
+
 @media (max-width: 980px) {
   .studio-shell {
     display: block;
@@ -1632,61 +1759,22 @@ h2 {
     height: 100dvh;
   }
 
-  .topbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-    max-height: 246px;
-    padding: 10px 12px;
-  }
-
-  .topbar-actions,
   .title-field,
   .slug-field {
     width: 100%;
     min-width: 0;
   }
 
-  .topbar-actions {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
-  }
-
+  .topbar-navigation button,
   .topbar-actions button,
-  .topbar-actions summary {
+  .topbar-actions > details > summary {
     min-height: 44px;
-    padding: 0 8px;
-  }
-
-  .topbar-actions [data-action="undo"],
-  .topbar-actions [data-action="redo"] {
-    display: none;
-  }
-
-  .action-menu > div,
-  .project-settings > div {
-    left: 0;
-    right: auto;
-  }
-
-  .persistence-status {
-    text-align: left;
   }
 }
 
 @media (max-width: 520px) {
   .workspace-context strong {
     max-width: 100%;
-  }
-
-  .topbar-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .action-menu > div,
-  .project-settings > div {
-    width: min(300px, calc(100vw - 24px));
   }
 
   .final-preview > header {

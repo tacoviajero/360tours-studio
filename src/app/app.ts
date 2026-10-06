@@ -127,31 +127,37 @@ export class Tours360StudioApp {
             <div class="workspace-context">
               <strong data-workspace-project>${escapeHtml(this.project.title)}</strong>
               <span data-workspace-scene>Sin escenas</span>
+              <small class="persistence-status" data-persistence-status role="status" aria-live="polite"></small>
             </div>
-          <div class="topbar-actions">
+          <div class="topbar-navigation" role="group" aria-label="Paneles del editor">
             <button data-action="toggle-left-panel">Escenas</button>
             <button data-action="toggle-right-panel">Herramientas</button>
-            <button data-action="undo" disabled>Deshacer</button>
-            <button data-action="redo" disabled>Rehacer</button>
+          </div>
+          <div class="topbar-actions" role="group" aria-label="Acciones del tour">
             <button data-action="quick-tour">Preparar rapido</button>
             <button data-action="final-preview">Vista final</button>
             <button class="primary-action" data-action="export">Exportar tour</button>
-            <details class="project-settings">
-              <summary>Proyecto</summary>
-              <div>
-                <label class="title-field">
-                  <span>Nombre del proyecto</span>
-                  <input value="${escapeHtml(this.project.title)}" data-field="project-title" />
-                </label>
-                <label class="slug-field">
-                  <span>Direccion web</span>
-                  <input value="${escapeHtml(this.project.publish?.slug ?? this.project.id)}" data-field="publish-slug" />
-                </label>
-              </div>
-            </details>
             <details class="action-menu">
-              <summary>Mas acciones</summary>
-              <div>
+              <summary aria-haspopup="menu">Acciones</summary>
+              <div class="action-menu-panel">
+                <details class="project-settings">
+                  <summary>Proyecto</summary>
+                  <div>
+                    <label class="title-field">
+                      <span>Nombre del proyecto</span>
+                      <input value="${escapeHtml(this.project.title)}" data-field="project-title" />
+                    </label>
+                    <label class="slug-field">
+                      <span>Direccion web</span>
+                      <input value="${escapeHtml(this.project.publish?.slug ?? this.project.id)}" data-field="publish-slug" />
+                    </label>
+                  </div>
+                </details>
+                <div class="action-menu-history" role="group" aria-label="Historial de cambios">
+                  <button data-action="undo" disabled>Deshacer</button>
+                  <button data-action="redo" disabled>Rehacer</button>
+                </div>
+                <div class="action-menu-divider" aria-hidden="true"></div>
                 <a class="button-link" href="/progress.html">Ver avance</a>
                 <button data-action="snapshot">Guardar snapshot</button>
                 <button data-action="download-backup">Descargar respaldo</button>
@@ -161,7 +167,6 @@ export class Tours360StudioApp {
               </div>
             </details>
           </div>
-          <div class="persistence-status" data-persistence-status role="status" aria-live="polite"></div>
           </header>
           <div class="viewer-surface" data-viewer>
             <div class="empty-viewer">
@@ -328,6 +333,10 @@ export class Tours360StudioApp {
       const target = (event.target as HTMLElement).closest<HTMLElement>("[data-action], [data-scene-id], [data-project-id]");
       if (!target) {
         return;
+      }
+      const parentActionMenu = target.closest<HTMLDetailsElement>(".action-menu");
+      if (parentActionMenu && target.dataset.action) {
+        parentActionMenu.open = false;
       }
 
       const action = target.dataset.action;
@@ -726,18 +735,18 @@ export class Tours360StudioApp {
         return;
       }
       if (event.key === "Escape") {
-        const actionMenu = root.querySelector<HTMLDetailsElement>(".action-menu[open]");
-        if (actionMenu) {
-          event.preventDefault();
-          actionMenu.open = false;
-          actionMenu.querySelector<HTMLElement>("summary")?.focus();
-          return;
-        }
         const projectSettings = root.querySelector<HTMLDetailsElement>(".project-settings[open]");
         if (projectSettings) {
           event.preventDefault();
           projectSettings.open = false;
           projectSettings.querySelector<HTMLElement>("summary")?.focus();
+          return;
+        }
+        const actionMenu = root.querySelector<HTMLDetailsElement>(".action-menu[open]");
+        if (actionMenu) {
+          event.preventDefault();
+          actionMenu.open = false;
+          actionMenu.querySelector<HTMLElement>("summary")?.focus();
           return;
         }
         if (window.matchMedia("(max-width: 980px)").matches && (!this.leftPanelCollapsed || !this.rightPanelCollapsed)) {
