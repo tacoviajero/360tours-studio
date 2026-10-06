@@ -70,7 +70,8 @@ async function runRealWorkflow() {
     await page.getByText("3 panoramas cargados.").waitFor({ state: "visible" });
     await page.locator(".properties-panel .property-section > summary").filter({ hasText: /^Recorrido/ }).click();
     await page.getByLabel("Propiedades").getByText("Recorrido lineal completo", { exact: true }).waitFor({ state: "visible" });
-    await page.getByRole("button", { name: "Preparar rapido" }).click();
+    await page.locator(".action-menu > summary").click();
+    await page.locator(".action-menu").getByRole("button", { name: "Preparar recorrido" }).click();
     await page.getByText("Tour rapido preparado: inicio y recorrido lineal listos.").waitFor({ state: "visible" });
     await page.getByLabel("Propiedades").getByRole("heading", { name: "Recorrido" }).waitFor({ state: "visible" });
     await page.getByLabel("Propiedades").getByText("Linea completa").first().waitFor({ state: "visible" });

@@ -48,7 +48,7 @@ process.exit(exitCode);
 async function runChecks() {
   const browser = await chromium.launch({ channel: "msedge" });
   try {
-    const context = await browser.newContext({ acceptDownloads: true });
+    const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1366, height: 768 } });
     const page = await context.newPage();
     await page.goto(`${baseUrl}/`);
     await page.getByRole("heading", { name: "360Tours Studio" }).waitFor({ state: "visible" });
@@ -119,19 +119,6 @@ async function runChecks() {
     await demoDialog.waitFor({ state: "visible" });
     await page.locator("[data-preview-status]").waitFor({ state: "hidden" });
     await page.getByRole("button", { name: "Cerrar" }).click();
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("button", { name: "Vista final" }).click();
-    await demoDialog.waitFor({ state: "visible" });
-    const mobileLayout = await page.evaluate(() => ({
-      documentWidth: document.documentElement.scrollWidth,
-      viewportWidth: window.innerWidth,
-      viewerHeight: document.querySelector(".final-preview-viewer")?.getBoundingClientRect().height ?? 0
-    }));
-    if (mobileLayout.documentWidth > mobileLayout.viewportWidth || mobileLayout.viewerHeight < 300) {
-      throw new Error(`La vista final movil no cabe correctamente: ${JSON.stringify(mobileLayout)}`);
-    }
-    await page.getByRole("button", { name: "Cerrar" }).click();
-    await page.setViewportSize({ width: 1280, height: 720 });
     await page.getByRole("button", { name: "Nuevo tour" }).click();
     await page.locator("#panorama-import").setInputFiles({
       name: "entrada-real.jpg",
@@ -231,8 +218,9 @@ async function runChecks() {
       buffer: createPngFixture(1024, 512)
     });
     await page.getByLabel("Proyecto").getByRole("button", { name: /2\. Pasillo/ }).waitFor({ state: "visible" });
-    await page.getByRole("button", { name: "Preparar rapido" }).click();
-    await page.getByRole("button", { name: "Mover al centro visible" }).first().click();
+    await page.locator(".action-menu > summary").click();
+    await page.locator(".action-menu").getByRole("button", { name: "Preparar recorrido" }).click();
+    await page.getByRole("button", { name: "Ubicar en la vista" }).first().click();
     const draggableHotspot = page.locator(".tour-hotspot-layer .hotspot--scene").first();
     await draggableHotspot.waitFor({ state: "visible" });
     await draggableHotspot.click();

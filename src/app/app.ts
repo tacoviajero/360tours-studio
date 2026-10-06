@@ -16,6 +16,23 @@ import { detectBrowserCompatibility } from "./browserCompatibility";
 import { formatBytes, planImportCapacity } from "../importers/importPlanning";
 import { processPanorama } from "../importers/panoramaProcessing";
 import type { FinalTourPreview } from "../preview/finalTourPreview";
+import {
+  ArrowDown,
+  ArrowUp,
+  Crosshair,
+  Ellipsis,
+  House,
+  Image as ImageIcon,
+  Info,
+  Link as LinkIcon,
+  LocateFixed,
+  Plus,
+  Route,
+  Trash,
+  Video,
+  createElement,
+  type IconNode
+} from "lucide";
 
 interface ActiveImportSession {
   projectId: string;
@@ -134,7 +151,6 @@ export class Tours360StudioApp {
             <button data-action="toggle-right-panel">Herramientas</button>
           </div>
           <div class="topbar-actions" role="group" aria-label="Acciones del tour">
-            <button data-action="quick-tour">Preparar rapido</button>
             <button data-action="final-preview">Vista final</button>
             <button class="primary-action" data-action="export">Exportar tour</button>
             <details class="action-menu">
@@ -158,6 +174,7 @@ export class Tours360StudioApp {
                   <button data-action="redo" disabled>Rehacer</button>
                 </div>
                 <div class="action-menu-divider" aria-hidden="true"></div>
+                <button data-action="quick-tour">Preparar recorrido</button>
                 <a class="button-link" href="/progress.html">Ver avance</a>
                 <button data-action="snapshot">Guardar snapshot</button>
                 <button data-action="download-backup">Descargar respaldo</button>
@@ -337,6 +354,10 @@ export class Tours360StudioApp {
       const parentActionMenu = target.closest<HTMLDetailsElement>(".action-menu");
       if (parentActionMenu && target.dataset.action) {
         parentActionMenu.open = false;
+      }
+      const parentHotspotMenu = target.closest<HTMLDetailsElement>(".add-hotspot-menu");
+      if (parentHotspotMenu && target.dataset.action?.startsWith("add-")) {
+        parentHotspotMenu.open = false;
       }
 
       const action = target.dataset.action;
@@ -735,6 +756,15 @@ export class Tours360StudioApp {
         return;
       }
       if (event.key === "Escape") {
+        const contextualMenu = root.querySelector<HTMLDetailsElement>(
+          ".scene-overflow-menu[open], .add-hotspot-menu[open], .hotspot-overflow-menu[open]"
+        );
+        if (contextualMenu) {
+          event.preventDefault();
+          contextualMenu.open = false;
+          contextualMenu.querySelector<HTMLElement>("summary")?.focus();
+          return;
+        }
         const projectSettings = root.querySelector<HTMLDetailsElement>(".project-settings[open]");
         if (projectSettings) {
           event.preventDefault();
@@ -1456,36 +1486,58 @@ export class Tours360StudioApp {
       .filter((item) => item.id !== scene.id)
       .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`)
       .join("");
+    const isStartScene = this.project.startScene === scene.id;
 
     panel.innerHTML = `
-      <div class="field-stack">
-        <label>
-          <span>Nombre</span>
-          <input value="${escapeHtml(scene.name)}" data-field="scene-name" />
-        </label>
-        <div class="button-row">
-          <button data-action="move-scene-up" ${sceneIndex <= 0 ? "disabled" : ""}>Subir</button>
-          <button data-action="move-scene-down" ${sceneIndex >= this.project.scenes.length - 1 ? "disabled" : ""}>Bajar</button>
+      <div class="scene-editor-card">
+        <div class="scene-name-row">
+          <label class="scene-name-field">
+            <span class="visually-hidden">Nombre de la escena</span>
+            <input value="${escapeHtml(scene.name)}" data-field="scene-name" aria-label="Nombre de la escena" />
+          </label>
+          <div class="scene-order-actions" role="group" aria-label="Orden de la escena">
+            <button class="icon-button" data-action="move-scene-up" aria-label="Subir escena" title="Subir escena" ${sceneIndex <= 0 ? "disabled" : ""}>${renderIcon(ArrowUp)}</button>
+            <button class="icon-button" data-action="move-scene-down" aria-label="Bajar escena" title="Bajar escena" ${sceneIndex >= this.project.scenes.length - 1 ? "disabled" : ""}>${renderIcon(ArrowDown)}</button>
+          </div>
+          <details class="scene-overflow-menu">
+            <summary aria-label="Acciones de la escena" title="Acciones de la escena">${renderIcon(Ellipsis)}</summary>
+            <div>
+              <button class="danger-action" data-action="delete-scene">${renderIcon(Trash)}<span>Eliminar escena</span></button>
+            </div>
+          </details>
         </div>
-        <button data-action="set-start">Usar como escena inicial</button>
-        <button data-action="save-view">Confirmar vista inicial</button>
-        <button class="danger-action" data-action="delete-scene">Eliminar escena</button>
+        <div class="scene-quick-actions">
+          ${
+            isStartScene
+              ? `<span class="scene-start-status">${renderIcon(House)} Escena inicial</span>`
+              : `<button class="text-action" data-action="set-start">${renderIcon(House)}<span>Marcar como inicial</span></button>`
+          }
+          <button class="text-action" data-action="save-view">${renderIcon(Crosshair)}<span>Guardar orientacion</span></button>
+        </div>
       </div>
 
-      <div class="tool-group">
-        <h3>Puntos interactivos</h3>
-        <p class="metric">${scene.hotspots.length} punto${scene.hotspots.length === 1 ? "" : "s"}</p>
-        <select data-field="hotspot-target" aria-label="Escena destino" ${targetOptions ? "" : "disabled"}>
-          ${targetOptions || "<option>No hay destino disponible</option>"}
-        </select>
-        <div class="button-row">
-          <button data-action="add-scene-link" ${targetOptions ? "" : "disabled"}>Conectar escena</button>
-          <button data-action="add-info">Agregar info</button>
-        </div>
-        <div class="button-row">
-          <button data-action="add-image">Imagen</button>
-          <button data-action="add-video">Video</button>
-          <button data-action="add-link">Link</button>
+      <div class="tool-group hotspot-tool-group">
+        <div class="tool-group-heading">
+          <div>
+            <h3>Puntos interactivos</h3>
+            <span>${scene.hotspots.length} punto${scene.hotspots.length === 1 ? "" : "s"}</span>
+          </div>
+          <details class="add-hotspot-menu">
+            <summary>${renderIcon(Plus)}<span>Anadir</span></summary>
+            <div>
+              <label class="hotspot-target-field">
+                <span>Destino de la conexion</span>
+                <select data-field="hotspot-target" aria-label="Escena destino" ${targetOptions ? "" : "disabled"}>
+                  ${targetOptions || "<option>No hay destino disponible</option>"}
+                </select>
+              </label>
+              <button data-action="add-scene-link" ${targetOptions ? "" : "disabled"}>${renderIcon(Route)}<span>Conexion</span></button>
+              <button data-action="add-info">${renderIcon(Info)}<span>Informacion</span></button>
+              <button data-action="add-image">${renderIcon(ImageIcon)}<span>Imagen</span></button>
+              <button data-action="add-video">${renderIcon(Video)}<span>Video</span></button>
+              <button data-action="add-link">${renderIcon(LinkIcon)}<span>Enlace</span></button>
+            </div>
+          </details>
         </div>
         <p class="placement-hint" data-placement-hint></p>
         <div class="hotspot-editor-list">
@@ -1498,7 +1550,17 @@ export class Tours360StudioApp {
   private renderHotspotEditor(hotspot: Hotspot, index: number, sceneId: string): string {
     const id = escapeHtml(hotspot.id);
     const selected = hotspot.id === this.selectedHotspotId;
-    const typeLabel = hotspot.type === "scene" ? "Conexion" : hotspot.type === "info" ? "Informacion" : "Media";
+    const expanded = selected || (!this.selectedHotspotId && index === 0);
+    const typeLabel = getHotspotTypeLabel(hotspot);
+    const title = hotspot.label?.trim() || typeLabel;
+    const menu = `
+      <details class="hotspot-overflow-menu">
+        <summary aria-label="Acciones de ${escapeHtml(title)}" title="Acciones del punto">${renderIcon(Ellipsis)}</summary>
+        <div>
+          <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">${renderIcon(Trash)}<span>Eliminar punto</span></button>
+        </div>
+      </details>
+    `;
     const labelField = `
       <label>
         <span>Etiqueta</span>
@@ -1516,67 +1578,82 @@ export class Tours360StudioApp {
         .join("");
 
       return `
-        <article class="hotspot-editor${selected ? " is-selected" : ""}">
+        <article class="hotspot-editor${selected ? " is-selected" : ""}${expanded ? " is-expanded" : ""}">
           <header>
-            <strong>${index + 1}. ${typeLabel}</strong>
-            <div class="mini-actions">
-              <button data-action="select-hotspot" data-hotspot-id="${id}" aria-pressed="${selected}">${selected ? "Seleccionado" : "Seleccionar"}</button>
-              <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
-            </div>
+            <button class="hotspot-editor-summary" data-action="select-hotspot" data-hotspot-id="${id}" aria-expanded="${expanded}">
+              <span><strong>${index + 1}. ${escapeHtml(title)}</strong><small>${typeLabel}</small></span>
+            </button>
+            ${menu}
           </header>
-          ${labelField}
-          <label>
-            <span>Destino</span>
-            <select data-hotspot-id="${id}" data-hotspot-field="targetScene">${options}</select>
-          </label>
-          <button data-action="move-hotspot-here" data-hotspot-id="${id}">Mover al centro visible</button>
+          ${
+            expanded
+              ? `<div class="hotspot-editor-fields">
+                  ${labelField}
+                  <label>
+                    <span>Destino</span>
+                    <select data-hotspot-id="${id}" data-hotspot-field="targetScene">${options}</select>
+                  </label>
+                  <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Ubicar en la vista</span></button>
+                </div>`
+              : ""
+          }
         </article>
       `;
     }
 
     if (hotspot.type === "info") {
       return `
-        <article class="hotspot-editor${selected ? " is-selected" : ""}">
+        <article class="hotspot-editor${selected ? " is-selected" : ""}${expanded ? " is-expanded" : ""}">
           <header>
-            <strong>${index + 1}. ${typeLabel}</strong>
-            <div class="mini-actions">
-              <button data-action="select-hotspot" data-hotspot-id="${id}" aria-pressed="${selected}">${selected ? "Seleccionado" : "Seleccionar"}</button>
-              <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
-            </div>
+            <button class="hotspot-editor-summary" data-action="select-hotspot" data-hotspot-id="${id}" aria-expanded="${expanded}">
+              <span><strong>${index + 1}. ${escapeHtml(title)}</strong><small>${typeLabel}</small></span>
+            </button>
+            ${menu}
           </header>
-          ${labelField}
-          <label>
-            <span>Titulo</span>
-            <input value="${escapeHtml(hotspot.title)}" data-hotspot-id="${id}" data-hotspot-field="title" />
-          </label>
-          <label>
-            <span>Texto</span>
-            <textarea data-hotspot-id="${id}" data-hotspot-field="text">${escapeHtml(hotspot.text)}</textarea>
-          </label>
-          <button data-action="move-hotspot-here" data-hotspot-id="${id}">Mover al centro visible</button>
+          ${
+            expanded
+              ? `<div class="hotspot-editor-fields">
+                  ${labelField}
+                  <label>
+                    <span>Titulo</span>
+                    <input value="${escapeHtml(hotspot.title)}" data-hotspot-id="${id}" data-hotspot-field="title" />
+                  </label>
+                  <label>
+                    <span>Texto</span>
+                    <textarea data-hotspot-id="${id}" data-hotspot-field="text">${escapeHtml(hotspot.text)}</textarea>
+                  </label>
+                  <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Ubicar en la vista</span></button>
+                </div>`
+              : ""
+          }
         </article>
       `;
     }
 
     return `
-      <article class="hotspot-editor${selected ? " is-selected" : ""}">
+      <article class="hotspot-editor${selected ? " is-selected" : ""}${expanded ? " is-expanded" : ""}">
         <header>
-          <strong>${index + 1}. ${typeLabel}</strong>
-          <div class="mini-actions">
-            <button data-action="select-hotspot" data-hotspot-id="${id}" aria-pressed="${selected}">${selected ? "Seleccionado" : "Seleccionar"}</button>
-            <button class="danger-action" data-action="delete-hotspot" data-hotspot-id="${id}">Eliminar</button>
-          </div>
+          <button class="hotspot-editor-summary" data-action="select-hotspot" data-hotspot-id="${id}" aria-expanded="${expanded}">
+            <span><strong>${index + 1}. ${escapeHtml(title)}</strong><small>${typeLabel}</small></span>
+          </button>
+          ${menu}
         </header>
-        ${labelField}
-        <label>
-          <span>Titulo</span>
-          <input value="${escapeHtml(hotspot.title ?? "")}" data-hotspot-id="${id}" data-hotspot-field="title" />
-        </label>
-        <label>
-          <span>URL</span>
-          <input value="${escapeHtml(hotspot.url)}" data-hotspot-id="${id}" data-hotspot-field="url" />
-        </label>
-        <button data-action="move-hotspot-here" data-hotspot-id="${id}">Mover al centro visible</button>
+        ${
+          expanded
+            ? `<div class="hotspot-editor-fields">
+                ${labelField}
+                <label>
+                  <span>Titulo</span>
+                  <input value="${escapeHtml(hotspot.title ?? "")}" data-hotspot-id="${id}" data-hotspot-field="title" />
+                </label>
+                <label>
+                  <span>URL</span>
+                  <input value="${escapeHtml(hotspot.url)}" data-hotspot-id="${id}" data-hotspot-field="url" />
+                </label>
+                <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Ubicar en la vista</span></button>
+              </div>`
+            : ""
+        }
       </article>
     `;
   }
@@ -2800,6 +2877,23 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function renderIcon(icon: IconNode): string {
+  return createElement(icon, {
+    width: 16,
+    height: 16,
+    "stroke-width": 1.8,
+    "aria-hidden": "true"
+  }).outerHTML;
+}
+
+function getHotspotTypeLabel(hotspot: Hotspot): string {
+  if (hotspot.type === "scene") return "Conexion";
+  if (hotspot.type === "info") return "Informacion";
+  if (hotspot.type === "image") return "Imagen";
+  if (hotspot.type === "video") return "Video";
+  return "Enlace";
 }
 
 function toSlug(value: string): string {

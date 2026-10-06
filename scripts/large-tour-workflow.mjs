@@ -60,7 +60,8 @@ async function runLargeWorkflow() {
     await page.locator("#panorama-import").setInputFiles(files);
 
     await page.getByText(`${SCENE_COUNT} panoramas cargados.`).waitFor({ state: "visible", timeout: 120_000 });
-    await page.getByRole("button", { name: "Preparar rapido" }).click();
+    await page.locator(".action-menu > summary").click();
+    await page.locator(".action-menu").getByRole("button", { name: "Preparar recorrido" }).click();
     await page.getByText("Tour rapido preparado: inicio y recorrido lineal listos.").waitFor({ state: "visible" });
     await page.getByLabel("Resumen de escenas").getByText(`${SCENE_COUNT} escenas`, { exact: true }).waitFor({ state: "visible" });
     await page.getByLabel("Resumen de escenas").getByText(`${(SCENE_COUNT - 1) * 2} conexiones`, { exact: true }).waitFor({ state: "visible" });
