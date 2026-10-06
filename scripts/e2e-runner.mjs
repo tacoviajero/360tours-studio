@@ -244,7 +244,6 @@ async function runChecks() {
       },
       hotspotBefore
     );
-    await page.locator(".action-menu > summary").click();
     await page.getByRole("button", { name: "Deshacer" }).click();
     await page.waitForFunction(
       ({ sceneId, yaw, pitch }) => {

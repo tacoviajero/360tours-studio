@@ -20,15 +20,23 @@ import {
   ArrowDown,
   ArrowUp,
   Crosshair,
+  Download,
   Ellipsis,
   House,
   Image as ImageIcon,
   Info,
   Link as LinkIcon,
   LocateFixed,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
+  Redo2,
   Route,
+  ScanEye,
   Trash,
+  Undo2,
   Video,
   createElement,
   type IconNode
@@ -145,19 +153,40 @@ export class Tours360StudioApp {
               <strong data-workspace-project>${escapeHtml(this.project.title)}</strong>
               <span data-workspace-scene>Sin escenas</span>
               <small class="persistence-status" data-persistence-status role="status" aria-live="polite"></small>
-            </div>
+          </div>
           <div class="topbar-navigation" role="group" aria-label="Paneles del editor">
-            <button data-action="toggle-left-panel">Escenas</button>
-            <button data-action="toggle-right-panel">Herramientas</button>
+            <span class="toolbar-tip" data-tooltip="Mostrar u ocultar escenas">
+              <button class="toolbar-icon" data-action="toggle-left-panel" aria-label="Mostrar u ocultar escenas" title="Mostrar u ocultar escenas">
+                <span class="panel-icon panel-icon--open">${renderIcon(PanelLeftClose)}</span>
+                <span class="panel-icon panel-icon--closed">${renderIcon(PanelLeftOpen)}</span>
+              </button>
+            </span>
+            <span class="toolbar-tip" data-tooltip="Mostrar u ocultar herramientas">
+              <button class="toolbar-icon" data-action="toggle-right-panel" aria-label="Mostrar u ocultar herramientas" title="Mostrar u ocultar herramientas">
+                <span class="panel-icon panel-icon--open">${renderIcon(PanelRightClose)}</span>
+                <span class="panel-icon panel-icon--closed">${renderIcon(PanelRightOpen)}</span>
+              </button>
+            </span>
           </div>
           <div class="topbar-actions" role="group" aria-label="Acciones del tour">
-            <button data-action="final-preview">Vista final</button>
-            <button class="primary-action" data-action="export">Exportar tour</button>
+            <span class="toolbar-tip" data-tooltip="Deshacer el ultimo cambio">
+              <button class="toolbar-icon" data-action="undo" aria-label="Deshacer" title="Deshacer el ultimo cambio" disabled>${renderIcon(Undo2)}</button>
+            </span>
+            <span class="toolbar-tip" data-tooltip="Rehacer el ultimo cambio">
+              <button class="toolbar-icon" data-action="redo" aria-label="Rehacer" title="Rehacer el ultimo cambio" disabled>${renderIcon(Redo2)}</button>
+            </span>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <span class="toolbar-tip" data-tooltip="Abrir la vista final del tour">
+              <button class="toolbar-icon" data-action="final-preview" aria-label="Vista final" title="Abrir la vista final del tour">${renderIcon(ScanEye)}</button>
+            </span>
+            <span class="toolbar-tip" data-tooltip="Exportar el tour como archivo ZIP">
+              <button class="toolbar-icon toolbar-icon--primary" data-action="export" aria-label="Exportar tour" title="Exportar el tour como archivo ZIP">${renderIcon(Download)}</button>
+            </span>
             <details class="action-menu">
-              <summary aria-haspopup="menu">Acciones</summary>
+              <summary class="toolbar-icon" aria-haspopup="menu" aria-label="Acciones" title="Mas acciones del proyecto" data-tooltip="Mas acciones del proyecto">${renderIcon(Ellipsis)}</summary>
               <div class="action-menu-panel">
                 <details class="project-settings">
-                  <summary>Proyecto</summary>
+                  <summary title="Editar nombre y direccion web del proyecto">Proyecto</summary>
                   <div>
                     <label class="title-field">
                       <span>Nombre del proyecto</span>
@@ -169,18 +198,13 @@ export class Tours360StudioApp {
                     </label>
                   </div>
                 </details>
-                <div class="action-menu-history" role="group" aria-label="Historial de cambios">
-                  <button data-action="undo" disabled>Deshacer</button>
-                  <button data-action="redo" disabled>Rehacer</button>
-                </div>
-                <div class="action-menu-divider" aria-hidden="true"></div>
-                <button data-action="quick-tour">Preparar recorrido</button>
-                <a class="button-link" href="/progress.html">Ver avance</a>
-                <button data-action="snapshot">Guardar snapshot</button>
-                <button data-action="download-backup">Descargar respaldo</button>
-                <button data-action="duplicate-project">Duplicar</button>
-                <button data-action="save-project-folder">Guardar carpeta</button>
-                <button data-action="publish">Publicar</button>
+                <button data-action="quick-tour" data-tooltip="Conectar las escenas en el orden actual" data-tooltip-side="left">Preparar recorrido</button>
+                <a class="button-link" href="/progress.html" data-tooltip="Abrir el tablero del plan maestro" data-tooltip-side="left">Ver avance</a>
+                <button data-action="snapshot" data-tooltip="Guardar un punto de recuperacion del proyecto" data-tooltip-side="left">Guardar snapshot</button>
+                <button data-action="download-backup" data-tooltip="Descargar una copia completa para recuperar el proyecto" data-tooltip-side="left">Descargar respaldo</button>
+                <button data-action="duplicate-project" data-tooltip="Crear una copia independiente del proyecto actual" data-tooltip-side="left">Duplicar proyecto</button>
+                <button data-action="save-project-folder" data-tooltip="Guardar el proyecto editable en una carpeta local" data-tooltip-side="left">Guardar carpeta</button>
+                <button data-action="publish" data-tooltip="Preparar la publicacion web configurada" data-tooltip-side="left">Publicar</button>
               </div>
             </details>
           </div>
@@ -1810,7 +1834,7 @@ export class Tours360StudioApp {
       <div class="route-map">
         ${items}
       </div>
-      <button data-action="repair-linear-route" ${this.project.scenes.length < 2 ? "disabled" : ""}>Reparar recorrido lineal</button>
+      <button class="route-repair-action text-action" data-action="repair-linear-route" ${this.project.scenes.length < 2 ? "disabled" : ""}>${renderIcon(Route)} Reparar recorrido lineal</button>
     `;
   }
 

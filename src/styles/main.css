@@ -1,8 +1,10 @@
 :root {
   color-scheme: dark;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    "Segoe UI Variable Text", "Segoe UI", Inter, ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
   background: #101014;
   color: #f5f0e8;
   font-synthesis: none;
@@ -27,7 +29,7 @@ body {
 button,
 .button-link {
   border: 1px solid rgba(245, 240, 232, 0.16);
-  border-radius: 8px;
+  border-radius: 6px;
   background: #24232a;
   color: #f5f0e8;
   font: inherit;
@@ -96,13 +98,13 @@ label span {
   display: block;
   margin-bottom: 7px;
   color: #d7cec4;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.76rem;
+  font-weight: 500;
 }
 
 .studio-shell {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr) 304px;
+  grid-template-columns: 224px minmax(0, 1fr) 274px;
   height: 100vh;
   min-height: 0;
   overflow: hidden;
@@ -133,11 +135,11 @@ label span {
 }
 
 .studio-shell.is-left-collapsed {
-  grid-template-columns: minmax(0, 1fr) 304px;
+  grid-template-columns: minmax(0, 1fr) 274px;
 }
 
 .studio-shell.is-right-collapsed {
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 224px minmax(0, 1fr);
 }
 
 .studio-shell.is-left-collapsed.is-right-collapsed {
@@ -153,10 +155,10 @@ label span {
 .properties-panel {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   min-height: 0;
   overflow: auto;
-  padding: 16px;
+  padding: 14px;
   background: #17171d;
   border-color: rgba(245, 240, 232, 0.08);
 }
@@ -183,9 +185,9 @@ label span {
   display: grid;
   grid-template-columns: minmax(140px, auto) auto minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  min-height: 56px;
-  padding: 7px 12px;
+  gap: 12px;
+  min-height: 50px;
+  padding: 6px 10px;
   border-bottom: 1px solid rgba(245, 240, 232, 0.08);
   background: #111116;
   overflow: visible;
@@ -201,14 +203,15 @@ label span {
   max-width: 28ch;
   overflow: hidden;
   color: #f5f0e8;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .workspace-context span {
   color: #b9b0a6;
-  font-size: 0.76rem;
+  font-size: 0.7rem;
 }
 
 .topbar-navigation,
@@ -216,11 +219,11 @@ label span {
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 3px;
 }
 
 .topbar-navigation {
-  padding-right: 14px;
+  padding-right: 10px;
   border-right: 1px solid rgba(245, 240, 232, 0.1);
 }
 
@@ -250,16 +253,12 @@ label span {
 .action-menu > summary {
   display: grid;
   place-items: center;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid rgba(245, 240, 232, 0.16);
-  border-radius: 8px;
-  background: #24232a;
+  padding: 0;
 }
 
 .action-menu[open] > summary {
-  border-color: #f08a4b;
-  background: #2b282a;
+  background: rgba(245, 240, 232, 0.09);
+  color: #f5f0e8;
 }
 
 .action-menu > .action-menu-panel {
@@ -268,7 +267,7 @@ label span {
   right: 0;
   top: calc(100% + 8px);
   display: grid;
-  width: 244px;
+  width: 232px;
   gap: 6px;
   padding: 10px;
   border: 1px solid rgba(245, 240, 232, 0.16);
@@ -283,6 +282,16 @@ label span {
   width: 100%;
 }
 
+.action-menu-panel > button,
+.action-menu-panel > .button-link {
+  min-height: 32px;
+  padding: 0 9px;
+  justify-content: start;
+  font-size: 0.8rem;
+  font-weight: 400;
+  text-align: left;
+}
+
 .project-settings {
   position: static;
   padding-bottom: 2px;
@@ -293,11 +302,12 @@ label span {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 36px;
+  min-height: 32px;
   padding: 0 10px;
   border-radius: 6px;
   color: #f5f0e8;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .project-settings > summary::after {
@@ -329,25 +339,127 @@ label span {
   min-width: 0;
 }
 
-.action-menu-history {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
 .action-menu-divider {
   height: 1px;
   margin: 2px 0;
   background: rgba(245, 240, 232, 0.1);
 }
 
-.topbar-navigation button,
-.topbar-actions button,
-.topbar-actions .button-link,
-.primary-action {
-  min-height: 34px;
-  padding: 0 12px;
+.toolbar-icon {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #aaa198;
+}
+
+.toolbar-icon:hover,
+.toolbar-icon:focus-visible {
+  border: 0;
+  background: rgba(245, 240, 232, 0.075);
+  color: #f5f0e8;
+}
+
+.toolbar-icon--primary {
+  background: rgba(199, 77, 44, 0.18);
+  color: #ff9a62;
+}
+
+.toolbar-icon--primary:hover,
+.toolbar-icon--primary:focus-visible {
+  background: #c74d2c;
+  color: #fff7f0;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 5px;
+  background: rgba(245, 240, 232, 0.1);
+}
+
+.toolbar-tip,
+.action-menu [data-tooltip] {
+  position: relative;
+}
+
+.toolbar-tip {
+  display: inline-flex;
+}
+
+.toolbar-tip::after,
+.action-menu [data-tooltip]::after {
+  position: absolute;
+  z-index: 40;
+  padding: 6px 8px;
+  border: 1px solid rgba(245, 240, 232, 0.14);
+  border-radius: 5px;
+  background: #29282f;
+  color: #f5f0e8;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38);
+  content: attr(data-tooltip);
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-out 280ms, transform 120ms ease-out 280ms;
   white-space: nowrap;
+}
+
+.toolbar-tip::after,
+.action-menu > summary[data-tooltip]::after {
+  left: 50%;
+  top: calc(100% + 7px);
+  transform: translate(-50%, -3px);
+}
+
+.toolbar-tip:hover::after,
+.toolbar-tip:focus-within::after,
+.action-menu [data-tooltip]:hover::after,
+.action-menu [data-tooltip]:focus-visible::after {
+  opacity: 1;
+}
+
+.toolbar-tip:hover::after,
+.toolbar-tip:focus-within::after,
+.action-menu > summary[data-tooltip]:hover::after,
+.action-menu > summary[data-tooltip]:focus-visible::after {
+  transform: translate(-50%, 0);
+}
+
+.action-menu [data-tooltip-side="left"]::after {
+  left: auto;
+  right: calc(100% + 8px);
+  top: 50%;
+  max-width: 230px;
+  transform: translate(3px, -50%);
+  white-space: normal;
+}
+
+.action-menu [data-tooltip-side="left"]:hover::after,
+.action-menu [data-tooltip-side="left"]:focus-visible::after {
+  transform: translate(0, -50%);
+}
+
+.panel-icon--closed {
+  display: none;
+}
+
+.studio-shell.is-left-collapsed [data-action="toggle-left-panel"] .panel-icon--open,
+.studio-shell.is-right-collapsed [data-action="toggle-right-panel"] .panel-icon--open {
+  display: none;
+}
+
+.studio-shell.is-left-collapsed [data-action="toggle-left-panel"] .panel-icon--closed,
+.studio-shell.is-right-collapsed [data-action="toggle-right-panel"] .panel-icon--closed {
+  display: block;
 }
 
 .mobile-panel-header {
@@ -368,11 +480,6 @@ label span {
 
 .persistence-status.is-error {
   color: #ff9d91;
-}
-
-.primary-action {
-  background: #c74d2c;
-  border-color: #f08a4b;
 }
 
 .viewer-surface {
@@ -530,13 +637,15 @@ p {
 }
 
 h1 {
-  margin-bottom: 10px;
-  font-size: 1.6rem;
+  margin-bottom: 8px;
+  font-size: 1.34rem;
+  font-weight: 600;
 }
 
 h2 {
-  margin-bottom: 12px;
-  font-size: 1.08rem;
+  margin-bottom: 10px;
+  font-size: 0.94rem;
+  font-weight: 600;
 }
 
 .muted {
@@ -654,8 +763,9 @@ h2 {
 
 .route-map {
   display: grid;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 0;
+  margin-bottom: 8px;
+  border-top: 1px solid rgba(245, 240, 232, 0.08);
 }
 
 .route-summary {
@@ -663,9 +773,14 @@ h2 {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 7px;
   color: #9af2b4;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
+  font-weight: 400;
+}
+
+.route-summary strong {
+  font-weight: 600;
 }
 
 .route-summary.has-warnings {
@@ -675,29 +790,30 @@ h2 {
 .route-step {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  padding: 8px;
-  border: 1px solid rgba(255, 209, 102, 0.2);
-  border-radius: 8px;
-  background: rgba(255, 209, 102, 0.055);
+  padding: 5px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(245, 240, 232, 0.08);
+  border-radius: 0;
+  background: transparent;
 }
 
 .route-step.is-complete {
-  border-color: rgba(116, 214, 128, 0.22);
-  background: rgba(116, 214, 128, 0.06);
+  border-color: rgba(245, 240, 232, 0.08);
+  background: transparent;
 }
 
 .route-step.is-active {
-  border-color: rgba(240, 138, 75, 0.7);
+  background: rgba(240, 138, 75, 0.055);
 }
 
 .route-step button {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 6px;
   align-items: center;
-  min-height: 34px;
+  min-height: 30px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -707,26 +823,34 @@ h2 {
 .route-step button span {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: #24232a;
-  color: #f5f0e8;
-  font-weight: 800;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: transparent;
+  color: #9f968d;
+  font-size: 0.76rem;
+  font-weight: 500;
 }
 
 .route-step button strong {
   min-width: 0;
   overflow: hidden;
   color: #f5f0e8;
+  font-size: 0.82rem;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .route-step small {
   color: #b9b0a6;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 400;
+}
+
+.route-repair-action {
+  gap: 6px;
+  color: #b9b0a6;
 }
 
 .import-zone {
@@ -837,12 +961,12 @@ h2 {
 }
 
 .panel-menu > summary {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid rgba(245, 240, 232, 0.12);
   border-radius: 8px;
   color: #d7cec4;
-  font-size: 0.86rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .panel-menu[open] > summary {
@@ -852,7 +976,7 @@ h2 {
 
 .property-section {
   border-bottom: 1px solid rgba(245, 240, 232, 0.08);
-  padding-bottom: 14px;
+  padding-bottom: 11px;
 }
 
 .property-section > summary {
@@ -865,8 +989,8 @@ h2 {
 .property-section > summary::after {
   content: "+";
   color: #f08a4b;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 0.94rem;
+  font-weight: 500;
 }
 
 .property-section[open] > summary::after {
@@ -878,12 +1002,13 @@ h2 {
 }
 
 .property-section[open] > summary {
-  margin-bottom: 12px;
+  margin-bottom: 9px;
 }
 
 .project-actions button {
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.84rem;
 }
 
 .danger-action {
@@ -986,19 +1111,19 @@ h2 {
 .section-heading span {
   display: inline-grid;
   place-items: center;
-  min-width: 28px;
-  height: 28px;
+  min-width: 24px;
+  height: 24px;
   border-radius: 999px;
   background: #24232a;
   color: #d7cec4;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 500;
 }
 
 .scene-list,
 .recent-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .scene-search {
@@ -1048,8 +1173,8 @@ h2 {
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
+  min-height: 40px;
+  padding: 0 9px;
   text-align: left;
 }
 
@@ -1079,8 +1204,8 @@ h2 {
 }
 
 .scene-item img {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   object-fit: cover;
   border-radius: 6px;
@@ -1105,7 +1230,7 @@ h2 {
 .scene-item-body small {
   color: #b9b0a6;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .scene-item.is-active,
@@ -1195,7 +1320,8 @@ h2 {
 
 .tool-group h3 {
   margin: 0;
-  font-size: 0.96rem;
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 
 .hotspot-editor-list {
@@ -1272,10 +1398,11 @@ summary svg,
 }
 
 .scene-name-field input {
-  min-height: 36px;
+  min-height: 33px;
   border-color: rgba(245, 240, 232, 0.09);
   background: rgba(245, 240, 232, 0.025);
-  font-weight: 700;
+  font-size: 0.84rem;
+  font-weight: 500;
 }
 
 .scene-name-field input:hover {
@@ -1420,7 +1547,7 @@ button.text-action:focus-visible {
 .add-hotspot-menu > summary {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 29px;
   gap: 6px;
   padding: 0 10px;
   border: 1px solid rgba(240, 138, 75, 0.45);
@@ -1428,7 +1555,7 @@ button.text-action:focus-visible {
   background: rgba(199, 77, 44, 0.12);
   color: #f5f0e8;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .add-hotspot-menu[open] > summary {
