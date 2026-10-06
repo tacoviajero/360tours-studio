@@ -96,63 +96,12 @@ export class Tours360StudioApp {
     return `
       <main class="studio-shell">
         <div class="compatibility-banner" data-compatibility-banner role="status"></div>
-        <aside class="project-panel" aria-label="Proyecto">
-          <div class="mobile-panel-header">
-            <strong>Proyecto y escenas</strong>
-            <button data-action="toggle-left-panel" aria-label="Cerrar panel de escenas">Cerrar</button>
-          </div>
-          <div class="brand-block">
-            <h1>360Tours Studio</h1>
-            <p class="muted">Produccion de recorridos 360 estaticos para TacoViajero.</p>
-          </div>
-
-          <section class="import-zone" data-drop-zone>
-            <input id="panorama-import" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple tabindex="-1" data-action="import-files" />
-            <label class="import-label" for="panorama-import" role="button" tabindex="0" data-file-trigger="panorama-import">
-              <span>Importar panoramas JPG</span>
-              <small>Arrastra fotos 360 o selecciona archivos</small>
-            </label>
-            <div class="import-status" data-import-status></div>
-          </section>
-
-            <details class="panel-menu" open>
-              <summary>Proyecto y recuperacion</summary>
-              <div class="project-actions">
-              <button class="primary-action" data-action="new-project">Nuevo tour</button>
-              <button data-action="open-project-folder">Abrir carpeta</button>
-              <input id="originals-recovery" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple tabindex="-1" aria-label="Seleccionar panoramas originales" data-action="recover-originals" />
-              <button data-action="choose-originals">Recuperar originales</button>
-              <button data-action="load-demo">Cargar demo tecnico</button>
-              </div>
-            </details>
-
-          <section>
-            <div class="section-heading">
-              <h2>Recientes</h2>
-              <span data-project-count>0</span>
-            </div>
-            <div class="recent-list" data-recent-list></div>
-          </section>
-
-          <section>
-            <div class="section-heading">
-              <h2>Escenas</h2>
-              <span data-scene-count>0</span>
-            </div>
-            <label class="scene-search">
-              <span>Buscar escena</span>
-              <input value="${escapeHtml(this.sceneFilter)}" placeholder="Nombre o numero" data-field="scene-filter" />
-            </label>
-            <div class="scene-list" data-scene-list></div>
-          </section>
-        </aside>
-
-        <section class="viewer-panel" aria-label="Preview del tour">
-          <header class="topbar">
-            <div class="workspace-context">
-              <strong data-workspace-project>${escapeHtml(this.project.title)}</strong>
-              <span data-workspace-scene>Sin escenas</span>
-              <small class="persistence-status" data-persistence-status role="status" aria-live="polite"></small>
+        <header class="topbar">
+          <h1 class="app-brand">360Tours Studio</h1>
+          <div class="workspace-context">
+            <strong data-workspace-project>${escapeHtml(this.project.title)}</strong>
+            <span data-workspace-scene>Sin escenas</span>
+            <small class="persistence-status" data-persistence-status role="status" aria-live="polite"></small>
           </div>
           <div class="topbar-navigation" role="group" aria-label="Paneles del editor">
             <span class="toolbar-tip" data-tooltip="Mostrar u ocultar escenas">
@@ -208,7 +157,54 @@ export class Tours360StudioApp {
               </div>
             </details>
           </div>
-          </header>
+        </header>
+        <aside class="project-panel" aria-label="Proyecto">
+          <div class="mobile-panel-header">
+            <strong>Proyecto y escenas</strong>
+            <button data-action="toggle-left-panel" aria-label="Cerrar panel de escenas">Cerrar</button>
+          </div>
+          <section class="import-zone" data-drop-zone>
+            <input id="panorama-import" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple tabindex="-1" data-action="import-files" />
+            <label class="import-label" for="panorama-import" role="button" tabindex="0" data-file-trigger="panorama-import">
+              <span>Importar panoramas JPG</span>
+              <small>Arrastra fotos 360 o selecciona archivos</small>
+            </label>
+            <div class="import-status" data-import-status></div>
+          </section>
+
+            <details class="panel-menu" open>
+              <summary>Proyecto y recuperacion</summary>
+              <div class="project-actions">
+              <button class="primary-action" data-action="new-project">Nuevo tour</button>
+              <button data-action="open-project-folder">Abrir carpeta</button>
+              <input id="originals-recovery" class="visually-hidden" type="file" accept=".jpg,.jpeg,image/jpeg,image/jpg" multiple tabindex="-1" aria-label="Seleccionar panoramas originales" data-action="recover-originals" />
+              <button data-action="choose-originals">Recuperar originales</button>
+              <button data-action="load-demo">Cargar demo tecnico</button>
+              </div>
+            </details>
+
+          <section>
+            <div class="section-heading">
+              <h2>Recientes</h2>
+              <span data-project-count>0</span>
+            </div>
+            <div class="recent-list" data-recent-list></div>
+          </section>
+
+          <section>
+            <div class="section-heading">
+              <h2>Escenas</h2>
+              <span data-scene-count>0</span>
+            </div>
+            <label class="scene-search">
+              <span>Buscar escena</span>
+              <input value="${escapeHtml(this.sceneFilter)}" placeholder="Nombre o numero" data-field="scene-filter" />
+            </label>
+            <div class="scene-list" data-scene-list></div>
+          </section>
+        </aside>
+
+        <section class="viewer-panel" aria-label="Preview del tour">
           <div class="viewer-surface" data-viewer>
             <div class="empty-viewer">
               <strong>Importa tus panoramas para comenzar.</strong>

@@ -105,6 +105,7 @@ label span {
 .studio-shell {
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr) 274px;
+  grid-template-rows: 50px minmax(0, 1fr);
   height: 100vh;
   min-height: 0;
   overflow: hidden;
@@ -165,25 +166,28 @@ label span {
 
 .project-panel {
   border-right: 1px solid rgba(245, 240, 232, 0.08);
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .properties-panel {
   border-left: 1px solid rgba(245, 240, 232, 0.08);
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .viewer-panel {
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: block;
   min-width: 0;
   min-height: 0;
-  container-type: inline-size;
 }
 
 .topbar {
   position: relative;
   z-index: 10;
   display: grid;
-  grid-template-columns: minmax(140px, auto) auto minmax(0, 1fr);
+  grid-column: 1 / -1;
+  grid-template-columns: 208px minmax(140px, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   min-height: 50px;
@@ -191,6 +195,16 @@ label span {
   border-bottom: 1px solid rgba(245, 240, 232, 0.08);
   background: #111116;
   overflow: visible;
+}
+
+.app-brand {
+  margin: 0;
+  overflow: hidden;
+  color: #f5f0e8;
+  font-size: 1rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-context {
@@ -484,6 +498,7 @@ label span {
 
 .viewer-surface {
   position: relative;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   background: #050507;
@@ -614,11 +629,6 @@ label span {
 .empty-viewer strong {
   color: #f5f0e8;
   font-size: 1.15rem;
-}
-
-.brand-block {
-  display: grid;
-  gap: 2px;
 }
 
 .eyebrow {
@@ -979,6 +989,33 @@ h2 {
   padding-bottom: 11px;
 }
 
+.property-section > div {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.property-section > div :where(p, li, dt, dd, span, small, strong, button, input, select, textarea) {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.property-section > div :where(p, ul, ol, dl) {
+  margin-top: 0;
+}
+
+.property-section > div :where(button, input, select) {
+  min-height: 32px;
+}
+
+.property-section > div :where(button) {
+  padding-inline: 8px;
+  font-weight: 400;
+}
+
+.property-section > div :where(strong) {
+  font-weight: 600;
+}
+
 .property-section > summary {
   display: flex;
   align-items: center;
@@ -999,6 +1036,9 @@ h2 {
 
 .property-section > summary h2 {
   margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .property-section[open] > summary {
@@ -1007,8 +1047,10 @@ h2 {
 
 .project-actions button {
   min-height: 34px;
-  padding: 0 10px;
-  font-size: 0.84rem;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .danger-action {
@@ -1108,6 +1150,13 @@ h2 {
   gap: 10px;
 }
 
+.project-panel .section-heading h2 {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
 .section-heading span {
   display: inline-grid;
   place-items: center;
@@ -1146,18 +1195,19 @@ h2 {
   display: grid;
   gap: 2px;
   min-width: 0;
-  padding: 7px 8px;
+  padding: 5px 2px;
   border: 1px solid rgba(245, 240, 232, 0.1);
   border-radius: 8px;
   background: rgba(245, 240, 232, 0.035);
   color: #b9b0a6;
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   text-align: center;
 }
 
 .scene-list-summary b {
   color: #f5f0e8;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .scene-filter-status {
@@ -1171,10 +1221,10 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
   min-height: 40px;
-  padding: 0 9px;
+  padding: 4px 6px;
   text-align: left;
 }
 
@@ -1197,10 +1247,22 @@ h2 {
   white-space: nowrap;
 }
 
+.recent-open span {
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.recent-open small {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
 .recent-delete {
   flex: 0 0 auto;
-  min-height: 30px;
-  padding: 0 10px;
+  min-height: 28px;
+  padding: 0 7px;
+  font-size: 0.72rem;
+  line-height: 1.2;
 }
 
 .scene-item img {
@@ -1363,7 +1425,7 @@ h2 {
 
 .hotspot-editor header strong,
 .gallery-editor-item header strong {
-  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .hotspot-editor header button,
@@ -1738,12 +1800,11 @@ button.text-action:focus-visible {
 }
 
 .snapshot-item strong {
-  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .snapshot-item small {
   color: #b9b0a6;
-  font-size: 0.78rem;
 }
 
 .snapshot-item button {
@@ -1753,7 +1814,6 @@ button.text-action:focus-visible {
 
 .marker-editor-item span {
   color: #d7cec4;
-  font-size: 0.88rem;
 }
 
 .metric,
@@ -1761,7 +1821,6 @@ button.text-action:focus-visible {
 .placement-hint {
   margin: 0;
   color: #b9b0a6;
-  font-size: 0.86rem;
 }
 
 .placement-hint:not(:empty) {
@@ -1801,14 +1860,12 @@ button.text-action:focus-visible {
 
 .readiness-item span {
   color: #b9b0a6;
-  font-size: 0.82rem;
 }
 
 .readiness-item strong {
   min-width: 0;
   overflow: hidden;
   color: #f5f0e8;
-  font-size: 0.84rem;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1824,8 +1881,7 @@ button.text-action:focus-visible {
   padding: 10px;
   cursor: pointer;
   color: #d7cec4;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .quality-details > div {
@@ -1842,7 +1898,6 @@ button.text-action:focus-visible {
   gap: 8px;
   margin: 0;
   color: #b9b0a6;
-  font-size: 0.76rem;
 }
 
 .quality-details p strong {
@@ -2012,7 +2067,7 @@ button.text-action:focus-visible {
 .publish-target strong {
   overflow-wrap: anywhere;
   color: #f5f0e8;
-  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .publish-plan {
@@ -2028,8 +2083,7 @@ button.text-action:focus-visible {
 
 .publish-plan dt {
   color: #b9b0a6;
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
 }
 
@@ -2037,7 +2091,6 @@ button.text-action:focus-visible {
   margin: 0;
   overflow-wrap: anywhere;
   color: #f5f0e8;
-  font-size: 0.82rem;
 }
 
 .publish-steps {
@@ -2064,79 +2117,11 @@ button.text-action:focus-visible {
 
 .publish-steps strong {
   color: #f5f0e8;
-  font-size: 0.84rem;
+  font-weight: 600;
 }
 
 .publish-steps span {
   color: #b9b0a6;
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-@container (max-width: 740px) {
-  .topbar {
-    grid-template-columns: minmax(140px, 1fr) auto;
-    row-gap: 6px;
-  }
-
-  .workspace-context {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .topbar-navigation {
-    grid-column: 1;
-    grid-row: 2;
-    justify-self: start;
-    padding-right: 0;
-    border-right: 0;
-  }
-
-  .topbar-actions {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-  }
-}
-
-@container (max-width: 560px) {
-  .topbar {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-    padding: 9px 10px 10px;
-  }
-
-  .workspace-context,
-  .topbar-navigation,
-  .topbar-actions {
-    grid-column: 1;
-    width: 100%;
-  }
-
-  .workspace-context {
-    grid-row: 1;
-  }
-
-  .topbar-navigation {
-    grid-row: 2;
-  }
-
-  .topbar-actions {
-    grid-row: 3;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .topbar-actions button,
-  .topbar-actions > details > summary {
-    padding: 0 6px;
-    font-size: 0.78rem;
-    white-space: normal;
-  }
-
-  .action-menu > .action-menu-panel {
-    right: 0;
-    width: min(300px, calc(100vw - 20px));
-  }
 }
 
 @media (max-width: 980px) {
