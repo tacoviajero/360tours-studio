@@ -113,6 +113,22 @@ export class CanvasTourRenderer implements TourRenderer {
     }
   }
 
+  updateProject(project: TourProject): void {
+    this.project = project;
+
+    for (const scene of project.scenes) {
+      const renderedScene = this.scenes.get(scene.id);
+      if (renderedScene) renderedScene.data = scene;
+    }
+
+    const currentScene = project.scenes.find((scene) => scene.id === this.currentSceneId);
+    if (!currentScene) return;
+
+    this.renderHotspots(currentScene.hotspots);
+    this.setSelectedHotspot(this.selectedHotspotId);
+    this.requestRender();
+  }
+
   screenToCoordinates(x: number, y: number): Pick<ViewState, "yaw" | "pitch"> | null {
     if (!this.canvas) {
       return null;

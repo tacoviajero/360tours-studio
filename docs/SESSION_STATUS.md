@@ -57,6 +57,9 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Auditar escenas con resumen de total, conexiones, optimizadas, estado de conexion y peso optimizado.
 - Guardar vista inicial de escena.
 - Crear hotspots de navegacion, informacion, imagen, video y link.
+- Elegir explicitamente el destino antes de colocar una conexion y mantener fija la escena origen durante toda la operacion.
+- Editar etiqueta, destino y posicion con actualizacion inmediata del panorama, sin recargar ni volver a la primera escena.
+- Separar en el menu de creacion las conexiones del recorrido del contenido externo de informacion, imagen, video y enlace.
 - Arrastrar hotspots directamente sobre el panorama y guardar su posicion sin activar el enlace.
 - Importar multiples planos de planta, renombrarlos, eliminarlos y ubicar marcadores.
 - Importar galeria, editar captions, ordenar y eliminar fotos.
@@ -101,7 +104,7 @@ Resultados:
 
 - Unitarias: 10 archivos, 27 pruebas pasan.
 - Build web: correcto.
-- E2E con Chromium: correcto; recorre el flujo guiado y verifica reemplazo de panorama, snapshots hacia atras y adelante comparando los bytes de IndexedDB, respaldo con assets historicos, recuperacion, export ZIP, viewer y tablero.
+- E2E con Chromium: correcto; recorre el flujo guiado, crea una conexion Sala a Cocina sin saltos de escena, actualiza su etiqueta y destino en vivo, y verifica reemplazo de panorama, snapshots, respaldo, recuperacion, export ZIP, viewer y tablero.
 - El E2E abre el indice colapsado del minisitio exportado y confirma que el viewer WebGL sigue siendo operable.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales 8000x4000, verifica que los JPG exportados sean identicos byte por byte, valida mosaicos 8x4, abre el viewer WebGL y repara un proyecto sin metadata de originales.

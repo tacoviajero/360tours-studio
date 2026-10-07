@@ -67,6 +67,8 @@ export class Tours360StudioApp {
   private mediaPreviewUrls: string[] = [];
   private galleryPreviewUrls: string[] = [];
   private placementMode: "scene" | "info" | "image" | "video" | "link" | "floorplan" | null = null;
+  private placementSourceSceneId = "";
+  private placementTargetSceneId = "";
   private recentProjects: ProjectSummary[] = [];
   private snapshots: ProjectSnapshotSummary[] = [];
   private assetIssues: ValidationIssue[] = [];
@@ -620,27 +622,43 @@ export class Tours360StudioApp {
       }
 
       if (action === "add-scene-link") {
+        const targetSceneId = root.querySelector<HTMLSelectElement>("[data-field='hotspot-target']")?.value ?? "";
+        if (!targetSceneId) {
+          this.renderPlacementHint(root, "Selecciona primero la escena de destino.");
+          return;
+        }
         this.placementMode = "scene";
-        this.renderPlacementHint(root, "Haz clic en una puerta o pasillo dentro del panorama.");
+        this.placementSourceSceneId = this.activeSceneId;
+        this.placementTargetSceneId = targetSceneId;
+        const targetName = this.project.scenes.find((scene) => scene.id === targetSceneId)?.name ?? "la escena elegida";
+        this.renderPlacementHint(root, `Haz clic en una puerta o pasillo para conectar con ${targetName}.`);
       }
 
       if (action === "add-info") {
         this.placementMode = "info";
+        this.placementSourceSceneId = this.activeSceneId;
+        this.placementTargetSceneId = "";
         this.renderPlacementHint(root, "Haz clic sobre el detalle que quieres explicar.");
       }
 
       if (action === "add-image") {
         this.placementMode = "image";
+        this.placementSourceSceneId = this.activeSceneId;
+        this.placementTargetSceneId = "";
         this.renderPlacementHint(root, "Haz clic donde quieres colocar la imagen externa.");
       }
 
       if (action === "add-video") {
         this.placementMode = "video";
+        this.placementSourceSceneId = this.activeSceneId;
+        this.placementTargetSceneId = "";
         this.renderPlacementHint(root, "Haz clic donde quieres colocar el video externo.");
       }
 
       if (action === "add-link") {
         this.placementMode = "link";
+        this.placementSourceSceneId = this.activeSceneId;
+        this.placementTargetSceneId = "";
         this.renderPlacementHint(root, "Haz clic donde quieres colocar el enlace.");
       }
 
@@ -707,7 +725,12 @@ export class Tours360StudioApp {
         await this.renameActiveScene(root, target.value);
       }
 
-      if (target.dataset.hotspotId && target.dataset.hotspotField) {
+      if (target.dataset.field === "hotspot-target" && target instanceof HTMLSelectElement) {
+        const addConnection = root.querySelector<HTMLButtonElement>("[data-action='add-scene-link']");
+        if (addConnection) addConnection.disabled = !target.value;
+      }
+
+      if (!(target instanceof HTMLSelectElement) && target.dataset.hotspotId && target.dataset.hotspotField) {
         await this.updateHotspot(root, target.dataset.hotspotId, target.dataset.hotspotField, target.value);
       }
 
@@ -748,7 +771,7 @@ export class Tours360StudioApp {
         target.value = "";
       }
 
-      if (target.dataset.hotspotId && target.dataset.hotspotField) {
+      if (target instanceof HTMLSelectElement && target.dataset.hotspotId && target.dataset.hotspotField) {
         await this.updateHotspot(root, target.dataset.hotspotId, target.dataset.hotspotField, target.value);
       }
     });
@@ -777,19 +800,25 @@ export class Tours360StudioApp {
         return;
       }
 
-      if (this.placementMode === "scene") {
-        await this.addNavigationHotspot(root, coordinates);
-      }
-
-      if (this.placementMode === "info") {
-        await this.addInfoHotspot(root, coordinates);
-      }
-
-      if (this.placementMode === "image" || this.placementMode === "video" || this.placementMode === "link") {
-        await this.addMediaHotspot(root, coordinates, this.placementMode);
-      }
-
+      const placementMode = this.placementMode;
+      const sourceSceneId = this.placementSourceSceneId;
+      const targetSceneId = this.placementTargetSceneId;
       this.placementMode = null;
+      this.placementSourceSceneId = "";
+      this.placementTargetSceneId = "";
+
+      if (placementMode === "scene" && sourceSceneId && targetSceneId) {
+        await this.addNavigationHotspot(root, coordinates, sourceSceneId, targetSceneId);
+      }
+
+      if (placementMode === "info" && sourceSceneId) {
+        await this.addInfoHotspot(root, coordinates, sourceSceneId);
+      }
+
+      if ((placementMode === "image" || placementMode === "video" || placementMode === "link") && sourceSceneId) {
+        await this.addMediaHotspot(root, coordinates, placementMode, sourceSceneId);
+      }
+
       this.renderPlacementHint(root, "");
     });
 
@@ -1583,7 +1612,7 @@ export class Tours360StudioApp {
               ? `<span class="scene-start-status">${renderIcon(House)} Escena inicial</span>`
               : `<button class="text-action" data-action="set-start">${renderIcon(House)}<span>Marcar como inicial</span></button>`
           }
-          <button class="text-action" data-action="save-view">${renderIcon(Crosshair)}<span>Guardar orientacion</span></button>
+          <button class="text-action" data-action="save-view">${renderIcon(Crosshair)}<span>Usar esta vista al entrar</span></button>
         </div>
       </div>
 
@@ -1595,18 +1624,27 @@ export class Tours360StudioApp {
           </div>
           <details class="add-hotspot-menu">
             <summary>${renderIcon(Plus)}<span>Anadir</span></summary>
-            <div>
-              <label class="hotspot-target-field">
-                <span>Destino de la conexion</span>
-                <select data-field="hotspot-target" aria-label="Escena destino" ${targetOptions ? "" : "disabled"}>
-                  ${targetOptions || "<option>No hay destino disponible</option>"}
-                </select>
-              </label>
-              <button data-action="add-scene-link" ${targetOptions ? "" : "disabled"}>${renderIcon(Route)}<span>Conexion</span></button>
-              <button data-action="add-info">${renderIcon(Info)}<span>Informacion</span></button>
-              <button data-action="add-image">${renderIcon(ImageIcon)}<span>Imagen</span></button>
-              <button data-action="add-video">${renderIcon(Video)}<span>Video</span></button>
-              <button data-action="add-link">${renderIcon(LinkIcon)}<span>Enlace</span></button>
+            <div class="hotspot-create-menu">
+              <section class="hotspot-create-section">
+                <strong>Conexion del recorrido</strong>
+                <label class="hotspot-target-field">
+                  <span>Escena de destino</span>
+                  <select data-field="hotspot-target" aria-label="Escena de destino" ${targetOptions ? "" : "disabled"}>
+                    <option value="">Selecciona una escena...</option>
+                    ${targetOptions || "<option>No hay destino disponible</option>"}
+                  </select>
+                </label>
+                <button data-action="add-scene-link" disabled>${renderIcon(Route)}<span>Colocar conexion</span></button>
+              </section>
+              <section class="hotspot-create-section hotspot-create-section--content">
+                <strong>Contenido en esta escena</strong>
+                <div class="hotspot-content-actions">
+                  <button data-action="add-info">${renderIcon(Info)}<span>Informacion</span></button>
+                  <button data-action="add-image">${renderIcon(ImageIcon)}<span>Imagen</span></button>
+                  <button data-action="add-video">${renderIcon(Video)}<span>Video</span></button>
+                  <button data-action="add-link">${renderIcon(LinkIcon)}<span>Enlace</span></button>
+                </div>
+              </section>
             </div>
           </details>
         </div>
@@ -1664,7 +1702,8 @@ export class Tours360StudioApp {
                     <span>Destino</span>
                     <select data-hotspot-id="${id}" data-hotspot-field="targetScene">${options}</select>
                   </label>
-                  <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Ubicar en la vista</span></button>
+                  <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Colocar en el centro</span></button>
+                  <small class="hotspot-save-status" data-hotspot-save-status="${id}" aria-live="polite"></small>
                 </div>`
               : ""
           }
@@ -1693,7 +1732,8 @@ export class Tours360StudioApp {
                     <span>Texto</span>
                     <textarea data-hotspot-id="${id}" data-hotspot-field="text">${escapeHtml(hotspot.text)}</textarea>
                   </label>
-                  <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Ubicar en la vista</span></button>
+                  <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Colocar en el centro</span></button>
+                  <small class="hotspot-save-status" data-hotspot-save-status="${id}" aria-live="polite"></small>
                 </div>`
               : ""
           }
@@ -1721,7 +1761,8 @@ export class Tours360StudioApp {
                   <span>URL</span>
                   <input value="${escapeHtml(hotspot.url)}" data-hotspot-id="${id}" data-hotspot-field="url" />
                 </label>
-                <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Ubicar en la vista</span></button>
+                <button class="text-action hotspot-position-action" data-action="move-hotspot-here" data-hotspot-id="${id}">${renderIcon(LocateFixed)}<span>Colocar en el centro</span></button>
+                <small class="hotspot-save-status" data-hotspot-save-status="${id}" aria-live="polite"></small>
               </div>`
             : ""
         }
@@ -2645,21 +2686,20 @@ export class Tours360StudioApp {
       )
     };
     await this.saveProject(root);
-    this.flashButton(target, "Escena confirmada");
+    this.flashButton(target, "Vista guardada");
     await this.renderSceneList(root);
     this.renderNextSteps(root);
     this.renderValidation(root);
   }
 
-  private async addNavigationHotspot(root: HTMLElement, coordinates: { yaw: number; pitch: number }): Promise<void> {
-    const targetSelect = root.querySelector<HTMLSelectElement>("[data-field='hotspot-target']");
-    const targetScene = targetSelect?.value;
-    if (!targetScene) {
-      return;
-    }
-
+  private async addNavigationHotspot(
+    root: HTMLElement,
+    coordinates: { yaw: number; pitch: number },
+    sourceSceneId: string,
+    targetScene: string
+  ): Promise<void> {
     const targetName = this.project.scenes.find((scene) => scene.id === targetScene)?.name ?? "escena";
-    await this.addHotspotToActiveScene(root, {
+    await this.addHotspotToScene(root, sourceSceneId, {
       id: `link-${Date.now()}`,
       type: "scene",
       yaw: coordinates.yaw,
@@ -2669,8 +2709,12 @@ export class Tours360StudioApp {
     });
   }
 
-  private async addInfoHotspot(root: HTMLElement, coordinates: { yaw: number; pitch: number }): Promise<void> {
-    await this.addHotspotToActiveScene(root, {
+  private async addInfoHotspot(
+    root: HTMLElement,
+    coordinates: { yaw: number; pitch: number },
+    sourceSceneId: string
+  ): Promise<void> {
+    await this.addHotspotToScene(root, sourceSceneId, {
       id: `info-${Date.now()}`,
       type: "info",
       yaw: coordinates.yaw,
@@ -2680,14 +2724,19 @@ export class Tours360StudioApp {
     });
   }
 
-  private async addMediaHotspot(root: HTMLElement, coordinates: { yaw: number; pitch: number }, type: "image" | "video" | "link"): Promise<void> {
+  private async addMediaHotspot(
+    root: HTMLElement,
+    coordinates: { yaw: number; pitch: number },
+    type: "image" | "video" | "link",
+    sourceSceneId: string
+  ): Promise<void> {
     const labels = {
       image: "Imagen",
       video: "Video",
       link: "Link"
     };
 
-    await this.addHotspotToActiveScene(root, {
+    await this.addHotspotToScene(root, sourceSceneId, {
       id: `${type}-${Date.now()}`,
       type,
       yaw: coordinates.yaw,
@@ -2698,16 +2747,23 @@ export class Tours360StudioApp {
     });
   }
 
-  private async addHotspotToActiveScene(root: HTMLElement, hotspot: Scene["hotspots"][number]): Promise<void> {
+  private async addHotspotToScene(
+    root: HTMLElement,
+    sourceSceneId: string,
+    hotspot: Scene["hotspots"][number]
+  ): Promise<void> {
     this.pushUndoCheckpoint();
     this.selectedHotspotId = hotspot.id;
+    this.activeSceneId = sourceSceneId;
     this.project = {
       ...this.project,
       scenes: this.project.scenes.map((scene) =>
-        scene.id === this.activeSceneId ? { ...scene, hotspots: [...scene.hotspots, hotspot] } : scene
+        scene.id === sourceSceneId ? { ...scene, hotspots: [...scene.hotspots, hotspot] } : scene
       )
     };
-    await this.persistAndRender(root, true);
+    this.renderer?.updateProject(this.project);
+    await this.persistAndRender(root, false);
+    this.renderHotspotSaveStatus(root, hotspot.id, "Punto creado");
   }
 
   private async updateHotspot(root: HTMLElement, hotspotId: string, field: string, value: string): Promise<void> {
@@ -2717,20 +2773,23 @@ export class Tours360StudioApp {
         scene.id === this.activeSceneId
           ? {
               ...scene,
-              hotspots: scene.hotspots.map((hotspot) => updateHotspotField(hotspot, hotspotId, field, value))
+              hotspots: scene.hotspots.map((hotspot) =>
+                updateHotspotField(hotspot, hotspotId, field, value, this.project.scenes)
+              )
             }
           : scene
       )
     };
+    this.renderer?.updateProject(this.project);
     await this.saveProject(root);
-
-    if (field === "targetScene" || field === "url") {
-      await this.renderWorkspace(root, true);
-      return;
-    }
-
     await this.renderSceneList(root);
+    this.renderRouteMap(root);
+    this.renderNextSteps(root);
     this.renderValidation(root);
+    this.renderExportReadiness(root);
+
+    if (field === "targetScene") this.renderSceneProperties(root);
+    this.renderHotspotSaveStatus(root, hotspotId, field === "targetScene" ? "Destino actualizado" : "Guardado");
   }
 
   private async moveHotspotToCurrentView(root: HTMLElement, hotspotId: string, target: HTMLElement): Promise<void> {
@@ -2754,8 +2813,9 @@ export class Tours360StudioApp {
           : scene
       )
     };
-    await this.persistAndRender(root, true);
-    this.flashButton(target, "Movido");
+    this.renderer?.updateProject(this.project);
+    await this.persistAndRender(root, false);
+    this.renderHotspotSaveStatus(root, hotspotId, "Colocado en el centro");
   }
 
   private async moveHotspotFromCanvas(
@@ -2778,6 +2838,7 @@ export class Tours360StudioApp {
           : scene
       )
     };
+    this.renderer?.updateProject(this.project);
     await this.saveProject(root);
     this.renderSceneProperties(root);
     this.renderNextSteps(root);
@@ -2796,7 +2857,8 @@ export class Tours360StudioApp {
           : scene
       )
     };
-    await this.persistAndRender(root, true);
+    this.renderer?.updateProject(this.project);
+    await this.persistAndRender(root, false);
   }
 
   private async openFinalPreview(root: HTMLElement, target: HTMLElement): Promise<void> {
@@ -3009,6 +3071,18 @@ export class Tours360StudioApp {
     }
   }
 
+  private renderHotspotSaveStatus(root: HTMLElement, hotspotId: string, message: string): void {
+    const status = [...root.querySelectorAll<HTMLElement>("[data-hotspot-save-status]")].find(
+      (item) => item.dataset.hotspotSaveStatus === hotspotId
+    );
+    if (!status) return;
+
+    status.textContent = message;
+    window.setTimeout(() => {
+      if (status.isConnected && status.textContent === message) status.textContent = "";
+    }, 1600);
+  }
+
   private renderFloorplanHint(root: HTMLElement, message: string): void {
     const hint = root.querySelector<HTMLElement>("[data-floorplan-hint]");
     if (hint) {
@@ -3195,7 +3269,13 @@ function createLinearHotspot(direction: "prev" | "next", targetScene: Scene): Sc
   };
 }
 
-function updateHotspotField(hotspot: Hotspot, hotspotId: string, field: string, value: string): Hotspot {
+function updateHotspotField(
+  hotspot: Hotspot,
+  hotspotId: string,
+  field: string,
+  value: string,
+  scenes: Scene[]
+): Hotspot {
   if (hotspot.id !== hotspotId) {
     return hotspot;
   }
@@ -3205,7 +3285,11 @@ function updateHotspotField(hotspot: Hotspot, hotspotId: string, field: string, 
   }
 
   if (hotspot.type === "scene" && field === "targetScene") {
-    return { ...hotspot, targetScene: value, label: hotspot.label || `Ir a ${value}` };
+    const previousName = scenes.find((scene) => scene.id === hotspot.targetScene)?.name ?? hotspot.targetScene;
+    const nextName = scenes.find((scene) => scene.id === value)?.name ?? value;
+    const previousDefaultLabel = `Ir a ${previousName}`;
+    const label = !hotspot.label || hotspot.label === previousDefaultLabel ? `Ir a ${nextName}` : hotspot.label;
+    return { ...hotspot, targetScene: value, label };
   }
 
   if (hotspot.type === "info" && field === "title") {

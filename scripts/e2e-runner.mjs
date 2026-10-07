@@ -64,6 +64,64 @@ async function runChecks() {
     await focusByKeyboard(page, "[data-scene-id='sala']", "escena Sala");
     await page.keyboard.press("Enter");
     await page.locator("[data-scene-id='sala'].is-active").waitFor({ state: "visible" });
+    await page.waitForFunction(() => document.querySelector("[data-viewer]")?.getAttribute("data-renderer-scene-id") === "sala");
+
+    await page.locator(".add-hotspot-menu > summary").click();
+    const createTarget = page.locator(".hotspot-create-menu [data-field='hotspot-target']");
+    const createConnection = page.locator(".hotspot-create-menu [data-action='add-scene-link']");
+    if (!(await createConnection.isDisabled())) throw new Error("La conexion se habilito sin elegir destino.");
+    await createTarget.selectOption("cocina");
+    if (await createConnection.isDisabled()) throw new Error("Elegir Cocina no habilito la conexion.");
+    await createConnection.click();
+    const editorCanvas = page.locator(".tour-canvas");
+    const editorCanvasBox = await editorCanvas.boundingBox();
+    if (!editorCanvasBox) throw new Error("El panorama del editor no tiene dimensiones visibles.");
+    await page.mouse.click(editorCanvasBox.x + editorCanvasBox.width / 2, editorCanvasBox.y + editorCanvasBox.height / 2);
+    await page.waitForFunction(() => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+      return project?.scenes
+        .find((scene) => scene.id === "sala")
+        ?.hotspots.some((item) => item.type === "scene" && item.targetScene === "cocina" && /^link-\d+$/.test(item.id));
+    });
+    const createdHotspotId = await page.evaluate(() => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+      return project?.scenes
+        .find((scene) => scene.id === "sala")
+        ?.hotspots.find((item) => item.type === "scene" && item.targetScene === "cocina" && /^link-\d+$/.test(item.id))?.id;
+    });
+    if (!createdHotspotId) throw new Error("La conexion nueva no expuso su identificador.");
+    const createdConnectionEditor = page.locator(`.hotspot-editor.is-selected:has([data-hotspot-id='${createdHotspotId}'])`);
+    await createdConnectionEditor.waitFor({ state: "visible" });
+    if ((await page.locator("[data-viewer]").getAttribute("data-renderer-scene-id")) !== "sala") {
+      throw new Error("Crear una conexion saco al visor de la escena Sala.");
+    }
+    await page.locator("[data-scene-id='sala'].is-active").waitFor({ state: "visible" });
+    await assertStoredHotspotTarget(page, "sala", createdHotspotId, "cocina");
+
+    const createdLabel = createdConnectionEditor.locator("[data-hotspot-field='label']");
+    await createdLabel.fill("Paso a Cocina");
+    await page.locator(".tour-hotspot-layer .hotspot--scene.is-selected", { hasText: "Paso a Cocina" }).waitFor({ state: "visible" });
+    await page.getByText("Guardado", { exact: true }).waitFor({ state: "visible" });
+
+    const createdDestination = createdConnectionEditor.locator("[data-hotspot-field='targetScene']");
+    await createdDestination.selectOption("entrada");
+    await assertStoredHotspotTarget(page, "sala", createdHotspotId, "entrada");
+    if ((await page.locator("[data-viewer]").getAttribute("data-renderer-scene-id")) !== "sala") {
+      throw new Error("Cambiar el destino saco al visor de la escena Sala.");
+    }
+    await page.locator(`.hotspot-editor.is-selected [data-hotspot-field='targetScene']`).selectOption("cocina");
+    await assertStoredHotspotTarget(page, "sala", createdHotspotId, "cocina");
+    if ((await page.locator("[data-viewer]").getAttribute("data-renderer-scene-id")) !== "sala") {
+      throw new Error("Restaurar el destino Cocina saco al visor de Sala.");
+    }
+    await page.locator(".hotspot-editor.is-selected [data-action='move-hotspot-here']").click();
+    await page.getByText("Colocado en el centro", { exact: true }).waitFor({ state: "visible" });
+    if ((await page.locator("[data-viewer]").getAttribute("data-renderer-scene-id")) !== "sala") {
+      throw new Error("Colocar la conexion en el centro saco al visor de Sala.");
+    }
+
     await focusByKeyboard(page, ".tour-canvas", "panorama del editor");
     const canvasBeforeKeyboard = await page.locator(".tour-canvas").evaluate((canvas) => canvas.toDataURL());
     await page.keyboard.press("ArrowRight");
@@ -221,7 +279,7 @@ async function runChecks() {
     await page.getByLabel("Proyecto").getByRole("button", { name: /2\. Pasillo/ }).waitFor({ state: "visible" });
     await page.locator(".action-menu > summary").click();
     await page.locator(".action-menu").getByRole("button", { name: "Preparar recorrido" }).click();
-    await page.getByRole("button", { name: "Ubicar en la vista" }).first().click();
+    await page.getByRole("button", { name: "Colocar en el centro" }).first().click();
     const draggableHotspot = page.locator(".tour-hotspot-layer .hotspot--scene").first();
     await draggableHotspot.waitFor({ state: "visible" });
     await draggableHotspot.click();
@@ -457,6 +515,20 @@ async function readStoredHotspotPosition(page, sceneId) {
     if (!hotspot) throw new Error(`No scene hotspot found in ${targetSceneId}.`);
     return { yaw: hotspot.yaw, pitch: hotspot.pitch };
   }, sceneId);
+}
+
+async function assertStoredHotspotTarget(page, sceneId, hotspotId, expectedTarget) {
+  await page.waitForFunction(
+    ({ sceneId: sourceSceneId, hotspotId: targetHotspotId, expectedTarget: targetSceneId }) => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+      const hotspot = project?.scenes
+        .find((scene) => scene.id === sourceSceneId)
+        ?.hotspots.find((item) => item.id === targetHotspotId);
+      return hotspot?.type === "scene" && hotspot.targetScene === targetSceneId;
+    },
+    { sceneId, hotspotId, expectedTarget }
+  );
 }
 
 async function readStoredScene(page, sceneId) {
