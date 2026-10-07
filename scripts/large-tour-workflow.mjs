@@ -157,8 +157,9 @@ async function verifyExportedViewer(context, archive) {
   });
 
   await viewerPage.goto("http://large-tour-export.local/index.html");
-  await viewerPage.getByRole("button", { name: "Van 001" }).waitFor({ state: "visible" });
-  await viewerPage.getByRole("button", { name: "Van 050" }).waitFor({ state: "visible" });
+  await viewerPage.locator(".menu-toggle").click();
+  await viewerPage.getByRole("button", { name: "Van 001", exact: true }).waitFor({ state: "visible" });
+  await viewerPage.getByRole("button", { name: "Van 050", exact: true }).waitFor({ state: "visible" });
   await viewerPage.locator(".viewer-canvas canvas").first().waitFor({ state: "visible" });
   await viewerPage.waitForTimeout(400);
   if (!panoramaRequests.some((path) => path.includes("van-001"))) {
@@ -170,12 +171,12 @@ async function verifyExportedViewer(context, archive) {
   if (new Set(panoramaRequests).size > 12) {
     throw new Error(`El viewer pidio demasiados panoramas al inicio: ${panoramaRequests.join(", ")}`);
   }
-  await viewerPage.getByRole("button", { name: "Van 050" }).click();
+  await viewerPage.getByRole("button", { name: "Van 050", exact: true }).click();
   await viewerPage.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("van-050")));
   if (!panoramaRequests.some((path) => path.includes("van-050"))) {
     throw new Error("El viewer no cargo la escena 050 al seleccionarla.");
   }
-  await viewerPage.getByRole("button", { name: "Van 050" }).waitFor({ state: "visible" });
+  await viewerPage.locator(".menu-toggle").filter({ hasText: "Van 050" }).waitFor({ state: "visible" });
   await viewerPage.close();
 }
 

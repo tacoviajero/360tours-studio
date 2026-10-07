@@ -104,6 +104,12 @@ describe("exportStaticTour", () => {
     expect(viewerJs).toContain("minFov: 0.55 * 180 / Math.PI");
     expect(viewerJs).toContain("maxFov: 1.55 * 180 / Math.PI");
     expect(viewerJs).toContain('event.key === "ArrowRight"');
+    expect(viewerJs).toContain('event.key.toLowerCase() === "w"');
+    expect(viewerJs).toContain("findDirectionalSceneHotspot");
+    expect(viewerJs).toContain("resolveViewerArrivalYaw");
+    expect(viewerJs).toContain("bindNearbyHotspotNavigation");
+    expect(String(files.get("viewer.css")?.content)).toContain("z-index: 6");
+    expect(String(files.get("viewer.css")?.content)).toContain(".tour-menu:not(.is-open)");
     expect(viewerJs).toContain("viewer-loading");
     expect(viewerJs).toContain("Reintentar");
     expect(viewerJs).toContain('window.location.protocol === "file:"');

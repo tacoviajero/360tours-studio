@@ -255,6 +255,7 @@ body {
 .viewer-hotspot-layer {
   position: absolute;
   inset: 0;
+  z-index: 6;
   pointer-events: none;
 }
 
@@ -264,10 +265,20 @@ body {
   pointer-events: auto;
 }
 
+.tour-menu:not(.is-open) {
+  display: none;
+}
+
+.menu-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
 .tour-menu {
   position: fixed;
   left: 18px;
-  top: 18px;
+  top: 66px;
   z-index: 10;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -329,9 +340,10 @@ body {
 .menu-toggle {
   position: fixed;
   left: 18px;
-  bottom: 18px;
+  top: 18px;
+  bottom: auto;
   z-index: 11;
-  display: none;
+  display: inline-flex;
   min-height: 38px;
   padding: 0 12px;
 }
@@ -523,7 +535,7 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
   const project = await response.json();
 
   root.className = "tour-viewer";
-  root.innerHTML = '<div class="viewer-canvas" data-viewer></div><nav class="tour-menu" aria-label="Escenas"></nav><aside class="media-panel" data-media-panel></aside><div class="viewer-loading" data-viewer-loading hidden></div><button class="menu-toggle" type="button">Escenas</button><button class="fullscreen-button" type="button">Pantalla completa</button>';
+  root.innerHTML = '<div class="viewer-canvas" data-viewer></div><nav class="tour-menu" aria-label="Escenas" aria-hidden="true"></nav><aside class="media-panel" data-media-panel></aside><div class="viewer-loading" data-viewer-loading hidden></div><button class="menu-toggle" type="button" aria-expanded="false">Escenas</button><button class="fullscreen-button" type="button">Pantalla completa</button>';
 
   const viewerElement = root.querySelector("[data-viewer]");
   const menu = root.querySelector(".tour-menu");
@@ -533,6 +545,7 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
   const loading = root.querySelector("[data-viewer-loading]");
   const viewer = new WebGlTourViewer(viewerElement, project, goToScene, (sceneId, panel, data) => renderMediaPanel(sceneId, panel, data));
   await viewer.ready;
+  bindNearbyHotspotNavigation(viewerElement);
 
   function renderMenu(activeSceneId) {
     menu.innerHTML = "<h1>" + escapeHtml(project.title) + "</h1><div class='scene-menu-list'>" + project.scenes.map((scene) => {
@@ -540,17 +553,21 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
       return '<button type="button"' + className + ' data-scene-id="' + escapeHtml(scene.id) + '">' + escapeHtml(scene.name) + "</button>";
     }).join("") + '</div><div class="menu-actions"><button type="button" data-panel="floorplan">Plano</button><button type="button" data-panel="gallery">Galeria</button></div>';
     menu.querySelector("[data-scene-id].is-active")?.scrollIntoView({ block: "nearest" });
+    const activeScene = project.scenes.find((scene) => scene.id === activeSceneId);
+    menuToggle.textContent = activeScene ? "Escenas · " + activeScene.name : "Escenas";
     renderMediaPanel(activeSceneId, "");
   }
 
-  async function goToScene(sceneId) {
+  async function goToScene(sceneId, arrivalYaw) {
     const scene = project.scenes.find((item) => item.id === sceneId);
     loading.hidden = false;
     loading.textContent = "Cargando " + (scene?.name || "escena") + "...";
     try {
-      if (!(await viewer.goToScene(sceneId))) return;
+      if (!(await viewer.goToScene(sceneId, arrivalYaw))) return;
       renderMenu(sceneId);
       menu.classList.remove("is-open");
+      menu.setAttribute("aria-hidden", "true");
+      menuToggle.setAttribute("aria-expanded", "false");
       loading.hidden = true;
     } catch (error) {
       loading.innerHTML = '<strong>No se pudo cargar la escena.</strong><span>' + escapeHtml(error instanceof Error ? error.message : String(error)) + '</span><button type="button">Reintentar</button>';
@@ -584,16 +601,23 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
     }
     await root.requestFullscreen();
   });
-  menuToggle.addEventListener("click", () => menu.classList.toggle("is-open"));
+  menuToggle.addEventListener("click", () => {
+    const open = menu.classList.toggle("is-open");
+    menu.setAttribute("aria-hidden", String(!open));
+    menuToggle.setAttribute("aria-expanded", String(open));
+  });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       menu.classList.remove("is-open");
+      menu.setAttribute("aria-hidden", "true");
+      menuToggle.setAttribute("aria-expanded", "false");
       renderMediaPanel(getActiveSceneId(), "");
       return;
     }
-    const index = project.scenes.findIndex((scene) => scene.id === getActiveSceneId());
-    if (event.key === "ArrowLeft" && project.scenes[index - 1]) goToScene(project.scenes[index - 1].id);
-    if (event.key === "ArrowRight" && project.scenes[index + 1]) goToScene(project.scenes[index + 1].id);
+    if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") viewer.rotateBy(-0.18);
+    if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") viewer.rotateBy(0.18);
+    if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") navigateDirectional("forward");
+    if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") navigateDirectional("backward");
   });
 
   await goToScene(project.startScene || project.scenes[0]?.id);
@@ -601,6 +625,35 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
   function getActiveSceneId() {
     const activeButton = menu.querySelector("[data-scene-id].is-active");
     return activeButton ? activeButton.dataset.sceneId : project.startScene || project.scenes[0]?.id;
+  }
+
+  function navigateDirectional(direction) {
+    const sourceSceneId = getActiveSceneId();
+    const scene = project.scenes.find((item) => item.id === sourceSceneId);
+    const hotspot = findDirectionalSceneHotspot(scene, viewer.getCurrentYaw(), direction);
+    if (!hotspot) return;
+    goToScene(hotspot.targetScene, resolveViewerArrivalYaw(project, sourceSceneId, hotspot));
+  }
+
+  function bindNearbyHotspotNavigation(container) {
+    let pointerStart = null;
+    container.addEventListener("pointerdown", (event) => {
+      pointerStart = { x: event.clientX, y: event.clientY };
+    }, true);
+    container.addEventListener("pointerup", (event) => {
+      const start = pointerStart;
+      pointerStart = null;
+      if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) return;
+      if (event.target.closest("button, a")) return;
+      let closest = null;
+      for (const button of container.querySelectorAll(".hotspot--scene")) {
+        if (button.style.display === "none") continue;
+        const bounds = button.getBoundingClientRect();
+        const distance = Math.hypot(event.clientX - (bounds.left + bounds.width / 2), event.clientY - (bounds.top + bounds.height / 2));
+        if (distance <= 110 && (!closest || distance < closest.distance)) closest = { button, distance };
+      }
+      closest?.button.click();
+    }, true);
   }
 
   function renderMediaPanel(activeSceneId, panel, panelData = {}) {
@@ -654,6 +707,36 @@ import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangula
   console.error(error);
 });
 
+function normalizeViewerYaw(yaw) {
+  const fullTurn = Math.PI * 2;
+  return ((yaw + Math.PI) % fullTurn + fullTurn) % fullTurn - Math.PI;
+}
+
+function viewerAngularDistance(first, second) {
+  return Math.abs(normalizeViewerYaw(first - second));
+}
+
+function findDirectionalSceneHotspot(scene, currentYaw, direction) {
+  if (!scene) return null;
+  const targetYaw = normalizeViewerYaw(currentYaw + (direction === "backward" ? Math.PI : 0));
+  return scene.hotspots
+    .filter((hotspot) => hotspot.type === "scene")
+    .map((hotspot) => ({ hotspot, distance: viewerAngularDistance(hotspot.yaw, targetYaw) }))
+    .sort((first, second) => first.distance - second.distance)[0]?.hotspot || null;
+}
+
+function resolveViewerArrivalYaw(project, sourceSceneId, hotspot) {
+  if (typeof hotspot.targetYaw === "number") return normalizeViewerYaw(hotspot.targetYaw);
+  const destination = project.scenes.find((scene) => scene.id === hotspot.targetScene);
+  if (!destination) return undefined;
+  const returnHotspot = destination.hotspots.find(
+    (candidate) => candidate.type === "scene" && candidate.targetScene === sourceSceneId,
+  );
+  return returnHotspot
+    ? normalizeViewerYaw(returnHotspot.yaw + Math.PI)
+    : destination.initialView.yaw;
+}
+
 class WebGlTourViewer {
   constructor(container, project, onSceneLink, onMediaPanel) {
     this.container = container;
@@ -692,12 +775,12 @@ class WebGlTourViewer {
     this.viewer.addEventListener("render", () => this.positionHotspots());
   }
 
-  async goToScene(sceneId) {
+  async goToScene(sceneId, arrivalYaw) {
     const scene = this.getScene(sceneId);
     if (!scene) return false;
     if (sceneId !== this.currentSceneId) {
       await this.viewer.setPanorama(this.getPanorama(scene), {
-        position: { yaw: scene.initialView?.yaw || 0, pitch: scene.initialView?.pitch || 0 },
+        position: { yaw: arrivalYaw ?? scene.initialView?.yaw ?? 0, pitch: scene.initialView?.pitch || 0 },
         zoom: this.fovToZoom(scene.initialView?.fov || 1.2),
         transition: false
       });
@@ -706,6 +789,15 @@ class WebGlTourViewer {
     this.renderHotspots(scene.hotspots || []);
     this.positionHotspots();
     return true;
+  }
+
+  getCurrentYaw() {
+    return this.viewer.getPosition().yaw;
+  }
+
+  rotateBy(delta) {
+    const position = this.viewer.getPosition();
+    this.viewer.rotate({ yaw: position.yaw + delta, pitch: position.pitch });
   }
 
   getScene(sceneId) {
@@ -740,7 +832,12 @@ class WebGlTourViewer {
       element.dataset.pitch = String(hotspot.pitch);
       element.textContent = hotspot.label || (hotspot.type === "scene" ? "Ir" : hotspot.type === "info" ? "Info" : "Abrir");
       element.addEventListener("click", () => {
-        if (hotspot.type === "scene") this.onSceneLink(hotspot.targetScene);
+        if (hotspot.type === "scene") {
+          this.onSceneLink(
+            hotspot.targetScene,
+            resolveViewerArrivalYaw(this.project, this.currentSceneId, hotspot),
+          );
+        }
         else if (hotspot.type === "link") window.open(hotspot.url, "_blank", "noopener");
         else this.onMediaPanel(this.currentSceneId, hotspot.type, hotspot);
       });
@@ -796,12 +893,15 @@ class CanvasTourViewer {
     }
   }
 
-  goToScene(sceneId) {
+  goToScene(sceneId, arrivalYaw) {
     const scene = this.scenes.get(sceneId);
     if (!scene) return false;
     this.currentSceneId = sceneId;
     this.failedSceneId = "";
-    this.view = clampView(scene.data.initialView || { yaw: 0, pitch: 0, fov: 1.2 });
+    this.view = clampView({
+      ...(scene.data.initialView || { yaw: 0, pitch: 0, fov: 1.2 }),
+      yaw: arrivalYaw ?? scene.data.initialView?.yaw ?? 0,
+    });
     this.renderHotspots(scene.data.hotspots || []);
     this.requestRender();
     this.ensureSceneImage(sceneId)
@@ -814,6 +914,15 @@ class CanvasTourViewer {
         if (this.currentSceneId === sceneId) this.requestRender();
       });
     return true;
+  }
+
+  getCurrentYaw() {
+    return this.view.yaw;
+  }
+
+  rotateBy(delta) {
+    this.view = clampView({ ...this.view, yaw: this.view.yaw + delta });
+    this.requestRender();
   }
 
   ensureSceneImage(sceneId) {
@@ -960,7 +1069,10 @@ class CanvasTourViewer {
       element.dataset.pitch = String(hotspot.pitch);
       if (hotspot.type === "scene") {
         element.textContent = hotspot.label || "Ir";
-        element.addEventListener("click", () => this.onSceneLink(hotspot.targetScene));
+        element.addEventListener("click", () => this.onSceneLink(
+          hotspot.targetScene,
+          resolveViewerArrivalYaw(this.project, this.currentSceneId, hotspot),
+        ));
       } else if (hotspot.type === "info") {
         element.textContent = hotspot.label || "Info";
         element.addEventListener("click", () => this.onMediaPanel(this.currentSceneId, "info", hotspot));

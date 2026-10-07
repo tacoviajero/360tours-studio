@@ -2026,17 +2026,39 @@ button.text-action:focus-visible {
 }
 
 .final-preview-body {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
 }
 
 .final-preview-body > nav {
+  position: absolute;
+  z-index: 12;
+  top: 12px;
+  left: 12px;
+  bottom: 12px;
+  width: min(260px, calc(100% - 24px));
   min-height: 0;
   overflow: auto;
   padding: 12px;
-  border-right: 1px solid rgba(245, 240, 232, 0.12);
-  background: #17171d;
+  border: 1px solid rgba(245, 240, 232, 0.16);
+  border-radius: 8px;
+  background: rgba(23, 23, 29, 0.92);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(calc(-100% - 24px));
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.final-preview.is-scenes-open .final-preview-body > nav {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 .final-preview-body > nav > div {
@@ -2296,21 +2318,19 @@ button.text-action:focus-visible {
 
   .final-preview-body {
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .final-preview-body > nav {
-    max-height: 116px;
-    border-right: 0;
-    border-bottom: 1px solid rgba(245, 240, 232, 0.12);
+    max-height: none;
   }
 
   .final-preview-body > nav > div {
-    display: flex;
-    overflow-x: auto;
+    display: grid;
+    overflow-x: visible;
   }
 
   .final-preview-body nav button {
-    flex: 0 0 180px;
+    width: 100%;
   }
 }

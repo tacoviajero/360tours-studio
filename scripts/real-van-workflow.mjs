@@ -79,8 +79,11 @@ async function runRealWorkflow() {
     await page.getByRole("button", { name: "Vista final" }).click();
     await page.getByRole("dialog", { name: "Vista final del tour" }).waitFor({ state: "visible" });
     await assertCanvasHasPanoramaDetail(page, ".final-preview-viewer canvas", "vista final WebGL");
-    await page.keyboard.press("ArrowRight");
-    await page.locator("[data-preview-scene].is-active").filter({ hasText: "20260917 094704 585" }).waitFor({ state: "visible" });
+    for (let turn = 0; turn < 9; turn += 1) await page.keyboard.press("ArrowRight");
+    const finalConnection = page.locator(".final-preview-hotspots .hotspot--scene").first();
+    await finalConnection.waitFor({ state: "visible" });
+    await finalConnection.click();
+    await page.getByRole("button", { name: /Escenas · 20260917 094704 585/ }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Cerrar" }).click();
 
     await page.reload();
@@ -280,17 +283,22 @@ async function verifyExportedViewer(context, archive) {
   });
 
   await viewerPage.goto("http://real-van-export.local/index.html");
+  await viewerPage.locator(".menu-toggle").click();
   try {
     await viewerPage.getByRole("heading", { name: "Nuevo tour 360" }).waitFor({ state: "visible" });
   } catch (error) {
     await viewerPage.screenshot({ path: "test-results/real-export-viewer-failure.png" });
     throw new Error(`${error instanceof Error ? error.message : String(error)} Browser: ${browserErrors.join(" | ")}`);
   }
-  await viewerPage.getByRole("button", { name: /20260917 094621 759/ }).waitFor({ state: "visible" });
-  await viewerPage.getByRole("button", { name: /20260917 095036 680/ }).waitFor({ state: "visible" });
+  await viewerPage.getByRole("button", { name: "20260917 094621 759", exact: true }).waitFor({ state: "visible" });
+  await viewerPage.getByRole("button", { name: "20260917 095036 680", exact: true }).waitFor({ state: "visible" });
   await assertCanvasHasPanoramaDetail(viewerPage, ".viewer-canvas canvas", "exportado");
-  await viewerPage.getByRole("button", { name: /20260917 094704 585/ }).click();
-  await viewerPage.getByRole("button", { name: /20260917 094704 585/ }).waitFor({ state: "visible" });
+  await viewerPage.locator(".menu-toggle").click();
+  for (let turn = 0; turn < 9; turn += 1) await viewerPage.keyboard.press("ArrowRight");
+  const exportedConnection = viewerPage.locator(".viewer-hotspot-layer .hotspot--scene").first();
+  await exportedConnection.waitFor({ state: "visible" });
+  await exportedConnection.click();
+  await viewerPage.locator(".menu-toggle").filter({ hasText: "20260917 094704 585" }).waitFor({ state: "visible" });
   await viewerPage.close();
 }
 

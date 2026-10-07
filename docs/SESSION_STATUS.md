@@ -27,6 +27,10 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Recuperar originales de proyectos anteriores mediante seleccion multiple, sin reconstruir el tour.
 - Preview 360 con visor canvas interactivo.
 - Vista final WebGL dentro de Studio con los mosaicos reales, selector de escenas, hotspots, fullscreen y flechas de teclado.
+- Navegacion espacial en Vista final y minisitio: capsulas visibles, W/flecha arriba para avanzar, S/flecha abajo para retroceder y A/D o flechas laterales para girar.
+- Orientacion de llegada calculada desde la conexion reciproca, con soporte opcional de `targetYaw` por hotspot.
+- Indice completo de escenas colapsado por defecto; funciona como alternativa y ya no sustituye el recorrido creado en el editor.
+- Clic corto cerca de una capsula de conexion para navegar; arrastrar sigue reservado para girar el panorama.
 - Demo tecnica con tres panoramas generados y almacenados localmente; no depende de servidores externos ni permisos CORS.
 - Dialogo de Vista final con foco contenido, foco inicial predecible y retorno al boton que lo abrio.
 - Panorama del editor operable con flechas, mas/menos e Inicio, con instrucciones accesibles y foco visible.
@@ -95,9 +99,10 @@ pnpm test:local
 
 Resultados:
 
-- Unitarias: 9 archivos, 23 pruebas pasan.
+- Unitarias: 10 archivos, 27 pruebas pasan.
 - Build web: correcto.
 - E2E con Chromium: correcto; recorre el flujo guiado y verifica reemplazo de panorama, snapshots hacia atras y adelante comparando los bytes de IndexedDB, respaldo con assets historicos, recuperacion, export ZIP, viewer y tablero.
+- El E2E abre el indice colapsado del minisitio exportado y confirma que el viewer WebGL sigue siendo operable.
 - Smoke test con las 3 fotos reales de la van: correcto en editor y en tour exportado desde ZIP.
 - Prueba automatizada `pnpm test:real`: correcto; importa las 3 fotos reales 8000x4000, verifica que los JPG exportados sean identicos byte por byte, valida mosaicos 8x4, abre el viewer WebGL y repara un proyecto sin metadata de originales.
 - La prueba real ahora rechaza lienzos negros, sin variedad de color o sin detalle horizontal/vertical; guarda captura diagnostica solo cuando falla.
@@ -150,5 +155,5 @@ Pendiente: el bundle MSI fallo en WiX `light.exe`; el instalador `.exe` NSIS si 
 1. Ejecutar una prueba manual de aceptacion del nuevo ZIP WebGL con las tres fotos reales.
 2. Medir peso, memoria y tiempo de importacion con un lote real de 30 a 50 fotos.
 3. Hacer una revision con lector de pantalla real cuando sea oportuno.
-4. Hacer QA tactil en un telefono o tablet real cuando sea oportuno.
-5. Mantener instalacion y publicacion fuera del siguiente tramo hasta que el flujo local quede aprobado.
+4. Confirmar en un tour real que la orientacion de llegada coincide con el sentido fisico de cada habitacion.
+5. Mantener instalacion, editor movil y publicacion fuera del siguiente tramo hasta que el flujo local quede aprobado.

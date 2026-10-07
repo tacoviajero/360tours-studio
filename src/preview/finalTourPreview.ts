@@ -1,8 +1,9 @@
 import { Viewer } from "@photo-sphere-viewer/core";
 import "@photo-sphere-viewer/core/index.css";
 import { EquirectangularTilesAdapter } from "@photo-sphere-viewer/equirectangular-tiles-adapter";
-import type { Hotspot, Scene, TourProject } from "../domain/tour";
+import type { Hotspot, Scene, SceneHotspot, TourProject } from "../domain/tour";
 import { getPanoramaAssets, getPanoramaTilePath } from "../domain/panoramaAssets";
+import { findDirectionalHotspot, resolveArrivalYaw } from "../domain/spatialNavigation";
 
 export type PreviewAssetResolver = (path: string) => Promise<Blob | null>;
 
@@ -16,10 +17,13 @@ export class FinalTourPreview {
   private readonly objectUrls = new Map<string, string>();
   private readonly hotspotLayer: HTMLDivElement;
   private readonly sceneList: HTMLDivElement;
+  private readonly sceneNav: HTMLElement;
+  private readonly sceneToggle: HTMLButtonElement;
   private readonly status: HTMLDivElement;
   private readonly dialog: HTMLElement;
   private readonly previouslyFocused: HTMLElement | null;
   private readonly useTiledPanoramas: boolean;
+  private pointerStart: { x: number; y: number } | null = null;
   private keyHandler: (event: KeyboardEvent) => void;
 
   constructor(
@@ -36,12 +40,13 @@ export class FinalTourPreview {
         <header>
           <div><span>Vista final WebGL</span><strong>${escapeHtml(project.title)}</strong></div>
           <div>
+            <button type="button" data-preview-action="scenes" aria-expanded="false">Escenas</button>
             <button type="button" data-preview-action="fullscreen">Pantalla completa</button>
             <button type="button" data-preview-action="close">Cerrar</button>
           </div>
         </header>
         <div class="final-preview-body">
-          <nav aria-label="Escenas del tour"><div data-preview-scenes></div></nav>
+          <nav aria-label="Escenas del tour" aria-hidden="true"><div data-preview-scenes></div></nav>
           <div class="final-preview-viewer" data-final-viewer>
             <div class="final-preview-status" data-preview-status>Cargando vista final...</div>
           </div>
@@ -49,14 +54,27 @@ export class FinalTourPreview {
       </section>
     `;
     this.sceneList = this.requiredElement("[data-preview-scenes]");
+    this.sceneNav = this.requiredElement(".final-preview-body > nav");
+    this.sceneToggle = this.requiredElement("[data-preview-action='scenes']");
     this.status = this.requiredElement("[data-preview-status]");
     this.dialog = this.requiredElement(".final-preview");
     const viewerElement = this.requiredElement("[data-final-viewer]");
     this.hotspotLayer = document.createElement("div");
     this.hotspotLayer.className = "final-preview-hotspots";
     viewerElement.append(this.hotspotLayer);
+    viewerElement.addEventListener("pointerdown", (event) => {
+      this.pointerStart = { x: event.clientX, y: event.clientY };
+    }, true);
+    viewerElement.addEventListener("pointerup", (event) => {
+      const start = this.pointerStart;
+      this.pointerStart = null;
+      if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) return;
+      if ((event.target as HTMLElement).closest("button, a")) return;
+      this.activateNearbyHotspot(event.clientX, event.clientY);
+    }, true);
 
     this.host.querySelector("[data-preview-action='close']")?.addEventListener("click", () => this.close());
+    this.sceneToggle.addEventListener("click", () => this.toggleSceneMenu());
     this.host.querySelector("[data-preview-action='fullscreen']")?.addEventListener("click", () => {
       if (document.fullscreenElement) void document.exitFullscreen();
       else void this.host.querySelector<HTMLElement>(".final-preview")?.requestFullscreen();
@@ -66,9 +84,14 @@ export class FinalTourPreview {
       if (button?.dataset.previewScene) void this.goToScene(button.dataset.previewScene);
     });
     this.keyHandler = (event) => {
-      if (event.key === "Escape") this.close();
-      if (event.key === "ArrowLeft") void this.navigate(-1);
-      if (event.key === "ArrowRight") void this.navigate(1);
+      if (event.key === "Escape") {
+        if (this.dialog.classList.contains("is-scenes-open")) this.toggleSceneMenu(false);
+        else this.close();
+      }
+      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") this.rotate(-0.18);
+      if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") this.rotate(0.18);
+      if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") void this.navigateDirectional("forward");
+      if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") void this.navigateDirectional("backward");
       if (event.key === "Tab") this.trapFocus(event);
     };
     window.addEventListener("keydown", this.keyHandler);
@@ -112,7 +135,7 @@ export class FinalTourPreview {
     this.viewer.addEventListener("render", () => this.positionHotspots());
   }
 
-  private async goToScene(sceneId: string): Promise<void> {
+  private async goToScene(sceneId: string, arrivalYaw?: number): Promise<void> {
     const scene = this.getScene(sceneId);
     if (!scene || !this.viewer) return;
     this.status.hidden = false;
@@ -120,13 +143,14 @@ export class FinalTourPreview {
     try {
       const panorama = await this.preparePanorama(scene);
       await this.viewer.setPanorama(panorama, {
-        position: { yaw: scene.initialView.yaw, pitch: scene.initialView.pitch },
+        position: { yaw: arrivalYaw ?? scene.initialView.yaw, pitch: scene.initialView.pitch },
         zoom: fovToZoom(scene.initialView.fov),
         transition: false
       });
       this.currentSceneId = scene.id;
       this.renderSceneMenu();
       this.renderHotspots(scene.hotspots);
+      this.toggleSceneMenu(false);
       this.status.hidden = true;
     } catch (error) {
       console.error("No se pudo cambiar la escena de la vista final.", error);
@@ -134,10 +158,27 @@ export class FinalTourPreview {
     }
   }
 
-  private async navigate(direction: -1 | 1): Promise<void> {
-    const index = this.project.scenes.findIndex((scene) => scene.id === this.currentSceneId);
-    const next = this.project.scenes[index + direction];
-    if (next) await this.goToScene(next.id);
+  private async navigateDirectional(direction: "forward" | "backward"): Promise<void> {
+    if (!this.viewer) return;
+    const scene = this.getScene(this.currentSceneId);
+    if (!scene) return;
+    const hotspot = findDirectionalHotspot(scene, this.viewer.getPosition().yaw, direction);
+    if (!hotspot) return;
+    await this.followSceneHotspot(hotspot);
+  }
+
+  private rotate(delta: number): void {
+    if (!this.viewer) return;
+    const position = this.viewer.getPosition();
+    this.viewer.rotate({ yaw: position.yaw + delta, pitch: position.pitch });
+  }
+
+  private async followSceneHotspot(hotspot: SceneHotspot): Promise<void> {
+    const sourceSceneId = this.currentSceneId;
+    await this.goToScene(
+      hotspot.targetScene,
+      resolveArrivalYaw(this.project, sourceSceneId, hotspot),
+    );
   }
 
   private async preparePanorama(scene: Scene): Promise<unknown> {
@@ -189,6 +230,8 @@ export class FinalTourPreview {
   }
 
   private renderSceneMenu(): void {
+    const activeScene = this.getScene(this.currentSceneId);
+    this.sceneToggle.textContent = activeScene ? `Escenas · ${activeScene.name}` : "Escenas";
     this.sceneList.innerHTML = this.project.scenes
       .map((scene, index) => `<button type="button" data-preview-scene="${escapeHtml(scene.id)}" class="${scene.id === this.currentSceneId ? "is-active" : ""}"><span>${index + 1}</span>${escapeHtml(scene.name)}</button>`)
       .join("");
@@ -203,15 +246,33 @@ export class FinalTourPreview {
       button.className = `hotspot hotspot--${hotspot.type}`;
       button.dataset.yaw = String(hotspot.yaw);
       button.dataset.pitch = String(hotspot.pitch);
+      button.dataset.hotspotType = hotspot.type;
       button.textContent = hotspot.label ?? (hotspot.type === "scene" ? "Ir" : hotspot.type === "info" ? "Info" : "Abrir");
       button.addEventListener("click", () => {
-        if (hotspot.type === "scene") void this.goToScene(hotspot.targetScene);
+        if (hotspot.type === "scene") void this.followSceneHotspot(hotspot);
         else if (hotspot.type === "info") window.alert(`${hotspot.title}\n\n${hotspot.text}`);
         else window.open(hotspot.url, "_blank", "noopener");
       });
       this.hotspotLayer.append(button);
     }
     this.positionHotspots();
+  }
+
+  private activateNearbyHotspot(clientX: number, clientY: number): void {
+    let closest: { button: HTMLButtonElement; distance: number } | null = null;
+    for (const button of this.hotspotLayer.querySelectorAll<HTMLButtonElement>(".hotspot--scene:not([hidden])")) {
+      const bounds = button.getBoundingClientRect();
+      const distance = Math.hypot(clientX - (bounds.left + bounds.width / 2), clientY - (bounds.top + bounds.height / 2));
+      if (distance <= 110 && (!closest || distance < closest.distance)) closest = { button, distance };
+    }
+    closest?.button.click();
+  }
+
+  private toggleSceneMenu(force?: boolean): void {
+    const open = force ?? !this.dialog.classList.contains("is-scenes-open");
+    this.dialog.classList.toggle("is-scenes-open", open);
+    this.sceneToggle.setAttribute("aria-expanded", String(open));
+    this.sceneNav.setAttribute("aria-hidden", String(!open));
   }
 
   private positionHotspots(): void {

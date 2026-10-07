@@ -613,8 +613,9 @@ async function verifyExportedViewer(context, archive) {
     });
   });
   await viewerPage.goto("http://export.local/index.html");
+  await viewerPage.getByRole("button", { name: /Escenas/ }).click();
   await viewerPage.getByRole("heading", { name: "Nuevo tour 360" }).waitFor({ state: "visible" });
-  await viewerPage.getByRole("button", { name: "Entrada Real" }).waitFor({ state: "visible" });
+  await viewerPage.getByRole("button", { name: "Entrada Real", exact: true }).waitFor({ state: "visible" });
   await viewerPage.locator(".viewer-canvas canvas").first().waitFor({ state: "visible" });
   await viewerPage.close();
 }

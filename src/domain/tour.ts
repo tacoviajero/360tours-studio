@@ -19,6 +19,7 @@ export interface BaseHotspot {
 export interface SceneHotspot extends BaseHotspot {
   type: "scene";
   targetScene: string;
+  targetYaw?: number;
 }
 
 export interface InfoHotspot extends BaseHotspot {
@@ -89,4 +90,3 @@ export interface ValidationIssue {
   code: string;
   message: string;
 }
-
