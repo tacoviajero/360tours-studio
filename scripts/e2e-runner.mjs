@@ -60,6 +60,25 @@ async function runChecks() {
     await focusByKeyboard(page, "[data-action='load-demo']", "Cargar demo tecnico");
     await page.keyboard.press("Enter");
     await page.getByText("Demo local lista. No necesita conexion a internet.").waitFor({ state: "visible" });
+    await page.evaluate(() => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      const key = projectId ? `360tours-project:${projectId}` : "";
+      const project = key ? JSON.parse(localStorage.getItem(key) ?? "null") : null;
+      const sala = project?.scenes.find((scene) => scene.id === "sala");
+      if (!sala) throw new Error("No se encontro Sala para preparar la regresion de duplicados.");
+      sala.hotspots.push({
+        id: "auto-next-cocina",
+        type: "scene",
+        yaw: -1.57,
+        pitch: 0,
+        targetScene: "cocina",
+        label: "Ir a Cocina"
+      });
+      localStorage.setItem(key, JSON.stringify(project));
+    });
+    await page.reload();
+    await page.getByText("Proyecto recuperado. Se elimino 1 conexion duplicada.").waitFor({ state: "visible" });
+    await assertStoredConnectionCount(page, "sala", "cocina", 1, "sala-cocina");
     await assertAccessibleControls(page);
     await focusByKeyboard(page, "[data-scene-id='sala']", "escena Sala");
     await page.keyboard.press("Enter");
@@ -99,6 +118,7 @@ async function runChecks() {
     }
     await page.locator("[data-scene-id='sala'].is-active").waitFor({ state: "visible" });
     await assertStoredHotspotTarget(page, "sala", createdHotspotId, "cocina");
+    await assertStoredConnectionCount(page, "sala", "cocina", 1, createdHotspotId);
 
     const createdLabel = createdConnectionEditor.locator("[data-hotspot-field='label']");
     await createdLabel.fill("Paso a Cocina");
@@ -528,6 +548,20 @@ async function assertStoredHotspotTarget(page, sceneId, hotspotId, expectedTarge
       return hotspot?.type === "scene" && hotspot.targetScene === targetSceneId;
     },
     { sceneId, hotspotId, expectedTarget }
+  );
+}
+
+async function assertStoredConnectionCount(page, sceneId, targetSceneId, expectedCount, expectedId) {
+  await page.waitForFunction(
+    ({ sceneId: sourceSceneId, targetSceneId: destinationId, expectedCount: count, expectedId: connectionId }) => {
+      const projectId = localStorage.getItem("360tours-project:last");
+      const project = projectId ? JSON.parse(localStorage.getItem(`360tours-project:${projectId}`) ?? "null") : null;
+      const connections = project?.scenes
+        .find((scene) => scene.id === sourceSceneId)
+        ?.hotspots.filter((item) => item.type === "scene" && item.targetScene === destinationId) ?? [];
+      return connections.length === count && connections.some((item) => item.id === connectionId);
+    },
+    { sceneId, targetSceneId, expectedCount, expectedId }
   );
 }
 

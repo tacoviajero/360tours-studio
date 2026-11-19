@@ -15,6 +15,8 @@ interface PlanPoint {
 
   const lastUpdated = "6 octubre 2026";
   const recentChanges = [
+    "Las conexiones automaticas ahora son provisionales: al colocar una manual hacia el mismo destino, la manual la sustituye y conserva su posicion.",
+    "Los proyectos existentes eliminan duplicados al abrirse, prefiriendo enlaces manuales; Preparar recorrido ya no borra ni compite con conexiones colocadas por el usuario.",
     "Crear una conexion ahora exige elegir su destino y conserva tanto la escena origen como la orientacion visible; ya no salta a la primera escena.",
     "Etiquetas, destinos y posiciones de puntos interactivos se reflejan y guardan en el momento, con confirmaciones breves dentro del editor.",
     "El menu Anadir separa conexiones del recorrido de contenido externo; la prueba E2E cubre crear Sala a Cocina, editarla y colocarla sin abandonar Sala.",
@@ -97,7 +99,7 @@ const points: PlanPoint[] = [
   { id: 14, title: "Editor principal", phase: "Editor", percent: 99, status: "done", evidence: "Layout de escritorio probado desde 1366x768, Header global de lado a lado, columnas de 224/274 px, visor dominante e iconos con tooltips.", next: "Recoger observaciones de una sesion real con 30 a 50 escenas." },
   { id: 15, title: "Gestion de escenas", phase: "Editor", percent: 100, status: "done", evidence: "Renombrar, reordenar, eliminar con limpieza de assets, duplicar con archivos independientes, reemplazar panorama, fijar inicio, buscar y navegar ya funcionan.", next: "Validar estas operaciones durante un recorrido real de 30 a 50 escenas." },
   { id: 16, title: "Vista inicial de escena", phase: "Editor", percent: 95, status: "progress", evidence: "Guardar vista conserva yaw, pitch y fov; editor, Vista final y export usan los mismos limites y conversion exacta de zoom.", next: "Comparar lado a lado una orientacion real en editor y ZIP como aceptacion visual." },
-  { id: 17, title: "Editor visual de hotspots", phase: "Editor", percent: 100, status: "done", evidence: "Los puntos se crean desde su escena origen con destino explicito; etiquetas, destinos y posiciones se actualizan sin remontar el visor ni saltar de escena. Deshacer y rehacer restauran movimientos, altas y eliminaciones.", next: "Mantener la prueba Sala a Cocina como regresion obligatoria." },
+  { id: 17, title: "Editor visual de hotspots", phase: "Editor", percent: 100, status: "done", evidence: "Cada origen y destino conserva una sola conexion; las manuales reemplazan marcadores automaticos, y etiquetas, destinos y posiciones se actualizan sin remontar el visor ni saltar de escena.", next: "Mantener la limpieza de duplicados y la prueba Sala a Cocina como regresiones obligatorias." },
   { id: 18, title: "Puntos de informacion", phase: "Producto", percent: 86, status: "done", evidence: "Info, imagen, video y link se crean, editan, validan y exportan; info/media abren panel en el tour publicado.", next: "Detectar formatos embebibles de video con mensajes mas claros." },
   { id: 19, title: "Plano de planta", phase: "Producto", percent: 86, status: "done", evidence: "Importa multiples plantas, cambia la planta activa, renombra, elimina y ubica marcadores por escena; el export tambien permite alternar plantas.", next: "Agregar arrastre directo de marcadores y miniaturas de plano." },
   { id: 20, title: "Galeria", phase: "Producto", percent: 74, status: "progress", evidence: "Importar, previsualizar miniaturas, editar caption, eliminar y ordenar fotos ya funciona.", next: "Agregar reordenamiento por arrastre y vista ampliada." },

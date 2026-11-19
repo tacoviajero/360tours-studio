@@ -3,6 +3,7 @@ import { validateProjectAssets } from "../domain/assetValidation";
 import { createDemoPanoramaFile, demoProject } from "../domain/demoProject";
 import { getOriginalPanoramaPath, getPanoramaAssets, setPanoramaAssets } from "../domain/panoramaAssets";
 import { validateProject } from "../domain/validation";
+import { normalizeProjectSceneConnections, replaceSceneConnection } from "../domain/sceneConnections";
 import { JPEG360Importer } from "../importers/jpeg360Importer";
 import { isTauriRuntime, loadProjectFolderNative, saveProjectFolderNative } from "../platform/desktopBridge";
 import { BrowserProjectAssets } from "../project/browserAssets";
@@ -280,7 +281,8 @@ export class Tours360StudioApp {
   private async initialize(root: HTMLElement): Promise<void> {
     this.renderBrowserCompatibility(root);
     const recovery = await this.storage.recoverLast();
-    const savedProject = recovery.project;
+    let savedProject = recovery.project;
+    let removedDuplicateConnections = 0;
     if (savedProject && recovery.snapshotId && (await this.assets.hasSnapshotAssets(savedProject.id, recovery.snapshotId))) {
       try {
         await this.assets.restoreSnapshotAssets(savedProject.id, recovery.snapshotId);
@@ -290,6 +292,10 @@ export class Tours360StudioApp {
     }
     this.recentProjects = await this.storage.list();
     if (savedProject) {
+      const normalized = normalizeProjectSceneConnections(savedProject);
+      savedProject = normalized.project;
+      removedDuplicateConnections = normalized.removedCount;
+      if (removedDuplicateConnections > 0) await this.storage.save(savedProject);
       this.project = savedProject;
       this.activeSceneId = savedProject.startScene ?? savedProject.scenes[0]?.id ?? "";
       this.activeFloorplanId = savedProject.floorplans[0]?.id ?? "";
@@ -300,7 +306,14 @@ export class Tours360StudioApp {
 
     this.syncShellLayout(root);
     await this.renderWorkspace(root, true);
-    const initialMessage = interruptedImport ?? recovery.warning ?? (savedProject ? "Proyecto local recuperado y listo." : "Listo para crear un tour local.");
+    const initialMessage =
+      interruptedImport ??
+      recovery.warning ??
+      (removedDuplicateConnections > 0
+        ? `Proyecto recuperado. ${formatConnectionCleanup(removedDuplicateConnections)}`
+        : savedProject
+          ? "Proyecto local recuperado y listo."
+          : "Listo para crear un tour local.");
     this.renderPersistenceStatus(root, initialMessage, Boolean(interruptedImport || recovery.warning));
   }
 
@@ -549,15 +562,22 @@ export class Tours360StudioApp {
       if (target.dataset.projectId) {
         try {
           const project = await this.storage.load(target.dataset.projectId);
-          this.project = project;
-          this.activeSceneId = project.startScene ?? project.scenes[0]?.id ?? "";
-          this.activeFloorplanId = project.floorplans[0]?.id ?? "";
+          const normalized = normalizeProjectSceneConnections(project);
+          this.project = normalized.project;
+          if (normalized.removedCount > 0) await this.storage.save(this.project);
+          this.activeSceneId = this.project.startScene ?? this.project.scenes[0]?.id ?? "";
+          this.activeFloorplanId = this.project.floorplans[0]?.id ?? "";
           this.sceneFilter = "";
           this.selectedHotspotId = "";
           this.clearUndoHistory();
           this.syncTitleField(root);
           await this.renderWorkspace(root, true);
-          this.renderPersistenceStatus(root, "Proyecto local abierto.");
+          this.renderPersistenceStatus(
+            root,
+            normalized.removedCount > 0
+              ? `Proyecto abierto. ${formatConnectionCleanup(normalized.removedCount)}`
+              : "Proyecto local abierto."
+          );
         } catch (error) {
           this.renderPersistenceStatus(root, getErrorMessage(error), true);
         }
@@ -1180,31 +1200,18 @@ export class Tours360StudioApp {
     return hotspots;
   }
 
-  private replaceLinearSceneLinks(scene: Scene, previousScene: Scene | undefined, nextScene: Scene | undefined): Scene["hotspots"] {
-    const hotspots: Scene["hotspots"] = scene.hotspots.filter((hotspot) => hotspot.type !== "scene");
-
-    if (previousScene) {
-      hotspots.push(createLinearHotspot("prev", previousScene));
-    }
-
-    if (nextScene) {
-      hotspots.push(createLinearHotspot("next", nextScene));
-    }
-
-    return hotspots;
-  }
-
   private async repairLinearRoute(root: HTMLElement, target: HTMLElement): Promise<void> {
     if (this.project.scenes.length < 2) {
       return;
     }
 
     if (!(await this.saveSnapshot(root))) return;
+    const normalizedProject = normalizeProjectSceneConnections(this.project).project;
     this.project = {
-      ...this.project,
-      scenes: this.project.scenes.map((scene, index, scenes) => ({
+      ...normalizedProject,
+      scenes: normalizedProject.scenes.map((scene, index, scenes) => ({
         ...scene,
-        hotspots: this.replaceLinearSceneLinks(scene, scenes[index - 1], scenes[index + 1])
+        hotspots: this.mergeLinearSceneLinks(scene, scenes[index - 1], scenes[index + 1])
       }))
     };
     await this.persistAndRender(root, true);
@@ -1219,12 +1226,13 @@ export class Tours360StudioApp {
 
     const startSceneId = this.project.scenes[0].id;
     if (!(await this.saveSnapshot(root))) return;
+    const normalizedProject = normalizeProjectSceneConnections(this.project).project;
     this.project = {
-      ...this.project,
+      ...normalizedProject,
       startScene: startSceneId,
-      scenes: this.project.scenes.map((scene, index, scenes) => ({
+      scenes: normalizedProject.scenes.map((scene, index, scenes) => ({
         ...scene,
-        hotspots: this.replaceLinearSceneLinks(scene, scenes[index - 1], scenes[index + 1])
+        hotspots: this.mergeLinearSceneLinks(scene, scenes[index - 1], scenes[index + 1])
       }))
     };
     this.activeSceneId = startSceneId;
@@ -1242,6 +1250,9 @@ export class Tours360StudioApp {
 
   private async saveProject(root: HTMLElement): Promise<boolean> {
     try {
+      const normalized = normalizeProjectSceneConnections(this.project);
+      this.project = normalized.project;
+      if (normalized.removedCount > 0) this.renderer?.updateProject(this.project);
       await this.storage.save(this.project);
       this.renderPersistenceStatus(root, "Guardado local.");
       return true;
@@ -2758,7 +2769,15 @@ export class Tours360StudioApp {
     this.project = {
       ...this.project,
       scenes: this.project.scenes.map((scene) =>
-        scene.id === sourceSceneId ? { ...scene, hotspots: [...scene.hotspots, hotspot] } : scene
+        scene.id === sourceSceneId
+          ? {
+              ...scene,
+              hotspots:
+                hotspot.type === "scene"
+                  ? replaceSceneConnection(scene.hotspots, hotspot)
+                  : [...scene.hotspots, hotspot]
+            }
+          : scene
       )
     };
     this.renderer?.updateProject(this.project);
@@ -2773,9 +2792,15 @@ export class Tours360StudioApp {
         scene.id === this.activeSceneId
           ? {
               ...scene,
-              hotspots: scene.hotspots.map((hotspot) =>
-                updateHotspotField(hotspot, hotspotId, field, value, this.project.scenes)
-              )
+              hotspots: scene.hotspots
+                .filter(
+                  (hotspot) =>
+                    field !== "targetScene" ||
+                    hotspot.id === hotspotId ||
+                    hotspot.type !== "scene" ||
+                    hotspot.targetScene !== value
+                )
+                .map((hotspot) => updateHotspotField(hotspot, hotspotId, field, value, this.project.scenes))
             }
           : scene
       )
@@ -3329,6 +3354,10 @@ function createProjectId(prefix: string): string {
   const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 17);
   const random = Math.random().toString(36).slice(2, 6);
   return `${prefix}-${timestamp}-${random}`;
+}
+
+function formatConnectionCleanup(count: number): string {
+  return count === 1 ? "Se elimino 1 conexion duplicada." : `Se eliminaron ${count} conexiones duplicadas.`;
 }
 
 function formatRelativeDate(value: string): string {

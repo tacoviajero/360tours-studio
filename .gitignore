@@ -30,3 +30,7 @@ config/*
 Thumbs.db
 .idea/
 .vscode/
+
+# Local assistant configuration and generated design reviews.
+.codex/
+.impeccable/

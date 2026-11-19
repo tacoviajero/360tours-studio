@@ -58,6 +58,8 @@ Este archivo resume el estado actual para retomar 360Tours Studio sin depender d
 - Guardar vista inicial de escena.
 - Crear hotspots de navegacion, informacion, imagen, video y link.
 - Elegir explicitamente el destino antes de colocar una conexion y mantener fija la escena origen durante toda la operacion.
+- Mantener una sola conexion por origen y destino; una conexion manual sustituye cualquier marcador automatico o duplicado anterior.
+- Limpiar proyectos existentes al abrirlos, prefiriendo siempre la posicion manual sobre la posicion provisional generada por el sistema.
 - Editar etiqueta, destino y posicion con actualizacion inmediata del panorama, sin recargar ni volver a la primera escena.
 - Separar en el menu de creacion las conexiones del recorrido del contenido externo de informacion, imagen, video y enlace.
 - Arrastrar hotspots directamente sobre el panorama y guardar su posicion sin activar el enlace.
